@@ -1,20 +1,20 @@
-import { Router } from "@solidjs/router";
-import { FileRoutes } from "@solidjs/start/router";
-import { Suspense } from "solid-js";
-import Nav from "~/components/Nav";
-import "./app.css";
+import { Router, Route } from '@solidjs/router';
+import { Suspense } from 'solid-js';
 
-export default function App() {
+import Login from './routes/login';
+import Signup from './routes/signup';
+
+
+function App() {
   return (
-    <Router
-      root={props => (
-        <>
-          <Nav />
-          <Suspense>{props.children}</Suspense>
-        </>
-      )}
-    >
-      <FileRoutes />
+    <Router>
+      <Suspense fallback={<div>Lädt...</div>}>
+        <Route path="/" component={Login} />
+        <Route path="/login" component={Login} />
+        <Route path="/signup" component={Signup} />
+      </Suspense>
     </Router>
   );
 }
+
+export default App;
