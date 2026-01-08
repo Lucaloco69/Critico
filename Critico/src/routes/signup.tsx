@@ -1,23 +1,7 @@
-import { createSignal, createEffect, For } from "solid-js";
+import { createSignal, createEffect } from "solid-js";
 import { useNavigate, A } from "@solidjs/router";
-import { createClient } from "@supabase/supabase-js";
-import sessionStore, { isLoggedIn } from "../lib/sessionStore";
-import { createUser} from "../server/auth";
-
-interface Division {
-  Division_ID: number;
-  name: string;
-}
-
-// Client-Supabase mit publishable Key (VITE_ Prefix!)
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-if (!supabaseUrl || !supabasePublishableKey) {
-  throw new Error("❌ Supabase Config fehlt! Prüfe .env");
-}
-
-export const supabaseClient = createClient(supabaseUrl, supabasePublishableKey);
+import { supabase } from "../lib/supabaseClient";
+import { isLoggedIn } from "../lib/sessionStore";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -44,26 +28,56 @@ export default function Signup() {
 
     try {
       console.log("🔐 Starting signup for:", email());
-     
 
-      // 2. Erstelle User (Server-Side mit Service Key)
-      const profileResult = await createUser(
-        email(),
-        password(),
-        firstName(),
-        lastName()  // ✅ Jetzt auch Namen übergeben!
-      );
+      // 1. Erstelle Auth User
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email(),
+        password: password(),
+        options: {
+          data: {
+            firstName: firstName(),
+            lastName: lastName()
+          }
+        }
+      });
 
-      console.log("📊 Signup result:", profileResult);
-
-      if (!profileResult.success) {
-        console.error("❌ User creation failed:", profileResult.error);
-        throw new Error(`Registrierung fehlgeschlagen: ${profileResult.error}`);
+      if (authError) {
+        console.error("❌ Auth creation failed:", authError);
+        throw authError;
       }
 
-      console.log("✅ Signup successful!");
+      if (!authData.user) {
+        throw new Error("User creation failed");
+      }
+
+      console.log("✅ Auth user created:", authData.user.id);
+
+      // 2. Erstelle User-Profil (✅ Angepasst an deine Spalten!)
+      const { data: user, error: userError } = await supabase
+        .from("User")
+        .insert({
+          auth_id: authData.user.id,    // ✅ auth_id (lowercase!)
+          name: firstName(),             // ✅ name statt first_name
+          surname: lastName(),           // ✅ surname statt last_name
+          email: email()                 // ✅ email
+        })
+        .select()
+        .single();
+
+      if (userError) {
+        console.error("❌ User profile creation failed:", userError);
+        throw userError;
+      }
+
+      console.log("✅ User profile created:", user.id);
+
       setMessage(`Registrierung erfolgreich! Willkommen ${firstName()} ${lastName()}!`);
       
+      // Optional: Zeige Message für Email-Bestätigung
+      if (authData.user.identities?.length === 0) {
+        setMessage("Bitte bestätige deine Email-Adresse!");
+      }
+
       setTimeout(() => {
         navigate("/login", { replace: true });
       }, 2000);
@@ -165,6 +179,17 @@ export default function Signup() {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 {error()}
+              </p>
+            </div>
+          )}
+
+          {message() && (
+            <div class="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
+              <p class="text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {message()}
               </p>
             </div>
           )}
