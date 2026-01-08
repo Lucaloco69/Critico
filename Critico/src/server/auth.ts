@@ -1,19 +1,26 @@
 "use server";
 
-import { supabaseAdmin } from "./supabaseAdmin";
+import type { PostgrestError } from '@supabase/supabase-js';
 
-export async function createUser(username: string, password: string) {
-  "use server";
-  
+export async function createUser(
+  email: string,      // ✅ Echte E-Mail als username!
+  password: string,
+  firstName: string,
+  lastName: string
+) {
   const { supabaseAdmin } = await import("./supabaseAdmin");
 
   try {
-    console.log("🚀 Creating user:", { username });
+    console.log("🚀 Creating user:", { email, firstName, lastName });
 
-    // 1. Erstelle Supabase Auth User (mit username als email)
+    // 1. Erstelle Supabase Auth User mit echter E-Mail
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: `${username.toLowerCase()}@critico.local`,  // Dummy-Email
+      email: email,
       password: password,
+      user_metadata: {
+        firstName,
+        lastName
+      },
       email_confirm: true
     });
 
@@ -24,11 +31,14 @@ export async function createUser(username: string, password: string) {
 
     console.log("✅ Auth user created:", authData.user.id);
 
-    // 2. Erstelle User direkt
+    // 2. Erstelle User-Profil 
     const { data: user, error: userError } = await supabaseAdmin
       .from("User")
       .insert({
-        username: username
+        username: email,     // ✅ username = E-Mail
+        Auth_ID: authData.user.id,
+        first_name: firstName,
+        last_name: lastName,
       })
       .select()
       .single();
@@ -44,7 +54,8 @@ export async function createUser(username: string, password: string) {
     return {
       success: true,
       userId: user.User_ID,
-      username: username
+      email: email,
+      authId: authData.user.id
     };
 
   } catch (error: any) {
@@ -55,18 +66,13 @@ export async function createUser(username: string, password: string) {
     };
   }
 }
-
-
-// Einfache Auth-Funktion für normale User (Worker/Admin) - nur Prüfung
+/*
 export async function authorizeUser() {
-  "use server";
-  
   const { supabaseAdmin } = await import("./supabaseAdmin");
 
   try {
     console.log("🔐 Authorizing user...");
 
-    // Einfache Prüfung: Gibt es überhaupt User in der Tabelle?
     const { data: users, error } = await supabaseAdmin
       .from("User")
       .select("User_ID")
@@ -77,13 +83,11 @@ export async function authorizeUser() {
       return {
         success: false,
         authorized: false,
-        message: "Authentifizierung fehlgeschlagen"
+        message: error.message
       };
     }
 
-    // Wenn User existieren, ist Auth OK
     const authorized = !!(users && users.length > 0);
-
     console.log("✅ Authorization check:", authorized ? "OK" : "FAILED");
 
     return {
@@ -99,3 +103,4 @@ export async function authorizeUser() {
     };
   }
 }
+*/

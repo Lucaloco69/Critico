@@ -1,13 +1,23 @@
-import { createSignal, createEffect, onMount, For } from "solid-js";
+import { createSignal, createEffect, For } from "solid-js";
 import { useNavigate, A } from "@solidjs/router";
-import { supabase } from "../lib/supabaseClient"; 
+import { createClient } from "@supabase/supabase-js";
 import sessionStore, { isLoggedIn } from "../lib/sessionStore";
-import { createUser, authorizeUser } from "../server/auth";
+import { createUser} from "../server/auth";
 
 interface Division {
   Division_ID: number;
   name: string;
 }
+
+// Client-Supabase mit publishable Key (VITE_ Prefix!)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+if (!supabaseUrl || !supabasePublishableKey) {
+  throw new Error("❌ Supabase Config fehlt! Prüfe .env");
+}
+
+export const supabaseClient = createClient(supabaseUrl, supabasePublishableKey);
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -20,9 +30,8 @@ export default function Signup() {
 
   const [email, setEmail] = createSignal("");
   const [password, setPassword] = createSignal("");
-  const [name, setName] = createSignal("");
-  const [divisionId, setDivisionId] = createSignal<number>(1);
-  const [divisions, setDivisions] = createSignal<Division[]>([]);
+  const [firstName, setFirstName] = createSignal("");
+  const [lastName, setLastName] = createSignal("");
   const [loading, setLoading] = createSignal(false);
   const [message, setMessage] = createSignal("");
   const [error, setError] = createSignal("");
@@ -35,21 +44,15 @@ export default function Signup() {
 
     try {
       console.log("🔐 Starting signup for:", email());
+     
 
-      // 1. Einfache Auth-Prüfung
-      const authResult = await authorizeUser();
-
-      if (!authResult.success || !authResult.authorized) {
-        console.error("❌ Authorization failed");
-        throw new Error("Authentifizierung fehlgeschlagen");
-      }
-
-      console.log("✅ Authorization successful");
-
-      // 2. Erstelle User
+      // 2. Erstelle User (Server-Side mit Service Key)
       const profileResult = await createUser(
         email(),
-        password());
+        password(),
+        firstName(),
+        lastName()  // ✅ Jetzt auch Namen übergeben!
+      );
 
       console.log("📊 Signup result:", profileResult);
 
@@ -59,7 +62,7 @@ export default function Signup() {
       }
 
       console.log("✅ Signup successful!");
-      setMessage(`Registrierung erfolgreich! Willkommen ${name()}!`);
+      setMessage(`Registrierung erfolgreich! Willkommen ${firstName()} ${lastName()}!`);
       
       setTimeout(() => {
         navigate("/login", { replace: true });
@@ -92,16 +95,31 @@ export default function Signup() {
 
         <form class="space-y-5" onSubmit={handleSignup}>
           <div>
-            <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Name
+            <label for="firstName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Vorname
             </label>
             <input
-              id="name"
+              id="firstName"
               type="text"
               class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
-              value={name()}
-              onInput={(e) => setName(e.currentTarget.value)}
-              placeholder="Max Mustermann"
+              value={firstName()}
+              onInput={(e) => setFirstName(e.currentTarget.value)}
+              placeholder="Max"
+              required
+            />
+          </div>
+
+          <div>
+            <label for="lastName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Nachname
+            </label>
+            <input
+              id="lastName"
+              type="text"
+              class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
+              value={lastName()}
+              onInput={(e) => setLastName(e.currentTarget.value)}
+              placeholder="Mustermann"
               required
             />
           </div>
@@ -140,38 +158,6 @@ export default function Signup() {
             </p>
           </div>
 
-          <div>
-            <label for="division" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Abteilung
-            </label>
-            <select
-              id="division"
-              class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
-              value={divisionId()}
-              onChange={(e) => setDivisionId(Number(e.currentTarget.value))}
-              required
-            >
-              <For each={divisions()}>
-                {(division) => (
-                  <option value={division.Division_ID}>
-                    {division.name}
-                  </option>
-                )}
-              </For>
-            </select>
-          </div>
-          
-          {message() && (
-            <div class="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
-              <p class="text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {message()}
-              </p>
-            </div>
-          )}
-          
           {error() && (
             <div class="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
               <p class="text-sm text-red-700 dark:text-red-300 flex items-center gap-2">

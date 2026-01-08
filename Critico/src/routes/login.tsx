@@ -2,7 +2,6 @@ import { createSignal, createEffect } from "solid-js";
 import { useNavigate, A } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import sessionStore, { setSession, isLoggedIn } from "../lib/sessionStore";
-import { authorizeUser } from "../server/auth";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -38,16 +37,6 @@ export default function Login() {
       }
 
       console.log("✅ Auth login successful");
-
-      // 2. Einfache Auth-Prüfung
-      const authResult = await authorizeUser();
-
-      if (!authResult.success || !authResult.authorized) {
-        console.error("❌ Authorization failed");
-        throw new Error("Authentifizierung fehlgeschlagen");
-      }
-
-      console.log("✅ Authorization successful");
 
       // 3. Speichere Session (ohne User-Daten)
       setSession({
