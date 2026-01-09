@@ -8,7 +8,7 @@ export default function Login() {
 
   createEffect(() => {
     if (isLoggedIn()) {
-      navigate("/messages", { replace: true });
+      navigate("/home", { replace: true });
     }
   });
 
@@ -46,7 +46,7 @@ export default function Login() {
 
       console.log("✅ Login complete!");
 
-      navigate("/messages", { replace: true });
+      navigate("/home", { replace: true });
 
     } catch (err: any) {
       console.error("💥 Login error:", err);
