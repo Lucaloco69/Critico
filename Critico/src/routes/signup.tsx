@@ -59,7 +59,8 @@ export default function Signup() {
           auth_id: authData.user.id,    // ✅ auth_id (lowercase!)
           name: firstName(),             // ✅ name statt first_name
           surname: lastName(),           // ✅ surname statt last_name
-          email: email()                 // ✅ email
+          email: email() 
+                          // ✅ email
         })
         .select()
         .single();

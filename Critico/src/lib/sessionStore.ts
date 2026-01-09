@@ -19,6 +19,14 @@ const [sessionStore, setSessionStore] = createStore<SessionData>({
 
 // Helper function statt Getter
 export const isLoggedIn = () => !!sessionStore.session;
+export const getSession = () => {
+  return {
+    session: sessionStore.session,
+    user: sessionStore.user,
+    userId: sessionStore.userId,
+    username: sessionStore.username,
+  };
+};
 
 export const setSession = (data: Partial<SessionData>) => {
   const userId = data.user?.app_metadata?.user_id || null;

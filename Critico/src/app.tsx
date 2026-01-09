@@ -3,7 +3,8 @@ import { Suspense } from 'solid-js';
 import { Home } from './routes/home';  // ✅ Named import statt default
 import Login from './routes/login';
 import Signup from './routes/signup';
-
+import Profile from './routes/profile';
+import CreateProduct from './routes/createProduct';
 
 function App() {
   return (
@@ -13,6 +14,8 @@ function App() {
         <Route path="/login" component={Login} />
         <Route path="/signup" component={Signup} />
         <Route path="/home" component={Home} />
+        <Route path= "/profile" component={Profile} />
+        <Route path= "/createProduct" component={CreateProduct} /> 
 
       </Suspense>
     </Router>
