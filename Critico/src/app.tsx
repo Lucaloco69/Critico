@@ -5,6 +5,7 @@ import Login from './routes/login';
 import Signup from './routes/signup';
 import Profile from './routes/profile';
 import CreateProduct from './routes/createProduct';
+import ProductDetails from './routes/productDetails';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path="/home" component={Home} />
         <Route path= "/profile" component={Profile} />
         <Route path= "/createProduct" component={CreateProduct} /> 
+        <Route path="/productDetails/:id" component={ProductDetails} />
 
       </Suspense>
     </Router>

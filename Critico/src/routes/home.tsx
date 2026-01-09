@@ -246,7 +246,7 @@ export  function Home() {
           <For each={filteredProducts()}>
             {(product) => (
               <A
-                href={`/product/${product.id}`}
+                href={`/productDetails/${product.id}`}
                 class="group bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-xl transition-all overflow-hidden"
               >
                 {/* Bild */}
