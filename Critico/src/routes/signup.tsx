@@ -1,7 +1,7 @@
 import { createSignal, createEffect } from "solid-js";
 import { useNavigate, A } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
-import { isLoggedIn } from "../lib/sessionStore";
+import { isLoggedIn, setSession } from "../lib/sessionStore";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -29,7 +29,7 @@ export default function Signup() {
     try {
       console.log("🔐 Starting signup for:", email());
 
-      // 1. Erstelle Auth User
+      // 1. Erstelle Auth User mit JWT-Session
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email(),
         password: password(),
@@ -43,6 +43,12 @@ export default function Signup() {
 
       if (authError) {
         console.error("❌ Auth creation failed:", authError);
+        
+        // Spezifische Fehlermeldungen für bessere UX
+        if (authError.message.includes("already registered")) {
+          setError("Diese E-Mail ist bereits registriert. Bitte melde dich an.");
+          return;
+        }
         throw authError;
       }
 
@@ -52,36 +58,51 @@ export default function Signup() {
 
       console.log("✅ Auth user created:", authData.user.id);
 
-      // 2. Erstelle User-Profil (✅ Angepasst an deine Spalten!)
+      // 2. Speichere JWT Session direkt (wenn auto-confirm enabled oder magic-link)
+      if (authData.session) {
+        console.log("✅ Auto-login successful, JWT saved");
+        setSession(authData.session); // Speichert JWT + refresh token
+        setMessage(`Willkommen ${firstName()} ${lastName()}! Du bist jetzt eingeloggt.`);
+        setTimeout(() => {
+          navigate("/home", { replace: true });
+        }, 1500);
+        return;
+      }
+
+      // 3. Erstelle User-Profil in User-Tabelle
       const { data: user, error: userError } = await supabase
         .from("User")
         .insert({
-          auth_id: authData.user.id,    // ✅ auth_id (lowercase!)
-          name: firstName(),             // ✅ name statt first_name
-          surname: lastName(),           // ✅ surname statt last_name
-          email: email() 
-                          // ✅ email
+          auth_id: authData.user.id,
+          name: firstName(),
+          surname: lastName(),
+          email: email()
         })
         .select()
         .single();
 
       if (userError) {
         console.error("❌ User profile creation failed:", userError);
-        throw userError;
+        
+        // Lösche Auth User bei Profil-Fehler (Cleanup)
+        await supabase.auth.signOut();
+        throw new Error("Profil konnte nicht erstellt werden. Bitte versuche es erneut.");
       }
 
       console.log("✅ User profile created:", user.id);
 
-      setMessage(`Registrierung erfolgreich! Willkommen ${firstName()} ${lastName()}!`);
-      
-      // Optional: Zeige Message für Email-Bestätigung
-      if (authData.user.identities?.length === 0) {
-        setMessage("Bitte bestätige deine Email-Adresse!");
-      }
+      // 4. Bestätigungsphase (Email-Bestätigung erforderlich)
+      setMessage(
+        authData.user.email_confirmed_at 
+          ? `Willkommen ${firstName()} ${lastName()}!`
+          : "Registrierung erfolgreich! Bitte prüfe deine E-Mails für die Bestätigung."
+      );
 
+      // 5. Optional: Auto-Login nach Email-Confirm (Client-seitig)
+      // User wird nach Bestätigung zum Login weitergeleitet
       setTimeout(() => {
         navigate("/login", { replace: true });
-      }, 2000);
+      }, 2500);
 
     } catch (err: any) {
       console.error("💥 Signup error:", err);
@@ -92,10 +113,10 @@ export default function Signup() {
   };
 
   return (
-    <div class="flex items-center justify-center min-h-[90vh] bg-linear-to-br from-sky-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+    <div class="flex items-center justify-center min-h-[90vh] bg-gradient-to-br from-sky-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
       <div class="w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 rounded-2xl shadow-xl">
         <div class="text-center">
-          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-linear-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-lg">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-lg">
             <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
             </svg>
@@ -198,7 +219,7 @@ export default function Signup() {
           <button
             type="submit"
             disabled={loading()}
-            class="w-full py-3 px-4 bg-linear-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold disabled:cursor-not-allowed hover:scale-[1.02] disabled:hover:scale-100"
+            class="w-full py-3 px-4 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold disabled:cursor-not-allowed hover:scale-[1.02] disabled:hover:scale-100"
           >
             {loading() ? (
               <span class="flex items-center justify-center gap-2">

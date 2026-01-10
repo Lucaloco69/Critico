@@ -251,10 +251,10 @@ export default function Profile() {
 
               <Show when={uploading()}>
                 <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <p class="text-sm text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                  <div class="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
                     <div class="w-4 h-4 border-2 border-blue-700 border-t-transparent rounded-full animate-spin"></div>
                     Wird hochgeladen...
-                  </p>
+                  </div>
                 </div>
               </Show>
 

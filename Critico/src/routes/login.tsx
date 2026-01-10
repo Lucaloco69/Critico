@@ -25,7 +25,7 @@ export default function Login() {
     try {
       console.log("🔐 Attempting login for:", email());
 
-      // 1. Supabase Auth Login
+      // 1. Supabase Auth Login (JWT wird automatisch generiert)
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: email(),
         password: password(),
@@ -36,16 +36,21 @@ export default function Login() {
         throw new Error("E-Mail oder Passwort falsch");
       }
 
-      console.log("✅ Auth login successful");
+      if (!data.session || !data.user) {
+        throw new Error("Keine Session erhalten");
+      }
 
-      // 3. Speichere Session (ohne User-Daten)
+      console.log("✅ Auth login successful:", data.user.id);
+      console.log("🔑 JWT Token:", data.session.access_token?.substring(0, 20) + "...");
+
+      // 2. Session + JWT in Store speichern
       setSession({
         session: data.session,
-        user: data.user
+        user: data.user,
+        // JWT ist automatisch in data.session.access_token
       });
 
-      console.log("✅ Login complete!");
-
+      console.log("✅ Login complete! Redirecting...");
       navigate("/home", { replace: true });
 
     } catch (err: any) {
@@ -60,7 +65,7 @@ export default function Login() {
     <div class="flex items-center justify-center min-h-[90vh] bg-linear-to-br from-sky-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
       <div class="w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 rounded-2xl shadow-xl">
         <div class="text-center">
-          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-linear-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-lg">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-linear-to-r from-sky-500 to-blue-600 flex items-center justify-center shadow-lg">
             <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
             </svg>
