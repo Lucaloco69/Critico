@@ -1,7 +1,8 @@
-import { createSignal, createEffect, For, Show } from "solid-js";
+import { createSignal, createEffect, For, Show, onCleanup } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
-import { isLoggedIn } from "../lib/sessionStore";
+import sessionStore, { isLoggedIn } from "../lib/sessionStore";
+
 
 interface Product {
   id: number;
@@ -12,12 +13,14 @@ interface Product {
   tags?: { id: number; name: string }[];
 }
 
+
 interface Tag {
   id: number;
   name: string;
 }
 
-export  function Home() {
+
+export function Home() {
   const navigate = useNavigate();
   
   const [products, setProducts] = createSignal<Product[]>([]);
@@ -27,11 +30,93 @@ export  function Home() {
   const [searchQuery, setSearchQuery] = createSignal("");
   const [showFilterDropdown, setShowFilterDropdown] = createSignal(false);
   const [loading, setLoading] = createSignal(true);
+  const [requestCount, setRequestCount] = createSignal(0); // 🆕
+  const [currentUserId, setCurrentUserId] = createSignal<number | null>(null); // 🆕
+
+
+  // 🆕 Lade User-ID einmal beim Start
+  createEffect(async () => {
+    if (!isLoggedIn() || !sessionStore.user) return;
+
+    try {
+      const { data: userData } = await supabase
+        .from("User")
+        .select("id")
+        .eq("auth_id", sessionStore.user.id)
+        .single();
+
+      if (userData) {
+        setCurrentUserId(userData.id);
+      }
+    } catch (err) {
+      console.error("Error loading user:", err);
+    }
+  });
+
+
+  // 🆕 Lade Request Count wenn User-ID vorhanden
+  createEffect(() => {
+    const userId = currentUserId();
+    if (!userId) return;
+
+    // Initial laden
+    loadRequestCount(userId);
+
+    // Realtime Subscription
+    const channel = supabase
+      .channel("requests_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "Requests",
+        },
+        () => {
+          loadRequestCount(userId);
+        }
+      )
+      .subscribe();
+
+    // Cleanup
+    onCleanup(() => {
+      supabase.removeChannel(channel);
+    });
+  });
+
+
+  // 🆕 Helper-Funktion zum Laden der Request Count
+  const loadRequestCount = async (userId: number) => {
+    try {
+      const { data, error } = await supabase
+        .from("Requests")
+        .select(`
+          id,
+          status,
+          Product!inner (
+            owner_id
+          )
+        `);
+
+      if (error) throw error;
+
+      // Filtere: Nur pending Requests für MEINE Produkte
+      const myPendingRequests = (data || []).filter(
+        (r: any) => r.Product.owner_id === userId && r.status === null
+      );
+
+      setRequestCount(myPendingRequests.length);
+    } catch (err) {
+      console.error("Error loading request count:", err);
+    }
+  };
+
 
   // Lade Produkte + Tags aus DB
   createEffect(async () => {
     try {
       setLoading(true);
+
 
       // Hole alle Tags
       const { data: tagsData, error: tagsError } = await supabase
@@ -39,8 +124,10 @@ export  function Home() {
         .select("id, name")
         .order("name");
 
+
       if (tagsError) throw tagsError;
       setTags(tagsData || []);
+
 
       // Hole alle Produkte mit ihren Tags (via Product_Tags join)
       const { data: productsData, error: productsError } = await supabase
@@ -61,7 +148,9 @@ export  function Home() {
         `)
         .order("id", { ascending: false });
 
+
       if (productsError) throw productsError;
+
 
       // Transformiere das Nested-Result in flache Struktur
       const transformedProducts = (productsData || []).map((p: any) => ({
@@ -73,6 +162,7 @@ export  function Home() {
         tags: p.Product_Tags?.map((pt: any) => pt.Tags).filter(Boolean) || [],
       }));
 
+
       setProducts(transformedProducts);
       setFilteredProducts(transformedProducts);
     } catch (err) {
@@ -82,12 +172,15 @@ export  function Home() {
     }
   });
 
+
   // Filter-Logik (Tags + Search)
   createEffect(() => {
     const query = searchQuery().toLowerCase();
     const selected = selectedTags();
 
+
     let filtered = products();
+
 
     // Filter nach Tags
     if (selected.length > 0) {
@@ -95,6 +188,7 @@ export  function Home() {
         p.tags?.some((t) => selected.includes(t.id))
       );
     }
+
 
     // Filter nach Suchbegriff
     if (query) {
@@ -105,14 +199,17 @@ export  function Home() {
       );
     }
 
+
     setFilteredProducts(filtered);
   });
+
 
   const toggleTag = (tagId: number) => {
     setSelectedTags((prev) =>
       prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
     );
   };
+
 
   const handleCreateProduct = () => {
     if (!isLoggedIn()) {
@@ -121,6 +218,7 @@ export  function Home() {
       navigate("/createProduct");
     }
   };
+
 
   return (
     <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -131,6 +229,7 @@ export  function Home() {
           <A href="/" class="text-2xl font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 transition-colors">
             Critico
           </A>
+
 
           {/* Filter Dropdown */}
           <div class="relative">
@@ -148,6 +247,7 @@ export  function Home() {
                 </span>
               </Show>
             </button>
+
 
             {/* Dropdown */}
             <Show when={showFilterDropdown()}>
@@ -178,6 +278,7 @@ export  function Home() {
             </Show>
           </div>
 
+
           {/* Suchleiste */}
           <div class="flex-1 max-w-xl">
             <div class="relative">
@@ -194,14 +295,25 @@ export  function Home() {
             </div>
           </div>
 
+
           {/* Action Icons */}
           <div class="flex items-center gap-3">
-            {/* Nachrichten */}
-            <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            {/* Nachrichten / Anfragen 🆕 */}
+            <A 
+              href="/requests" 
+              class="relative p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
               <svg class="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-            </button>
+              {/* 🆕 Badge mit Anzahl */}
+              <Show when={requestCount() > 0}>
+                <span class="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
+                  {requestCount()}
+                </span>
+              </Show>
+            </A>
+
 
             {/* Gespeichert */}
             <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
@@ -210,12 +322,14 @@ export  function Home() {
               </svg>
             </button>
 
+
             {/* Profil */}
             <A href={isLoggedIn() ? "/profile" : "/login"} class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
               <svg class="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </A>
+
 
             {/* Artikel einstellen Button */}
             <button
@@ -228,6 +342,7 @@ export  function Home() {
         </div>
       </header>
 
+
       {/* Produkt-Grid */}
       <main class="max-w-7xl mx-auto px-4 py-8">
         <Show when={loading()}>
@@ -236,11 +351,13 @@ export  function Home() {
           </div>
         </Show>
 
+
         <Show when={!loading() && filteredProducts().length === 0}>
           <div class="text-center py-20">
             <p class="text-gray-500 dark:text-gray-400 text-lg">Keine Produkte gefunden.</p>
           </div>
         </Show>
+
 
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           <For each={filteredProducts()}>
@@ -268,6 +385,7 @@ export  function Home() {
                     />
                   </Show>
                 </div>
+
 
                 {/* Info */}
                 <div class="p-3">

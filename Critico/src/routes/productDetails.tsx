@@ -3,14 +3,17 @@ import { useParams, A, useNavigate } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import { isLoggedIn } from "../lib/sessionStore";
 
+
 /* =========================
    Interfaces (UI)
 ========================= */
+
 
 interface Product {
   id: number;
   name: string;
   beschreibung: string;
+  price: number | null; // 🆕 Preis hinzugefügt
   picture: string | null;
   owner_id: number;
   User?: {
@@ -22,6 +25,7 @@ interface Product {
   };
   tags: { id: number; name: string }[];
 }
+
 
 interface Comment {
   id: number;
@@ -36,14 +40,17 @@ interface Comment {
   } | null;
 }
 
+
 /* =========================
    Interfaces (DB)
 ========================= */
+
 
 interface ProductDB {
   id: number;
   name: string;
   beschreibung: string;
+  price: number | null; // 🆕 Preis hinzugefügt
   picture: string | null;
   owner_id: number;
   User: Product["User"];
@@ -52,9 +59,11 @@ interface ProductDB {
   }[];
 }
 
+
 export default function ProductDetail() {
   const params = useParams();
   const navigate = useNavigate();
+
 
   const [product, setProduct] = createSignal<Product | null>(null);
   const [comments, setComments] = createSignal<Comment[]>([]);
@@ -63,20 +72,24 @@ export default function ProductDetail() {
   const [submittingComment, setSubmittingComment] = createSignal(false);
   const [currentUserId, setCurrentUserId] = createSignal<number | null>(null);
 
+
   /* =========================
      Aktuellen User laden
   ========================= */
+
 
   createEffect(async () => {
     try {
       const { data } = await supabase.auth.getUser();
       if (!data.user) return;
 
+
       const { data: userData, error } = await supabase
         .from("User")
         .select("id")
         .eq("auth_id", data.user.id)
         .single();
+
 
       if (error) throw error;
       setCurrentUserId(userData.id);
@@ -85,16 +98,20 @@ export default function ProductDetail() {
     }
   });
 
+
   /* =========================
      Produkt + Kommentare laden
   ========================= */
+
 
   createEffect(async () => {
     try {
       setLoading(true);
       const productId = Number(params.id);
 
+
       /* -------- Produkt -------- */
+
 
       const { data: productData, error: productError } = await supabase
         .from("Product")
@@ -102,6 +119,7 @@ export default function ProductDetail() {
           id,
           name,
           beschreibung,
+          price,
           picture,
           owner_id,
           User!Product_owner_id_fkey (
@@ -121,12 +139,15 @@ export default function ProductDetail() {
         .eq("id", productId)
         .single<ProductDB>();
 
+
       if (productError || !productData) throw productError;
+
 
       const transformedProduct: Product = {
         id: productData.id,
         name: productData.name,
         beschreibung: productData.beschreibung,
+        price: productData.price, // 🆕
         picture: productData.picture,
         owner_id: productData.owner_id,
         User: productData.User,
@@ -138,15 +159,19 @@ export default function ProductDetail() {
             ) ?? [],
       };
 
+
       setProduct(transformedProduct);
 
+
       /* -------- Kommentare laden über Chat -------- */
+
 
       const { data: chatData, error: chatError } = await supabase
         .from("Chats")
         .select("id")
         .eq("product_id", productId)
         .maybeSingle();
+
 
       if (chatData && chatData.id) {
         const { data: messagesData, error: messagesError } = await supabase
@@ -166,9 +191,11 @@ export default function ProductDetail() {
           .eq("chat_id", chatData.id)
           .order("created_at", { ascending: true });
 
+
         if (messagesError) {
           console.error("Error loading messages:", messagesError);
         }
+
 
         const transformedComments: Comment[] = (messagesData ?? []).map((msg: any) => ({
           id: msg.id,
@@ -177,6 +204,7 @@ export default function ProductDetail() {
           sender_id: msg.sender_id,
           User: msg.User || null,
         }));
+
 
         setComments(transformedComments);
       } else {
@@ -190,25 +218,32 @@ export default function ProductDetail() {
     }
   });
 
+
   /* =========================
      Kommentar absenden
   ========================= */
 
+
   const handleSubmitComment = async (e: Event) => {
   e.preventDefault();
+
 
   if (!isLoggedIn()) {
     navigate("/login");
     return;
   }
 
+
   if (!newComment().trim() || !currentUserId()) return;
 
+
   setSubmittingComment(true);
+
 
   try {
     const productId = Number(params.id);
     const userId = currentUserId()!;
+
 
     // 1. Hole oder erstelle Chat für dieses Produkt
     let { data: existingChat } = await supabase
@@ -217,7 +252,9 @@ export default function ProductDetail() {
       .eq("product_id", productId)
       .maybeSingle();
 
+
     let chatId: number;
+
 
     if (!existingChat) {
       // Erstelle neuen Chat
@@ -230,11 +267,13 @@ export default function ProductDetail() {
         .select("id")
         .single();
 
+
       if (chatCreateError || !newChat) throw chatCreateError;
       chatId = newChat.id;
     } else {
       chatId = existingChat.id;
     }
+
 
     // 2. Füge die Nachricht hinzu (OHNE Chat_Participants)
     const { data, error } = await supabase
@@ -260,7 +299,9 @@ export default function ProductDetail() {
       `)
       .single();
 
+
     if (error || !data) throw error;
+
 
     setComments([...comments(), data as any]);
     setNewComment("");
@@ -272,23 +313,59 @@ export default function ProductDetail() {
   }
 };
 
+
   /* =========================
      Button Handler
   ========================= */
 
-  const handleRequestTest = () => {
-    if (!isLoggedIn()) {
-      navigate("/login");
+
+  const handleRequestTest = async () => {
+  if (!isLoggedIn()) {
+    navigate("/login");
+    return;
+  }
+
+  try {
+    const userId = currentUserId();
+    const productId = product()!.id;
+
+    if (!userId) {
+      alert("Fehler: User nicht gefunden");
       return;
     }
-    
-    // Scroll zum Kommentar-Bereich mit vorausgefüllter Nachricht
-    setNewComment("Hallo! Ich würde gerne einen Produkttest anfragen. Ist das möglich?");
-    
-    // Scroll zum Kommentarbereich
-    const commentSection = document.querySelector('#comment-section');
-    commentSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
+
+    // Prüfe, ob bereits eine Anfrage existiert
+    const { data: existingRequest } = await supabase
+      .from("Requests")
+      .select("id")
+      .eq("sender_id", userId)
+      .eq("product_id", productId)
+      .maybeSingle();
+
+    if (existingRequest) {
+      alert("Du hast bereits eine Anfrage für dieses Produkt gesendet!");
+      return;
+    }
+
+    // Erstelle neue Anfrage
+    const { error } = await supabase
+      .from("Requests")
+      .insert({
+        sender_id: userId,
+        product_id: productId,
+      });
+
+    if (error) throw error;
+
+    alert("✅ Anfrage erfolgreich gesendet! Der Besitzer wird benachrichtigt.");
+  } catch (err) {
+    console.error("Error sending request:", err);
+    alert("Fehler beim Senden der Anfrage.");
+  }
+};
+
+
+
 
   const handleContact = () => {
     if (!isLoggedIn()) {
@@ -304,9 +381,11 @@ export default function ProductDetail() {
     commentSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+
   /* =========================
      Utils
   ========================= */
+
 
   const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString("de-DE", {
@@ -317,9 +396,20 @@ export default function ProductDetail() {
       minute: "2-digit",
     });
 
+  // 🆕 Preis formatieren
+  const formatPrice = (price: number | null) => {
+    if (price === null || price === undefined) return "Preis auf Anfrage";
+    return new Intl.NumberFormat("de-DE", {
+      style: "currency",
+      currency: "EUR",
+    }).format(price);
+  };
+
+
   /* =========================
      JSX
   ========================= */
+
 
   return (
     <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
@@ -340,11 +430,13 @@ export default function ProductDetail() {
         </div>
       </header>
 
+
       <Show when={loading()}>
         <div class="flex justify-center items-center py-20">
           <div class="w-16 h-16 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
         </div>
       </Show>
+
 
       <Show when={!loading() && product()}>
         <main class="max-w-7xl mx-auto px-4 py-8">
@@ -371,11 +463,25 @@ export default function ProductDetail() {
                 </Show>
               </div>
 
+
               {/* Rechte Seite: Details */}
               <div class="p-8 lg:p-12">
                 <h1 class="text-4xl font-bold mb-4 text-gray-900 dark:text-white">
                   {product()!.name}
                 </h1>
+
+                {/* Preis 🆕 */}
+                <div class="mb-6">
+                  <div class="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-xl border-2 border-emerald-200 dark:border-emerald-800">
+                    <svg class="w-6 h-6 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+                      {formatPrice(product()!.price)}
+                    </span>
+                  </div>
+                </div>
+
 
                 {/* Tags */}
                 <Show when={product()!.tags && product()!.tags.length > 0}>
@@ -390,6 +496,7 @@ export default function ProductDetail() {
                   </div>
                 </Show>
 
+
                 {/* Beschreibung */}
                 <div class="mb-8">
                   <h2 class="text-lg font-semibold mb-3 text-gray-900 dark:text-white flex items-center gap-2">
@@ -402,6 +509,7 @@ export default function ProductDetail() {
                     {product()!.beschreibung || "Keine Beschreibung vorhanden."}
                   </p>
                 </div>
+
 
                 {/* Besitzer Info */}
                 <Show when={product()!.User}>
@@ -419,6 +527,7 @@ export default function ProductDetail() {
                     </div>
                   </div>
                 </Show>
+
 
                 {/* Produkttest Anfrage Buttons */}
                 <div class="space-y-3">
@@ -446,6 +555,7 @@ export default function ProductDetail() {
             </div>
           </div>
 
+
           {/* Kommentare Sektion */}
           <div id="comment-section" class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
             <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
@@ -454,6 +564,7 @@ export default function ProductDetail() {
               </svg>
               Kommentare ({comments().length})
             </h2>
+
 
             {/* Kommentar-Formular */}
             <Show when={isLoggedIn()}>
@@ -482,6 +593,7 @@ export default function ProductDetail() {
               </form>
             </Show>
 
+
             <Show when={!isLoggedIn()}>
               <div class="mb-8 p-6 bg-sky-50 dark:bg-sky-900/20 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
                 <p class="text-gray-700 dark:text-gray-300 mb-3">
@@ -496,6 +608,7 @@ export default function ProductDetail() {
               </div>
             </Show>
 
+
             {/* Kommentare Liste */}
             <div class="space-y-4">
               <Show when={comments().length === 0}>
@@ -508,6 +621,7 @@ export default function ProductDetail() {
                   </p>
                 </div>
               </Show>
+
 
               <For each={comments()}>
                 {(comment) => (

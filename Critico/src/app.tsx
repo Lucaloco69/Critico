@@ -6,6 +6,7 @@ import Signup from './routes/signup';
 import Profile from './routes/profile';
 import CreateProduct from './routes/createProduct';
 import ProductDetails from './routes/productDetails';
+import Requests from './routes/requests';
 
 function App() {
   return (
@@ -18,6 +19,8 @@ function App() {
         <Route path= "/profile" component={Profile} />
         <Route path= "/createProduct" component={CreateProduct} /> 
         <Route path="/productDetails/:id" component={ProductDetails} />
+        <Route path="/requests" component={Requests} />
+
 
       </Suspense>
     </Router>
