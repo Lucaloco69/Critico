@@ -414,7 +414,7 @@ export default function ProductDetail() {
       throw new Error("No data returned from insert");
     }
 
-    setComments([...comments(), data as any]);
+    setComments([...comments()]);
     setNewComment("");
     setNewCommentStars(0);
 
@@ -425,6 +425,8 @@ export default function ProductDetail() {
       .map(c => c.stars!);
     
     if (validStars.length > 0) {
+      console.log("🔍 Comments before calc:", validStars.map(c => c.stars));
+
       const avgStars = validStars.reduce((sum, s) => sum + s, 0) / validStars.length;
       
       // Update Produkt-Sterne in DB
