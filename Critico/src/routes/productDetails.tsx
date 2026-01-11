@@ -163,6 +163,52 @@ export default function ProductDetail() {
   const [loading, setLoading] = createSignal(true);
   const [submittingComment, setSubmittingComment] = createSignal(false);
   const [currentUserId, setCurrentUserId] = createSignal<number | null>(null);
+  const [canComment, setCanComment] = createSignal<boolean>(false);
+  const [checkingPermission, setCheckingPermission] = createSignal(true);
+
+
+
+
+  // ✅ NEU: Helper-Funktion für Permission-Check
+const checkCommentPermission = async (userId: number, productId: number): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from("ProductComments_User")
+      .select("user_id")
+      .eq("user_id", userId)
+      .eq("product_id", productId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("❌ Permission check error:", error);
+      return false;
+    }
+
+    return !!data;
+  } catch (err) {
+    console.error("💥 Permission check failed:", err);
+    return false;
+  }
+};
+
+
+// ✅ NEU: Prüfe Kommentar-Berechtigung beim Laden
+createEffect(async () => {
+  const userId = currentUserId();
+  const productId = Number(params.id);
+  
+  if (!userId || !productId || isNaN(productId)) {
+    setCanComment(false);
+    setCheckingPermission(false);
+    return;
+  }
+
+  const hasPermission = await checkCommentPermission(userId, productId);
+  setCanComment(hasPermission);
+  setCheckingPermission(false);
+  
+  console.log(hasPermission ? "✅ User can comment" : "⛔ User cannot comment");
+});
 
 
   /* =========================
@@ -333,12 +379,25 @@ export default function ProductDetail() {
   const handleSubmitComment = async (e: Event) => {
   e.preventDefault();
 
-  if (!isLoggedIn()) {
-    navigate("/login");
-    return;
-  }
+ if (!isLoggedIn()) {
+  navigate("/login");
+  return;
+}
 
-  if (!newComment().trim() || !currentUserId()) return;
+const userId = currentUserId();
+const productId = Number(params.id);
+
+if (!userId || !newComment().trim()) return;
+
+// ✅ NEU: Erneute Überprüfung direkt vor Submit
+const hasPermission = await checkCommentPermission(userId, productId);
+
+if (!hasPermission) {
+  alert("Du hast keine Berechtigung, dieses Produkt zu kommentieren. Nur verifizierte Käufer können Bewertungen abgeben.");
+  setCanComment(false);
+  return;
+}
+
 
   setSubmittingComment(true);
 
@@ -405,41 +464,53 @@ export default function ProductDetail() {
       `)
       .single();
 
-    if (error) {
-      console.error("Supabase error details:", error);
-      throw error;
-    }
+      if (error) {
+  console.error("❌ Insert error:", error);
+  
+  // ✅ NEU: RLS Policy blockiert Insert → Spezifische Fehlermeldung
+  if (error.code === "42501" || error.message.includes("policy")) {
+    alert("Du hast keine Berechtigung, dieses Produkt zu kommentieren.");
+    setCanComment(false);
+    return;
+  }
+  
+  throw error;
+}
+
 
     if (!data) {
       throw new Error("No data returned from insert");
     }
 
-    setComments([...comments()]);
+// ✅ Update State mit neuer Liste
+const updatedComments = [data as any, ...comments()];
+setComments(updatedComments);
     setNewComment("");
     setNewCommentStars(0);
 
-    // ✅ Berechne die neuen durchschnittlichen Sterne
-    const allComments = [...comments(), data as any];
-    const validStars = allComments
-      .filter(c => c.stars !== null && c.stars !== undefined)
-      .map(c => c.stars!);
-    
-    if (validStars.length > 0) {
-      console.log("🔍 Comments before calc:", validStars.map(c => c.stars));
+    // ✅ Berechne Durchschnitt aus updatedComments
+const validStars = updatedComments
+  .map(c => c.stars)
+  .filter((s): s is number => typeof s === 'number' && !isNaN(s) && s > 0);
 
-      const avgStars = validStars.reduce((sum, s) => sum + s, 0) / validStars.length;
+if (validStars.length > 0) {
+  const avgStars = validStars.reduce((sum, s) => sum + s, 0) / validStars.length;
+  const roundedAvg = Math.round(avgStars * 2) / 2;
+  
+  console.log("📊 Avg calculation:", { stars: validStars, raw: avgStars.toFixed(2), rounded: roundedAvg });
+
       
       // Update Produkt-Sterne in DB
       const { error: updateError } = await supabase
         .from("Product")
-        .update({ stars: avgStars })
+        .update({ stars: roundedAvg })
         .eq("id", productId);
       
       if (updateError) {
         console.error("Error updating product stars:", updateError);
       } else {
         // Update lokalen State
-        setProduct(prev => prev ? { ...prev, stars: avgStars } : null);
+        setProduct(prev => prev ? { ...prev, stars: roundedAvg } : null);
       }
     }
 
@@ -726,11 +797,39 @@ export default function ProductDetail() {
               Bewertungen & Kommentare ({comments().length})
             </h2>
 
-
-            {/* Kommentar-Formular */}
-            <Show when={isLoggedIn()}>
-              <form onSubmit={handleSubmitComment} class="mb-8">
-                {/* Sterne-Auswahl */}
+            
+{/* ✅ NEU: Kommentar-Formular mit Permission-Check */}
+<Show 
+  when={!checkingPermission()}
+  fallback={
+    <div class="flex justify-center py-4 mb-6">
+      <div class="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  }
+>
+  <Show 
+    when={canComment()}
+    fallback={
+      <div class="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div>
+            <p class="text-sm font-semibold text-yellow-800 dark:text-yellow-300 mb-1">
+              Keine Bewertungsberechtigung
+            </p>
+            <p class="text-sm text-yellow-700 dark:text-yellow-400">
+              Nur verifizierte Käufer können Bewertungen abgeben. Kaufe dieses Produkt, um eine Bewertung zu schreiben.
+            </p>
+          </div>
+        </div>
+      </div>
+    }
+  >
+    {/* DEIN BESTEHENDES FORMULAR KOMMT HIER REIN */}
+    <form onSubmit={handleSubmitComment} class="mb-8 space-y-4">
+{/* Sterne-Auswahl */}
                 <div class="mb-4">
                   <label class="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
                     Deine Bewertung (optional)
@@ -777,9 +876,9 @@ export default function ProductDetail() {
                     {submittingComment() ? "Wird gesendet..." : "Bewertung absenden"}
                   </button>
                 </div>
-              </form>
-            </Show>
-
+    </form>
+  </Show>
+</Show>
 
             <Show when={!isLoggedIn()}>
               <div class="mb-8 p-6 bg-sky-50 dark:bg-sky-900/20 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
