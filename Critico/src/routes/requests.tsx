@@ -126,9 +126,46 @@ export default function Requests() {
     }
   };
 
+  // Grant Comment Permission nach akzeptiertem Request
+  const grantCommentPermission = async (userId: number, productId: number) => {
+    try {
+      const { error } = await supabase
+        .from("ProductComments_User")
+        .insert({ 
+          user_id: userId, 
+          product_id: productId 
+        });
+
+      if (error) {
+        // 23505 = unique constraint (bereits vorhanden) → OK, nicht fatal
+        if (error.code === "23505") {
+          console.log("ℹ️ Comment permission already exists");
+          return;
+        }
+        
+        // Anderer Fehler → Werfen
+        console.error("❌ Error granting comment permission:", error);
+        throw error;
+      }
+
+      console.log("✅ Comment permission granted for user", userId, "on product", productId);
+    } catch (err) {
+      console.error("💥 Failed to grant permission:", err);
+      throw err; // Re-throw damit handleAccept den Fehler catcht
+    }
+  };
+
   // Anfrage annehmen
   const handleAccept = async (requestId: number) => {
     try {
+      // Finde den Request einmal (nicht mehrfach)
+      const request = requests().find(r => r.id === requestId);
+      if (!request) {
+        console.error("Request not found");
+        return;
+      }
+
+      // 1. Update Request Status in DB
       const { error } = await supabase
         .from("Requests")
         .update({ status: "accepted" })
@@ -136,10 +173,15 @@ export default function Requests() {
 
       if (error) throw error;
 
-      // Update local state
+      // 2. Grant Comment Permission (mit await!)
+      await grantCommentPermission(request.sender_id, request.product_id);
+
+      // 3. Update local state
       setRequests(requests().map(r => 
         r.id === requestId ? { ...r, status: "accepted" } : r
       ));
+
+      console.log("✅ Request accepted and permission granted");
     } catch (err) {
       console.error("Error accepting request:", err);
       alert("Fehler beim Annehmen der Anfrage.");
