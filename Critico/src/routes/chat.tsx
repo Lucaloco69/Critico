@@ -1,7 +1,8 @@
-import { createSignal, createEffect, For, Show, onCleanup } from "solid-js";
+import { createSignal, For, Show, onCleanup, onMount } from "solid-js";
 import { useParams, A, useNavigate } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import sessionStore, { isLoggedIn } from "../lib/sessionStore";
+
 
 
 interface Message {
@@ -19,12 +20,18 @@ interface Message {
 }
 
 
+
 interface ChatPartner {
   id: number;
   name: string;
   surname: string;
   picture: string | null;
 }
+
+// ✅ Globale Variable außerhalb der Component
+let globalChannel: any = null;
+let globalChatId: number | null = null;
+
 
 
 export default function Chat() {
@@ -39,44 +46,38 @@ export default function Chat() {
   const [loading, setLoading] = createSignal(true);
   const [sending, setSending] = createSignal(false);
 
-
-  // Lade aktuellen User
-  createEffect(async () => {
+  onMount(async () => {
+    console.log("🚀 Component mounted");
+    
     if (!isLoggedIn() || !sessionStore.user) {
       navigate("/login");
       return;
     }
 
-
     try {
+      // Lade aktuellen User
       const { data: userData } = await supabase
         .from("User")
         .select("id")
         .eq("auth_id", sessionStore.user.id)
         .single();
 
-
-      if (userData) {
-        setCurrentUserId(userData.id);
+      if (!userData) {
+        console.error("User nicht gefunden");
+        return;
       }
-    } catch (err) {
-      console.error("Error loading user:", err);
-    }
-  });
 
+      const userId = userData.id;
+      setCurrentUserId(userId);
+      console.log("👤 Current User ID:", userId);
 
-  // Lade Chat und Messages
-  createEffect(async () => {
-    const userId = currentUserId();
-    const partnerId = Number(params.partnerId);
+      const partnerId = Number(params.partnerId);
+      if (!partnerId) {
+        console.error("Keine Partner ID");
+        return;
+      }
 
-
-    if (!userId || !partnerId) return;
-
-
-    try {
       setLoading(true);
-
 
       // Hole Chat Partner Info
       const { data: partnerData } = await supabase
@@ -85,88 +86,137 @@ export default function Chat() {
         .eq("id", partnerId)
         .single();
 
-
       if (partnerData) {
         setChatPartner(partnerData);
+        console.log("👥 Chat Partner:", partnerData.name);
       }
 
-
-      // Hole oder erstelle Direct Chat mit SQL Funktion
+      // Hole oder erstelle Direct Chat
       const { data: chatData, error: chatError } = await supabase
         .rpc("get_or_create_direct_chat", {
           user1_id: userId,
           user2_id: partnerId
         });
 
-
       if (chatError) throw chatError;
       
       const directChatId = chatData as number;
       setChatId(directChatId);
+      console.log("💬 Chat ID:", directChatId);
 
-
-      // Lade Messages (markiert automatisch als gelesen)
+      // Lade Messages
       await loadMessages(directChatId, userId);
 
+      // ✅ Prüfe ob bereits ein Channel für diesen Chat existiert
+      if (globalChannel && globalChatId === directChatId) {
+        console.log("♻️ Channel existiert bereits, wird wiederverwendet");
+        return;
+      }
 
-      // Realtime Subscription
-      const channel = supabase
-        .channel(`chat_${directChatId}`)
+      // ✅ Entferne alten Channel falls vorhanden
+      if (globalChannel) {
+        console.log("🗑️ Entferne alten Channel");
+        await supabase.removeChannel(globalChannel);
+        globalChannel = null;
+      }
+
+      // Realtime Subscription - VEREINFACHTER TEST
+      console.log("🔌 Setting up Realtime subscription for chat:", directChatId);
+
+      globalChannel = supabase
+        .channel('any-messages-' + Date.now())
         .on(
           "postgres_changes",
           {
-            event: "INSERT",
+            event: "*",
             schema: "public",
             table: "Messages",
-            filter: `chat_id=eq.${directChatId}`,
           },
-          async (payload) => {
-            if (payload.new.message_type !== "direct") return;
-
-
-            const { data: newMsg } = await supabase
-              .from("Messages")
-              .select(`
-                id,
-                content,
-                created_at,
-                sender_id,
-                read,
-                User!Messages_sender_id_fkey (
-                  id,
-                  name,
-                  surname,
-                  picture
-                )
-              `)
-              .eq("id", payload.new.id)
-              .single();
-
-
-            if (newMsg) {
-              setMessages(prev => [...prev, newMsg as any]);
+          (payload) => {
+            console.log("🔔🔔🔔 EVENT EMPFANGEN:", payload.eventType);
+            console.log("Payload:", payload);
+            console.log("New data:", payload.new);
+            
+            // Falls es ein INSERT ist
+            if (payload.eventType === "INSERT") {
+              console.log("✅ INSERT Event!");
+              console.log("Chat ID:", payload.new.chat_id);
+              console.log("Message Type:", payload.new.message_type);
+              console.log("Sender ID:", payload.new.sender_id);
               
-              // ✅ Markiere neue Nachricht sofort als gelesen wenn sie an mich ist
-              if (newMsg.sender_id !== userId && !newMsg.read) {
-                await supabase
+              // Manueller Filter
+              if (payload.new.chat_id === directChatId && payload.new.message_type === "direct") {
+                console.log("🎯 Richtige Nachricht für diesen Chat!");
+              
+                  // ✅ Ignoriere eigene Nachrichten (wurden schon in handleSendMessage hinzugefügt)
+                if (payload.new.sender_id === userId) {
+                  console.log("⏭️ Eigene Nachricht, wird ignoriert");
+                  return;
+                }
+
+                // Hole die vollständige Nachricht
+                supabase
                   .from("Messages")
-                  .update({ read: true })
-                  .eq("id", newMsg.id);
-                
-                console.log("✅ New message marked as read");
+                  .select(`
+                    id,
+                    content,
+                    created_at,
+                    sender_id,
+                    read,
+                    User!Messages_sender_id_fkey (
+                      id,
+                      name,
+                      surname,
+                      picture
+                    )
+                  `)
+                  .eq("id", payload.new.id)
+                  .single()
+                  .then(({ data: newMsg }) => {
+                    if (newMsg) {
+                      console.log("📨 Nachricht geladen:", newMsg);
+                      console.log("📊 Messages VORHER:", messages().length);
+                      console.log("📊 Messages Array:", messages());
+                      setMessages(prev => {
+                        const updated = [...prev, newMsg as any];
+                        console.log("📊 Messages NACHHER:", updated.length);
+                        console.log("📊 Updated Array:", updated);
+                        return updated;
+                      });
+                      
+                      // Markiere als gelesen wenn an mich
+                      if (newMsg.sender_id !== userId && !newMsg.read) {
+                        supabase
+                          .from("Messages")
+                          .update({ read: true })
+                          .eq("id", newMsg.id)
+                          .then(() => {
+                            setMessages(prev => 
+                              prev.map(msg => 
+                                msg.id === newMsg.id ? { ...msg, read: true } : msg
+                              )
+                            );
+                            console.log("✅ Nachricht als gelesen markiert");
+                          });
+                      }
+                      
+                      scrollToBottom();
+                    }
+                  });
+              } else {
+                console.log("⏭️ Event ist für anderen Chat oder Typ");
               }
-              
-              scrollToBottom();
             }
           }
         )
-        .subscribe();
+        .subscribe((status, err) => {
+          console.log("📡 Channel Status:", status);
+          if (err) {
+            console.error("❌ Subscribe Error:", err);
+          }
+        });
 
-
-      onCleanup(() => {
-        supabase.removeChannel(channel);
-      });
-
+      globalChatId = directChatId;
 
     } catch (err) {
       console.error("Error loading chat:", err);
@@ -175,8 +225,14 @@ export default function Chat() {
     }
   });
 
+  // ✅ Cleanup nur beim echten Unmount
+  onCleanup(() => {
+    console.log("🧹 Cleanup aufgerufen - Component wird unmounted");
+  });
 
-  // ✅ Verbesserte loadMessages Funktion - markiert automatisch als gelesen
+
+
+  // Verbesserte loadMessages Funktion
   const loadMessages = async (chatId: number, userId: number) => {
     try {
       const { data, error } = await supabase
@@ -198,17 +254,22 @@ export default function Chat() {
         .eq("message_type", "direct")
         .order("created_at", { ascending: true });
 
+
       if (error) {
         console.error("Error loading messages:", error);
         return;
       }
 
+
+      console.log("📥 Loaded messages:", data?.length || 0);
       setMessages((data || []) as any);
 
-      // ✅ Markiere SOFORT ungelesene Nachrichten als gelesen (nur die, die an mich sind)
+
+      // Markiere ungelesene Nachrichten als gelesen
       const unreadIds = (data || [])
         .filter(m => m.sender_id !== userId && !m.read)
         .map(m => m.id);
+
 
       if (unreadIds.length > 0) {
         await supabase
@@ -216,8 +277,16 @@ export default function Chat() {
           .update({ read: true })
           .in("id", unreadIds);
         
-        console.log(`✅ ${unreadIds.length} messages marked as read`);
+        // Aktualisiere lokales Signal
+        setMessages(prev => 
+          prev.map(msg => 
+            unreadIds.includes(msg.id) ? { ...msg, read: true } : msg
+          )
+        );
+        
+        console.log(`✅ ${unreadIds.length} Nachrichten als gelesen markiert`);
       }
+
 
       setTimeout(scrollToBottom, 100);
     } catch (err) {
@@ -226,19 +295,17 @@ export default function Chat() {
   };
 
 
+
   const handleSendMessage = async (e: Event) => {
     e.preventDefault();
 
-
     if (!newMessage().trim() || !currentUserId() || !chatId()) return;
 
-
     setSending(true);
-
+    console.log("📤 Sende Nachricht...");
 
     try {
       const partnerId = Number(params.partnerId);
-
 
       const { data, error } = await supabase
         .from("Messages")
@@ -248,7 +315,7 @@ export default function Chat() {
           receiver_id: partnerId,
           chat_id: chatId()!,
           message_type: "direct",
-          read: false,  // ✅ Neue Nachrichten sind ungelesen
+          read: false,
           created_at: new Date().toISOString(),
         })
         .select(`
@@ -266,15 +333,13 @@ export default function Chat() {
         `)
         .single();
 
-
       if (error) throw error;
 
-
       if (data) {
+        console.log("✅ Nachricht gesendet:", data.id);
         setMessages(prev => [...prev, data as any]);
         scrollToBottom();
       }
-
 
       setNewMessage("");
     } catch (err) {
@@ -284,6 +349,7 @@ export default function Chat() {
       setSending(false);
     }
   };
+
 
 
   const scrollToBottom = () => {
@@ -296,6 +362,7 @@ export default function Chat() {
   };
 
 
+
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString("de-DE", {
@@ -303,6 +370,7 @@ export default function Chat() {
       minute: "2-digit",
     });
   };
+
 
 
   return (
@@ -319,7 +387,6 @@ export default function Chat() {
             </svg>
           </button>
 
-
           <Show when={chatPartner()}>
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-md">
@@ -335,7 +402,6 @@ export default function Chat() {
         </div>
       </header>
 
-
       {/* Messages Container */}
       <main class="flex-1 overflow-hidden flex flex-col">
         <Show when={loading()}>
@@ -343,7 +409,6 @@ export default function Chat() {
             <div class="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
           </div>
         </Show>
-
 
         <Show when={!loading()}>
           <div
@@ -360,7 +425,6 @@ export default function Chat() {
                 </p>
               </div>
             </Show>
-
 
             <For each={messages()}>
               {(message) => {
@@ -389,7 +453,6 @@ export default function Chat() {
               }}
             </For>
           </div>
-
 
           {/* Input Form */}
           <div class="bg-white dark:bg-gray-800 border-t dark:border-gray-700 p-4">

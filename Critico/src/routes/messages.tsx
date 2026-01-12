@@ -1,7 +1,9 @@
-import { createSignal, createEffect, For, Show, onCleanup } from "solid-js";
+import { createSignal, createEffect, For, Show, onCleanup, onMount } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import sessionStore, { isLoggedIn } from "../lib/sessionStore";
+
+
 
 interface ChatPreview {
   chatId: number;
@@ -14,8 +16,16 @@ interface ChatPreview {
   unreadCount: number;
 }
 
+
+// ✅ Globaler Channel für Realtime
+let globalMessagesChannel: any = null;
+let reloadTimeout: any = null;
+
+
+
 export default function Messages() {
   const navigate = useNavigate();
+
 
   const [chats, setChats] = createSignal<ChatPreview[]>([]);
   const [filteredChats, setFilteredChats] = createSignal<ChatPreview[]>([]);
@@ -23,12 +33,14 @@ export default function Messages() {
   const [loading, setLoading] = createSignal(true);
   const [currentUserId, setCurrentUserId] = createSignal<number | null>(null);
 
-  // Lade aktuellen User
-  createEffect(async () => {
+
+
+  onMount(async () => {
     if (!isLoggedIn() || !sessionStore.user) {
       navigate("/login");
       return;
     }
+
 
     try {
       const { data: userData } = await supabase
@@ -37,59 +49,90 @@ export default function Messages() {
         .eq("auth_id", sessionStore.user.id)
         .single();
 
+
       if (userData) {
         setCurrentUserId(userData.id);
+        await loadChats(userData.id);
+        
+        // ✅ Setup Realtime nur einmal
+        if (!globalMessagesChannel) {
+          setupRealtime(userData.id);
+        }
       }
     } catch (err) {
       console.error("Error loading user:", err);
-    }
-  });
-
-  // Lade alle Chats
-  createEffect(async () => {
-    const userId = currentUserId();
-    if (!userId) return;
-
-    try {
-      setLoading(true);
-      await loadChats(userId);
-
-      // Realtime Subscription für neue Messages
-      const channel = supabase
-        .channel("messages_updates")
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "Messages",
-            filter: `message_type=eq.direct`,
-          },
-          () => {
-            loadChats(userId);
-          }
-        )
-        .subscribe();
-
-      onCleanup(() => {
-        supabase.removeChannel(channel);
-      });
-    } catch (err) {
-      console.error("Error loading chats:", err);
     } finally {
       setLoading(false);
     }
   });
 
+
+  // ✅ Cleanup beim Unmount
+  onCleanup(() => {
+    console.log("🧹 Messages: Cleanup aufgerufen");
+    if (reloadTimeout) clearTimeout(reloadTimeout);
+  });
+
+
+
+  const setupRealtime = (userId: number) => {
+    console.log("🔌 Messages: Setting up Realtime subscription");
+    
+    globalMessagesChannel = supabase
+      .channel('all-direct-messages')
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "Messages",
+          filter: `message_type=eq.direct`,
+        },
+        (payload) => {
+          console.log("🔔 Messages: INSERT Event - Neue Nachricht");
+          // Sofort neu laden bei neuen Nachrichten
+          loadChats(userId);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "Messages",
+          filter: `message_type=eq.direct`,
+        },
+        (payload) => {
+          console.log("🔔 Messages: UPDATE Event - Read status geändert");
+          
+          // ✅ Verzögert neu laden bei Updates (read flag)
+          if (reloadTimeout) clearTimeout(reloadTimeout);
+          reloadTimeout = setTimeout(() => {
+            console.log("🔄 Reloading chats nach UPDATE...");
+            loadChats(userId);
+          }, 500);
+        }
+      )
+      .subscribe((status) => {
+        console.log("📡 Messages Channel Status:", status);
+      });
+  };
+
+
+
   const loadChats = async (userId: number) => {
     try {
+      console.log("📥 Loading chats for user:", userId);
+      
       // Hole alle Chats wo der User Teilnehmer ist
       const { data: userChats, error: chatsError } = await supabase
         .from("Chat_Participants")
         .select("chat_id")
         .eq("user_id", userId);
 
+
       if (chatsError) throw chatsError;
+
 
       if (!userChats || userChats.length === 0) {
         setChats([]);
@@ -97,7 +140,9 @@ export default function Messages() {
         return;
       }
 
+
       const chatIds = userChats.map(c => c.chat_id);
+
 
       // Hole alle Chat-Details
       const { data: allChatDetails } = await supabase
@@ -105,8 +150,10 @@ export default function Messages() {
         .select("id, product_id")
         .in("id", chatIds);
 
+
       // Filtere Direct Chats (product_id = null)
       const chatDetails = (allChatDetails || []).filter(c => c.product_id === null);
+
 
       if (chatDetails.length === 0) {
         setChats([]);
@@ -114,10 +161,13 @@ export default function Messages() {
         return;
       }
 
+
       const directChatIds = chatDetails.map(c => c.id);
+
 
       // Für jeden Chat: Hole Chat-Partner und letzte Nachricht
       const chatPreviews: ChatPreview[] = [];
+
 
       for (const chatId of directChatIds) {
         // Hole Chat-Partner (anderer User im Chat)
@@ -135,9 +185,12 @@ export default function Messages() {
           .eq("chat_id", chatId)
           .neq("user_id", userId);
 
+
         if (!participants || participants.length === 0) continue;
 
+
         const partner = participants[0].User as any;
+
 
         // Hole letzte Nachricht
         const { data: lastMsg } = await supabase
@@ -149,14 +202,16 @@ export default function Messages() {
           .limit(1)
           .maybeSingle();
 
-        // ✅ Zähle nur UNGELESENE Nachrichten
+
+        // ✅ Zähle nur UNGELESENE Nachrichten die AN MICH gerichtet sind
         const { data: unreadMessages } = await supabase
           .from("Messages")
           .select("id")
           .eq("chat_id", chatId)
           .eq("message_type", "direct")
           .eq("receiver_id", userId)
-          .eq("read", false);  // ✅ Nur ungelesene
+          .eq("read", false);
+
 
         chatPreviews.push({
           chatId,
@@ -170,40 +225,66 @@ export default function Messages() {
         });
       }
 
+
       // Sortiere nach letzter Nachricht (neueste zuerst)
       chatPreviews.sort((a, b) => 
         new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
       );
 
+
       setChats(chatPreviews);
-      setFilteredChats(chatPreviews);
+      
+      // Aktualisiere gefilterte Liste nur wenn kein Suchbegriff
+      if (!searchQuery()) {
+        setFilteredChats(chatPreviews);
+      } else {
+        // Wende aktuellen Filter an
+        applySearchFilter(chatPreviews, searchQuery());
+      }
+      
+      console.log("✅ Loaded", chatPreviews.length, "chats");
     } catch (err) {
       console.error("Error loading chats:", err);
     }
   };
 
-  // Such-Filter
-  createEffect(() => {
-    const query = searchQuery().toLowerCase();
+
+
+  // ✅ Separate Filter-Funktion
+  const applySearchFilter = (chatList: ChatPreview[], query: string) => {
+    const lowerQuery = query.toLowerCase();
     
-    if (!query) {
-      setFilteredChats(chats());
+    if (!lowerQuery) {
+      setFilteredChats(chatList);
       return;
     }
 
-    const filtered = chats().filter((chat) =>
-      `${chat.partnerName} ${chat.partnerSurname}`.toLowerCase().includes(query) ||
-      chat.lastMessage.toLowerCase().includes(query)
+
+    const filtered = chatList.filter((chat) =>
+      `${chat.partnerName} ${chat.partnerSurname}`.toLowerCase().includes(lowerQuery) ||
+      chat.lastMessage.toLowerCase().includes(lowerQuery)
     );
 
+
     setFilteredChats(filtered);
+  };
+
+
+
+  // Such-Filter mit createEffect
+  createEffect(() => {
+    const query = searchQuery();
+    applySearchFilter(chats(), query);
   });
+
+
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
 
     if (diffDays === 0) {
       return date.toLocaleTimeString("de-DE", {
@@ -221,6 +302,8 @@ export default function Messages() {
       });
     }
   };
+
+
 
   return (
     <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -245,6 +328,7 @@ export default function Messages() {
         </div>
       </header>
 
+
       <main class="max-w-5xl mx-auto px-4 py-6">
         {/* Suchleiste */}
         <div class="mb-6">
@@ -262,12 +346,14 @@ export default function Messages() {
           </div>
         </div>
 
+
         {/* Loading */}
         <Show when={loading()}>
           <div class="flex justify-center items-center py-20">
             <div class="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
           </div>
         </Show>
+
 
         {/* Chats Liste */}
         <Show when={!loading()}>
@@ -292,6 +378,7 @@ export default function Messages() {
                         </Show>
                       </div>
 
+
                       {/* Chat Info */}
                       <div class="flex-1 min-w-0">
                         <div class="flex items-baseline justify-between mb-1">
@@ -310,6 +397,7 @@ export default function Messages() {
                           {chat.lastMessage}
                         </p>
                       </div>
+
 
                       {/* Chevron */}
                       <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
