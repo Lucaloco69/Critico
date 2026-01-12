@@ -13,9 +13,10 @@ interface Product {
   id: number;
   name: string;
   beschreibung: string;
-  price: number | null; // 🆕 Preis hinzugefügt
+  price: number | null;
   picture: string | null;
   owner_id: number;
+  stars: number;
   User?: {
     id: number;
     name: string;
@@ -30,6 +31,7 @@ interface Product {
 interface Comment {
   id: number;
   content: string;
+  stars: number | null;
   created_at: string;
   sender_id: number;
   User: {
@@ -50,14 +52,103 @@ interface ProductDB {
   id: number;
   name: string;
   beschreibung: string;
-  price: number | null; // 🆕 Preis hinzugefügt
+  price: number | null;
   picture: string | null;
   owner_id: number;
+  stars: number;
   User: Product["User"];
   Product_Tags?: {
     Tags: { id: number; name: string } | null;
   }[];
 }
+
+
+/* =========================
+   Star Rating Component
+========================= */
+
+
+interface StarRatingProps {
+  rating: number;
+  maxStars?: number;
+  size?: "sm" | "md" | "lg";
+}
+
+function StarRating(props: StarRatingProps) {
+  const maxStars = () => props.maxStars || 5;
+  const sizeClass = () => {
+    switch (props.size || "md") {
+      case "sm": return "w-4 h-4";
+      case "lg": return "w-6 h-6";
+      default: return "w-5 h-5";
+    }
+  };
+
+  // Eindeutige ID für diesen Stern-Set
+  const gradientId = `starGradient-${Math.random().toString(36).substr(2, 9)}`;
+
+  return (
+    <div class="flex items-center gap-1">
+      {/* SVG Definitions einmal für alle Sterne */}
+      <svg style="width: 0; height: 0; position: absolute;">
+        <defs>
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:1" />
+          </linearGradient>
+        </defs>
+      </svg>
+
+      <For each={Array.from({ length: maxStars() })}>
+        {(_, index) => {
+          const starIndex = index();
+          const diff = props.rating - starIndex;
+          
+          // Berechne Füllung mit halben Sternen
+          let filling: number;
+          if (diff >= 1) {
+            filling = 1; // Voller Stern
+          } else if (diff >= 0.75) {
+            filling = 1; // Runde ab 0.75 auf voll auf
+          } else if (diff >= 0.25) {
+            filling = 0.5; // Halber Stern
+          } else {
+            filling = 0; // Leerer Stern
+          }
+
+          return (
+            <div class={`relative ${sizeClass()}`}>
+              {/* Leerer Stern (Hintergrund) */}
+              <svg 
+                class="absolute w-full h-full text-gray-200 dark:text-gray-700 drop-shadow-sm" 
+                fill="currentColor" 
+                viewBox="0 0 20 20"
+              >
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+
+              {/* Gefüllter Stern (überlagert) */}
+              <div 
+                class="absolute overflow-hidden top-0 left-0 h-full transition-all duration-200" 
+                style={`width: ${filling * 100}%`}
+              >
+                <svg 
+                  class={`${sizeClass()} drop-shadow-md`}
+                  fill={`url(#${gradientId})`}
+                  viewBox="0 0 20 20"
+                >
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              </div>
+            </div>
+          );
+        }}
+      </For>
+    </div>
+  );
+}
+
+
 
 
 export default function ProductDetail() {
@@ -68,9 +159,56 @@ export default function ProductDetail() {
   const [product, setProduct] = createSignal<Product | null>(null);
   const [comments, setComments] = createSignal<Comment[]>([]);
   const [newComment, setNewComment] = createSignal("");
+  const [newCommentStars, setNewCommentStars] = createSignal<number>(0);
   const [loading, setLoading] = createSignal(true);
   const [submittingComment, setSubmittingComment] = createSignal(false);
   const [currentUserId, setCurrentUserId] = createSignal<number | null>(null);
+  const [canComment, setCanComment] = createSignal<boolean>(false);
+  const [checkingPermission, setCheckingPermission] = createSignal(true);
+
+
+
+
+  // ✅ NEU: Helper-Funktion für Permission-Check
+const checkCommentPermission = async (userId: number, productId: number): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from("ProductComments_User")
+      .select("user_id")
+      .eq("user_id", userId)
+      .eq("product_id", productId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("❌ Permission check error:", error);
+      return false;
+    }
+
+    return !!data;
+  } catch (err) {
+    console.error("💥 Permission check failed:", err);
+    return false;
+  }
+};
+
+
+// ✅ NEU: Prüfe Kommentar-Berechtigung beim Laden
+createEffect(async () => {
+  const userId = currentUserId();
+  const productId = Number(params.id);
+  
+  if (!userId || !productId || isNaN(productId)) {
+    setCanComment(false);
+    setCheckingPermission(false);
+    return;
+  }
+
+  const hasPermission = await checkCommentPermission(userId, productId);
+  setCanComment(hasPermission);
+  setCheckingPermission(false);
+  
+  console.log(hasPermission ? "✅ User can comment" : "⛔ User cannot comment");
+});
 
 
   /* =========================
@@ -122,6 +260,7 @@ export default function ProductDetail() {
           price,
           picture,
           owner_id,
+          stars,
           User!Product_owner_id_fkey (
             id,
             name,
@@ -147,9 +286,10 @@ export default function ProductDetail() {
         id: productData.id,
         name: productData.name,
         beschreibung: productData.beschreibung,
-        price: productData.price, // 🆕
+        price: productData.price,
         picture: productData.picture,
         owner_id: productData.owner_id,
+        stars: productData.stars || 0,
         User: productData.User,
         tags:
           productData.Product_Tags
@@ -163,54 +303,66 @@ export default function ProductDetail() {
       setProduct(transformedProduct);
 
 
-      /* -------- Kommentare laden über Chat -------- */
+      /* -------- Kommentare laden (message_type = 'product') -------- */
 
 
-      const { data: chatData, error: chatError } = await supabase
-        .from("Chats")
-        .select("id")
-        .eq("product_id", productId)
-        .maybeSingle();
-
-
-      if (chatData && chatData.id) {
-        const { data: messagesData, error: messagesError } = await supabase
-          .from("Messages")
-          .select(`
+      const { data: messagesData, error: messagesError } = await supabase
+        .from("Messages")
+        .select(`
+          id,
+          content,
+          stars,
+          created_at,
+          sender_id,
+          User!Messages_sender_id_fkey (
             id,
-            content,
-            created_at,
-            sender_id,
-            User!Messages_sender_id_fkey (
-              id,
-              name,
-              surname,
-              picture
-            )
-          `)
-          .eq("chat_id", chatData.id)
-          .order("created_at", { ascending: true });
+            name,
+            surname,
+            picture
+          )
+        `)
+        .eq("product_id", productId)
+        .eq("message_type", "product")
+        .order("created_at", { ascending: true });
 
 
-        if (messagesError) {
-          console.error("Error loading messages:", messagesError);
-        }
-
-
-        const transformedComments: Comment[] = (messagesData ?? []).map((msg: any) => ({
-          id: msg.id,
-          content: msg.content,
-          created_at: msg.created_at,
-          sender_id: msg.sender_id,
-          User: msg.User || null,
-        }));
-
-
-        setComments(transformedComments);
-      } else {
-        console.log("No chat found for this product yet");
-        setComments([]);
+      if (messagesError) {
+        console.error("Error loading messages:", messagesError);
       }
+
+
+      const transformedComments: Comment[] = (messagesData ?? []).map((msg: any) => ({
+        id: msg.id,
+        content: msg.content,
+        stars: msg.stars,
+        created_at: msg.created_at,
+        sender_id: msg.sender_id,
+        User: msg.User || null,
+      }));
+
+
+      setComments(transformedComments);
+
+      // Berechne durchschnittliche Sterne aus Kommentaren
+      if (transformedComments.length > 0) {
+        const validStars = transformedComments
+          .filter(c => c.stars !== null && c.stars !== undefined)
+          .map(c => c.stars!);
+        
+        if (validStars.length > 0) {
+          const avgStars = validStars.reduce((sum, s) => sum + s, 0) / validStars.length;
+          
+          // Update Produkt-Sterne in DB
+          await supabase
+            .from("Product")
+            .update({ stars: avgStars })
+            .eq("id", productId);
+          
+          // Update lokalen State
+          setProduct(prev => prev ? { ...prev, stars: avgStars } : null);
+        }
+      }
+
     } catch (err) {
       console.error("Error loading product:", err);
     } finally {
@@ -227,67 +379,80 @@ export default function ProductDetail() {
   const handleSubmitComment = async (e: Event) => {
   e.preventDefault();
 
+ if (!isLoggedIn()) {
+  navigate("/login");
+  return;
+}
 
-  if (!isLoggedIn()) {
-    navigate("/login");
-    return;
-  }
+const userId = currentUserId();
+const productId = Number(params.id);
 
+if (!userId || !newComment().trim()) return;
 
-  if (!newComment().trim() || !currentUserId()) return;
+// ✅ NEU: Erneute Überprüfung direkt vor Submit
+const hasPermission = await checkCommentPermission(userId, productId);
+
+if (!hasPermission) {
+  alert("Du hast keine Berechtigung, dieses Produkt zu kommentieren. Nur verifizierte Käufer können Bewertungen abgeben.");
+  setCanComment(false);
+  return;
+}
 
 
   setSubmittingComment(true);
-
 
   try {
     const productId = Number(params.id);
     const userId = currentUserId()!;
 
-
-    // 1. Hole oder erstelle Chat für dieses Produkt
-    let { data: existingChat } = await supabase
+    // Erstelle oder finde einen Chat für dieses Produkt
+    const { data: existingChat } = await supabase
       .from("Chats")
       .select("id")
       .eq("product_id", productId)
       .maybeSingle();
 
-
     let chatId: number;
 
-
-    if (!existingChat) {
-      // Erstelle neuen Chat
-      const { data: newChat, error: chatCreateError } = await supabase
+    if (existingChat) {
+      chatId = existingChat.id;
+    } else {
+      const { data: newChat, error: chatError } = await supabase
         .from("Chats")
         .insert({
           product_id: productId,
-          created_at: new Date().toISOString(),
+          created_at: new Date().toISOString()
         })
         .select("id")
         .single();
 
-
-      if (chatCreateError || !newChat) throw chatCreateError;
+      if (chatError) {
+        console.error("Error creating chat:", chatError);
+        throw chatError;
+      }
       chatId = newChat.id;
-    } else {
-      chatId = existingChat.id;
     }
 
+    const insertData: any = {
+      content: newComment(),
+      sender_id: userId,
+      product_id: productId,
+      chat_id: chatId,
+      message_type: "product",
+      created_at: new Date().toISOString(),
+    };
 
-    // 2. Füge die Nachricht hinzu (OHNE Chat_Participants)
+    if (newCommentStars() > 0) {
+      insertData.stars = newCommentStars();
+    }
+
     const { data, error } = await supabase
       .from("Messages")
-      .insert({
-        content: newComment(),
-        sender_id: userId,
-        chat_id: chatId,
-        product_id: productId,
-        created_at: new Date().toISOString(),
-      })
+      .insert(insertData)
       .select(`
         id,
         content,
+        stars,
         created_at,
         sender_id,
         User!Messages_sender_id_fkey (
@@ -299,19 +464,66 @@ export default function ProductDetail() {
       `)
       .single();
 
+      if (error) {
+  console.error("❌ Insert error:", error);
+  
+  // ✅ NEU: RLS Policy blockiert Insert → Spezifische Fehlermeldung
+  if (error.code === "42501" || error.message.includes("policy")) {
+    alert("Du hast keine Berechtigung, dieses Produkt zu kommentieren.");
+    setCanComment(false);
+    return;
+  }
+  
+  throw error;
+}
 
-    if (error || !data) throw error;
 
+    if (!data) {
+      throw new Error("No data returned from insert");
+    }
 
-    setComments([...comments(), data as any]);
+// ✅ Update State mit neuer Liste
+const updatedComments = [data as any, ...comments()];
+setComments(updatedComments);
     setNewComment("");
-  } catch (err) {
+    setNewCommentStars(0);
+
+    // ✅ Berechne Durchschnitt aus updatedComments
+const validStars = updatedComments
+  .map(c => c.stars)
+  .filter((s): s is number => typeof s === 'number' && !isNaN(s) && s > 0);
+
+if (validStars.length > 0) {
+  const avgStars = validStars.reduce((sum, s) => sum + s, 0) / validStars.length;
+  const roundedAvg = Math.round(avgStars * 2) / 2;
+  
+  console.log("📊 Avg calculation:", { stars: validStars, raw: avgStars.toFixed(2), rounded: roundedAvg });
+
+      
+      // Update Produkt-Sterne in DB
+      const { error: updateError } = await supabase
+        .from("Product")
+        .update({ stars: roundedAvg })
+        .eq("id", productId);
+      
+      if (updateError) {
+        console.error("Error updating product stars:", updateError);
+      } else {
+        // Update lokalen State
+        setProduct(prev => prev ? { ...prev, stars: roundedAvg } : null);
+      }
+    }
+
+  } catch (err: any) {
     console.error("Error submitting comment:", err);
-    alert("Fehler beim Kommentieren.");
+    alert("Fehler beim Kommentieren: " + (err.message || "Unbekannter Fehler"));
   } finally {
     setSubmittingComment(false);
   }
 };
+
+
+
 
 
   /* =========================
@@ -320,51 +532,49 @@ export default function ProductDetail() {
 
 
   const handleRequestTest = async () => {
-  if (!isLoggedIn()) {
-    navigate("/login");
-    return;
-  }
-
-  try {
-    const userId = currentUserId();
-    const productId = product()!.id;
-
-    if (!userId) {
-      alert("Fehler: User nicht gefunden");
+    if (!isLoggedIn()) {
+      navigate("/login");
       return;
     }
 
-    // Prüfe, ob bereits eine Anfrage existiert
-    const { data: existingRequest } = await supabase
-      .from("Requests")
-      .select("id")
-      .eq("sender_id", userId)
-      .eq("product_id", productId)
-      .maybeSingle();
+    try {
+      const userId = currentUserId();
+      const productId = product()!.id;
 
-    if (existingRequest) {
-      alert("Du hast bereits eine Anfrage für dieses Produkt gesendet!");
-      return;
+      if (!userId) {
+        alert("Fehler: User nicht gefunden");
+        return;
+      }
+
+      // Prüfe, ob bereits eine Anfrage existiert
+      const { data: existingRequest } = await supabase
+        .from("Requests")
+        .select("id")
+        .eq("sender_id", userId)
+        .eq("product_id", productId)
+        .maybeSingle();
+
+      if (existingRequest) {
+        alert("Du hast bereits eine Anfrage für dieses Produkt gesendet!");
+        return;
+      }
+
+      // Erstelle neue Anfrage
+      const { error } = await supabase
+        .from("Requests")
+        .insert({
+          sender_id: userId,
+          product_id: productId,
+        });
+
+      if (error) throw error;
+
+      alert("✅ Anfrage erfolgreich gesendet! Der Besitzer wird benachrichtigt.");
+    } catch (err) {
+      console.error("Error sending request:", err);
+      alert("Fehler beim Senden der Anfrage.");
     }
-
-    // Erstelle neue Anfrage
-    const { error } = await supabase
-      .from("Requests")
-      .insert({
-        sender_id: userId,
-        product_id: productId,
-      });
-
-    if (error) throw error;
-
-    alert("✅ Anfrage erfolgreich gesendet! Der Besitzer wird benachrichtigt.");
-  } catch (err) {
-    console.error("Error sending request:", err);
-    alert("Fehler beim Senden der Anfrage.");
-  }
-};
-
-
+  };
 
 
   const handleContact = () => {
@@ -373,12 +583,11 @@ export default function ProductDetail() {
       return;
     }
     
-    // Option: Direkten Chat starten (wenn du eine Chat-Seite hast)
-    // navigate(`/chat/${product()!.owner_id}`);
-    
-    // Aktuell: Scroll zu Kommentaren
-    const commentSection = document.querySelector('#comment-section');
-    commentSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Navigiere zum Direct Message Chat mit dem Produktbesitzer
+    const ownerId = product()?.owner_id;
+    if (ownerId) {
+      navigate(`/chat/${ownerId}`);
+    }
   };
 
 
@@ -396,7 +605,6 @@ export default function ProductDetail() {
       minute: "2-digit",
     });
 
-  // 🆕 Preis formatieren
   const formatPrice = (price: number | null) => {
     if (price === null || price === undefined) return "Preis auf Anfrage";
     return new Intl.NumberFormat("de-DE", {
@@ -470,7 +678,31 @@ export default function ProductDetail() {
                   {product()!.name}
                 </h1>
 
-                {/* Preis 🆕 */}
+                {/* Sterne-Bewertung */}
+                <div class="mb-6">
+                  <Show when={product()!.stars > 0 && comments().filter(c => c.stars !== null).length > 0} fallback={
+                    <div class="flex items-center gap-2">
+                      <StarRating rating={0} maxStars={5} size="lg" />
+                      <span class="text-sm text-gray-400 dark:text-gray-500 italic ml-2">
+                        Noch keine Bewertungen
+                      </span>
+                    </div>
+                  }>
+                    <div class="flex items-center gap-3">
+                      <StarRating rating={product()!.stars} maxStars={5} size="lg" />
+                      <div class="flex items-baseline gap-2">
+                        <span class="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">
+                          {product()!.stars.toFixed(1)}
+                        </span>
+                        <span class="text-base text-gray-500 dark:text-gray-400 font-medium">
+                          ({comments().filter(c => c.stars !== null && c.stars !== undefined).length})
+                        </span>
+                      </div>
+                    </div>
+                  </Show>
+                </div>
+
+                {/* Preis */}
                 <div class="mb-6">
                   <div class="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 rounded-xl border-2 border-emerald-200 dark:border-emerald-800">
                     <svg class="w-6 h-6 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -562,18 +794,72 @@ export default function ProductDetail() {
               <svg class="w-7 h-7 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
-              Kommentare ({comments().length})
+              Bewertungen & Kommentare ({comments().length})
             </h2>
 
+            
+{/* ✅ NEU: Kommentar-Formular mit Permission-Check */}
+<Show 
+  when={!checkingPermission()}
+  fallback={
+    <div class="flex justify-center py-4 mb-6">
+      <div class="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  }
+>
+  <Show 
+    when={canComment()}
+    fallback={
+      <div class="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div>
+            <p class="text-sm font-semibold text-yellow-800 dark:text-yellow-300 mb-1">
+              Keine Bewertungsberechtigung
+            </p>
+            <p class="text-sm text-yellow-700 dark:text-yellow-400">
+              Nur verifizierte Käufer können Bewertungen abgeben. Kaufe dieses Produkt, um eine Bewertung zu schreiben.
+            </p>
+          </div>
+        </div>
+      </div>
+    }
+  >
+    {/* DEIN BESTEHENDES FORMULAR KOMMT HIER REIN */}
+    <form onSubmit={handleSubmitComment} class="mb-8 space-y-4">
+{/* Sterne-Auswahl */}
+                <div class="mb-4">
+                  <label class="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    Deine Bewertung (optional)
+                  </label>
+                  <div class="flex gap-2">
+                    <For each={[1, 2, 3, 4, 5]}>
+                      {(star) => (
+                        <button
+                          type="button"
+                          onClick={() => setNewCommentStars(star === newCommentStars() ? 0 : star)}
+                          class="transition-transform hover:scale-110"
+                        >
+                          <svg 
+                            class={`w-8 h-8 ${star <= newCommentStars() ? 'text-amber-400' : 'text-gray-300 dark:text-gray-600'}`}
+                            fill="currentColor" 
+                            viewBox="0 0 20 20"
+                          >
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                        </button>
+                      )}
+                    </For>
+                  </div>
+                </div>
 
-            {/* Kommentar-Formular */}
-            <Show when={isLoggedIn()}>
-              <form onSubmit={handleSubmitComment} class="mb-8">
                 <div class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 border-2 border-gray-200 dark:border-gray-600 focus-within:border-sky-500 dark:focus-within:border-sky-400 transition-colors">
                   <textarea
                     value={newComment()}
                     onInput={(e) => setNewComment(e.currentTarget.value)}
-                    placeholder="Teile deine Meinung zu diesem Produkt..."
+                    placeholder="Teile deine Erfahrung mit diesem Produkt..."
                     class="w-full bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none resize-none"
                     rows="3"
                   />
@@ -587,17 +873,17 @@ export default function ProductDetail() {
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>
-                    {submittingComment() ? "Wird gesendet..." : "Kommentar absenden"}
+                    {submittingComment() ? "Wird gesendet..." : "Bewertung absenden"}
                   </button>
                 </div>
-              </form>
-            </Show>
-
+    </form>
+  </Show>
+</Show>
 
             <Show when={!isLoggedIn()}>
               <div class="mb-8 p-6 bg-sky-50 dark:bg-sky-900/20 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
                 <p class="text-gray-700 dark:text-gray-300 mb-3">
-                  Melde dich an, um einen Kommentar zu hinterlassen
+                  Melde dich an, um eine Bewertung zu hinterlassen
                 </p>
                 <button
                   onClick={() => navigate("/login")}
@@ -614,10 +900,10 @@ export default function ProductDetail() {
               <Show when={comments().length === 0}>
                 <div class="text-center py-12">
                   <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                   </svg>
                   <p class="text-gray-500 dark:text-gray-400">
-                    Noch keine Kommentare. Sei der Erste!
+                    Noch keine Bewertungen. Sei der Erste!
                   </p>
                 </div>
               </Show>
@@ -631,15 +917,28 @@ export default function ProductDetail() {
                         {comment.User ? comment.User.name.charAt(0) : "?"}
                       </div>
                       <div class="flex-1 min-w-0">
-                        <div class="flex items-baseline gap-2 mb-1">
-                          <span class="font-semibold text-gray-900 dark:text-white">
-                            {comment.User
-                              ? `${comment.User.name} ${comment.User.surname}`
-                              : "Unbekannter Nutzer"}
-                          </span>
-                          <span class="text-sm text-gray-500 dark:text-gray-400">
-                            {formatDate(comment.created_at)}
-                          </span>
+                        <div class="flex items-start justify-between mb-2">
+                          <div>
+                            <div class="flex items-baseline gap-2 mb-1">
+                              <span class="font-semibold text-gray-900 dark:text-white">
+                                {comment.User
+                                  ? `${comment.User.name} ${comment.User.surname}`
+                                  : "Unbekannter Nutzer"}
+                              </span>
+                              <span class="text-sm text-gray-500 dark:text-gray-400">
+                                {formatDate(comment.created_at)}
+                              </span>
+                            </div>
+                            {/* Sterne des Kommentars */}
+                            <Show when={comment.stars !== null && comment.stars !== undefined}>
+                              <div class="flex items-center gap-2 mb-2">
+                                <StarRating rating={comment.stars!} maxStars={5} size="sm" />
+                                <span class="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                  {comment.stars!.toFixed(1)}
+                                </span>
+                              </div>
+                            </Show>
+                          </div>
                         </div>
                         <p class="text-gray-700 dark:text-gray-300 leading-relaxed">
                           {comment.content}
