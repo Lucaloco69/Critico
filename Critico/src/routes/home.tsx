@@ -247,66 +247,79 @@ export function Home() {
 
 
   // Lade Produkte + Tags aus DB
-  createEffect(async () => {
-    try {
-      setLoading(true);
+  // Ersetze den createEffect für Produkte laden:
 
+createEffect(async () => {
+  try {
+    setLoading(true);
 
-      // Hole alle Tags
-      const { data: tagsData, error: tagsError } = await supabase
-        .from("Tags")
-        .select("id, name")
-        .order("name");
+    // Hole alle Tags
+    const { data: tagsData, error: tagsError } = await supabase
+      .from("Tags")
+      .select("id, name")
+      .order("name");
 
+    if (tagsError) throw tagsError;
+    setTags(tagsData || []);
 
-      if (tagsError) throw tagsError;
-      setTags(tagsData || []);
-
-
-      // Hole alle Produkte mit ihren Tags (via Product_Tags join)
-      const { data: productsData, error: productsError } = await supabase
-        .from("Product")
-        .select(`
-          id,
-          name,
-          beschreibung,
-          picture,
-          owner_id,
-          stars,
-          Product_Tags (
-            tags_id,
-            Tags (
-              id,
-              name
-            )
+    // ✅ Hole Produkte OHNE picture Spalte
+    const { data: productsData, error: productsError } = await supabase
+      .from("Product")
+      .select(`
+        id,
+        name,
+        beschreibung,
+        owner_id,
+        stars,
+        Product_Tags (
+          tags_id,
+          Tags (
+            id,
+            name
           )
-        `)
-        .order("id", { ascending: false });
+        ),
+        Product_Images (
+          id,
+          image_url,
+          order_index
+        )
+      `)
+      .order("id", { ascending: false });
 
+    if (productsError) throw productsError;
 
-      if (productsError) throw productsError;
+    // ✅ Transformiere: Erstes Bild aus Product_Images als Hauptbild
+    const transformedProducts = (productsData || []).map((p: any) => {
+      const allImages: string[] = [];
+      
+      if (p.Product_Images && p.Product_Images.length > 0) {
+        const images = p.Product_Images
+          .sort((a: any, b: any) => a.order_index - b.order_index)
+          .map((img: any) => img.image_url);
+        allImages.push(...images);
+      }
 
-
-      // Transformiere das Nested-Result in flache Struktur
-      const transformedProducts = (productsData || []).map((p: any) => ({
+      return {
         id: p.id,
         name: p.name,
         beschreibung: p.beschreibung,
-        picture: p.picture,
+        picture: allImages[0] || null, // ✅ Erstes Bild = Hauptbild
+        images: allImages,
         owner_id: p.owner_id,
         stars: p.stars || 0,
         tags: p.Product_Tags?.map((pt: any) => pt.Tags).filter(Boolean) || [],
-      }));
+      };
+    });
 
+    setProducts(transformedProducts);
+    setFilteredProducts(transformedProducts);
+  } catch (err) {
+    console.error("Fehler beim Laden der Produkte:", err);
+  } finally {
+    setLoading(false);
+  }
+});
 
-      setProducts(transformedProducts);
-      setFilteredProducts(transformedProducts);
-    } catch (err) {
-      console.error("Fehler beim Laden der Produkte:", err);
-    } finally {
-      setLoading(false);
-    }
-  });
 
 
   // Filter-Logik (Tags + Search)
