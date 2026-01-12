@@ -578,17 +578,17 @@ if (validStars.length > 0) {
 
 
   const handleContact = () => {
-    if (!isLoggedIn()) {
-      navigate("/login");
-      return;
-    }
-    
-    // Navigiere zum Direct Message Chat mit dem Produktbesitzer
-    const ownerId = product()?.owner_id;
-    if (ownerId) {
-      navigate(`/chat/${ownerId}`);
-    }
-  };
+  if (!isLoggedIn()) {
+    navigate("/login");
+    return;
+  }
+  
+  const ownerId = product()?.owner_id;
+  if (ownerId) {
+    navigate(`/chat/${ownerId}`);  // ✅ Navigiert zur neuen Chat-Seite
+  }
+};
+
 
 
   /* =========================
