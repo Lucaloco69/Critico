@@ -1,9 +1,7 @@
-import { createSignal, For, Show, onCleanup, onMount } from "solid-js";
+import { createSignal, For, Show, onCleanup, onMount, createEffect } from "solid-js";
 import { useParams, A, useNavigate } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import sessionStore, { isLoggedIn } from "../lib/sessionStore";
-
-
 
 interface Message {
   id: number;
@@ -19,8 +17,6 @@ interface Message {
   };
 }
 
-
-
 interface ChatPartner {
   id: number;
   name: string;
@@ -31,8 +27,6 @@ interface ChatPartner {
 // ✅ Globale Variable außerhalb der Component
 let globalChannel: any = null;
 let globalChatId: number | null = null;
-
-
 
 export default function Chat() {
   const params = useParams();
@@ -45,6 +39,39 @@ export default function Chat() {
   const [chatId, setChatId] = createSignal<number | null>(null);
   const [loading, setLoading] = createSignal(true);
   const [sending, setSending] = createSignal(false);
+
+  // ✅ Ref für Main Container
+  let mainContainerRef: HTMLElement | undefined;
+  // ✅ Ref für Messages Container (inneres div)
+  let messagesEndRef: HTMLDivElement | undefined;
+
+ const scrollToBottom = () => {
+  if (mainContainerRef) {
+    mainContainerRef.scrollTop = mainContainerRef.scrollHeight;
+  }
+};
+
+
+
+  // ✅ createEffect mit Debug-Logs
+  createEffect(() => {
+    const msgs = messages();
+    const isLoading = loading();
+    
+    console.log("🔄 createEffect triggered - Messages:", msgs.length, "Loading:", isLoading);
+    
+    if (!isLoading && msgs.length > 0) {
+      console.log("✅ Bedingung erfüllt, scrolle nach unten");
+      
+      // Sofort scrollen
+      setTimeout(() => scrollToBottom(), 0);
+      // Und nochmal zur Sicherheit
+      setTimeout(() => scrollToBottom(), 100);
+      setTimeout(() => scrollToBottom(), 300);
+    } else {
+      console.log("⏭️ Bedingung nicht erfüllt");
+    }
+  });
 
   onMount(async () => {
     console.log("🚀 Component mounted");
@@ -120,7 +147,7 @@ export default function Chat() {
         globalChannel = null;
       }
 
-      // Realtime Subscription - VEREINFACHTER TEST
+      // Realtime Subscription
       console.log("🔌 Setting up Realtime subscription for chat:", directChatId);
 
       globalChannel = supabase
@@ -134,21 +161,16 @@ export default function Chat() {
           },
           (payload) => {
             console.log("🔔🔔🔔 EVENT EMPFANGEN:", payload.eventType);
-            console.log("Payload:", payload);
-            console.log("New data:", payload.new);
             
-            // Falls es ein INSERT ist
             if (payload.eventType === "INSERT") {
               console.log("✅ INSERT Event!");
               console.log("Chat ID:", payload.new.chat_id);
               console.log("Message Type:", payload.new.message_type);
               console.log("Sender ID:", payload.new.sender_id);
               
-              // Manueller Filter
               if (payload.new.chat_id === directChatId && payload.new.message_type === "direct") {
                 console.log("🎯 Richtige Nachricht für diesen Chat!");
               
-                  // ✅ Ignoriere eigene Nachrichten (wurden schon in handleSendMessage hinzugefügt)
                 if (payload.new.sender_id === userId) {
                   console.log("⏭️ Eigene Nachricht, wird ignoriert");
                   return;
@@ -175,14 +197,7 @@ export default function Chat() {
                   .then(({ data: newMsg }) => {
                     if (newMsg) {
                       console.log("📨 Nachricht geladen:", newMsg);
-                      console.log("📊 Messages VORHER:", messages().length);
-                      console.log("📊 Messages Array:", messages());
-                      setMessages(prev => {
-                        const updated = [...prev, newMsg as any];
-                        console.log("📊 Messages NACHHER:", updated.length);
-                        console.log("📊 Updated Array:", updated);
-                        return updated;
-                      });
+                      setMessages(prev => [...prev, newMsg as any]);
                       
                       // Markiere als gelesen wenn an mich
                       if (newMsg.sender_id !== userId && !newMsg.read) {
@@ -199,8 +214,6 @@ export default function Chat() {
                             console.log("✅ Nachricht als gelesen markiert");
                           });
                       }
-                      
-                      scrollToBottom();
                     }
                   });
               } else {
@@ -222,17 +235,14 @@ export default function Chat() {
       console.error("Error loading chat:", err);
     } finally {
       setLoading(false);
+      console.log("🏁 Loading finished");
     }
   });
 
-  // ✅ Cleanup nur beim echten Unmount
   onCleanup(() => {
     console.log("🧹 Cleanup aufgerufen - Component wird unmounted");
   });
 
-
-
-  // Verbesserte loadMessages Funktion
   const loadMessages = async (chatId: number, userId: number) => {
     try {
       const { data, error } = await supabase
@@ -254,22 +264,18 @@ export default function Chat() {
         .eq("message_type", "direct")
         .order("created_at", { ascending: true });
 
-
       if (error) {
         console.error("Error loading messages:", error);
         return;
       }
 
-
       console.log("📥 Loaded messages:", data?.length || 0);
       setMessages((data || []) as any);
-
 
       // Markiere ungelesene Nachrichten als gelesen
       const unreadIds = (data || [])
         .filter(m => m.sender_id !== userId && !m.read)
         .map(m => m.id);
-
 
       if (unreadIds.length > 0) {
         await supabase
@@ -277,7 +283,6 @@ export default function Chat() {
           .update({ read: true })
           .in("id", unreadIds);
         
-        // Aktualisiere lokales Signal
         setMessages(prev => 
           prev.map(msg => 
             unreadIds.includes(msg.id) ? { ...msg, read: true } : msg
@@ -286,15 +291,10 @@ export default function Chat() {
         
         console.log(`✅ ${unreadIds.length} Nachrichten als gelesen markiert`);
       }
-
-
-      setTimeout(scrollToBottom, 100);
     } catch (err) {
       console.error("Error in loadMessages:", err);
     }
   };
-
-
 
   const handleSendMessage = async (e: Event) => {
     e.preventDefault();
@@ -338,7 +338,6 @@ export default function Chat() {
       if (data) {
         console.log("✅ Nachricht gesendet:", data.id);
         setMessages(prev => [...prev, data as any]);
-        scrollToBottom();
       }
 
       setNewMessage("");
@@ -350,19 +349,6 @@ export default function Chat() {
     }
   };
 
-
-
-  const scrollToBottom = () => {
-    setTimeout(() => {
-      const container = document.getElementById("messages-container");
-      if (container) {
-        container.scrollTop = container.scrollHeight;
-      }
-    }, 50);
-  };
-
-
-
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString("de-DE", {
@@ -371,114 +357,111 @@ export default function Chat() {
     });
   };
 
-
-
   return (
-    <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
-      {/* Header */}
-      <header class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">
-        <div class="max-w-5xl mx-auto px-4 py-4 flex items-center gap-4">
-          <button
-            onClick={() => navigate(-1)}
-            class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
+  <div class="h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+    {/* Header - Fixe Höhe */}
+    <header class="bg-white dark:bg-gray-800 shadow-md flex-shrink-0">
+      <div class="max-w-5xl mx-auto px-4 py-4 flex items-center gap-4">
+        <button
+          onClick={() => navigate(-1)}
+          class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
 
-          <Show when={chatPartner()}>
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-md">
-                {chatPartner()!.name.charAt(0)}{chatPartner()!.surname.charAt(0)}
-              </div>
-              <div>
-                <h1 class="font-semibold text-gray-900 dark:text-white">
-                  {chatPartner()!.name} {chatPartner()!.surname}
-                </h1>
-              </div>
+        <Show when={chatPartner()}>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-md">
+              {chatPartner()!.name.charAt(0)}{chatPartner()!.surname.charAt(0)}
+            </div>
+            <div>
+              <h1 class="font-semibold text-gray-900 dark:text-white">
+                {chatPartner()!.name} {chatPartner()!.surname}
+              </h1>
+            </div>
+          </div>
+        </Show>
+      </div>
+    </header>
+
+    {/* Messages Container - Nimmt restlichen Platz */}
+    <main ref={mainContainerRef} class="flex-1 overflow-y-auto">
+      <Show when={loading()}>
+        <div class="flex h-full items-center justify-center">
+          <div class="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </Show>
+
+      <Show when={!loading()}>
+        <div class="px-4 py-6 space-y-4 max-w-5xl mx-auto w-full">
+          <Show when={messages().length === 0}>
+            <div class="text-center py-12">
+              <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              <p class="text-gray-500 dark:text-gray-400">
+                Noch keine Nachrichten. Starte die Unterhaltung!
+              </p>
             </div>
           </Show>
-        </div>
-      </header>
 
-      {/* Messages Container */}
-      <main class="flex-1 overflow-hidden flex flex-col">
-        <Show when={loading()}>
-          <div class="flex-1 flex items-center justify-center">
-            <div class="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        </Show>
-
-        <Show when={!loading()}>
-          <div
-            id="messages-container"
-            class="flex-1 overflow-y-auto px-4 py-6 space-y-4 max-w-5xl mx-auto w-full"
-          >
-            <Show when={messages().length === 0}>
-              <div class="text-center py-12">
-                <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-                <p class="text-gray-500 dark:text-gray-400">
-                  Noch keine Nachrichten. Starte die Unterhaltung!
-                </p>
-              </div>
-            </Show>
-
-            <For each={messages()}>
-              {(message) => {
-                const isOwn = message.sender_id === currentUserId();
-                return (
-                  <div class={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
-                    <div class={`flex gap-2 max-w-[70%] ${isOwn ? "flex-row-reverse" : ""}`}>
-                      <div class="w-8 h-8 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0">
-                        {message.User.name.charAt(0)}
+          <For each={messages()}>
+            {(message) => {
+              const isOwn = message.sender_id === currentUserId();
+              return (
+                <div class={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
+                  <div class={`flex gap-2 max-w-[70%] ${isOwn ? "flex-row-reverse" : ""}`}>
+                    <div class="w-8 h-8 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0">
+                      {message.User.name.charAt(0)}
+                    </div>
+                    <div>
+                      <div class={`px-4 py-2 rounded-2xl shadow-md ${
+                        isOwn
+                          ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white"
+                          : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      }`}>
+                        <p class="break-words">{message.content}</p>
                       </div>
-                      <div>
-                        <div class={`px-4 py-2 rounded-2xl shadow-md ${
-                          isOwn
-                            ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white"
-                            : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                        }`}>
-                          <p class="break-words">{message.content}</p>
-                        </div>
-                        <p class={`text-xs text-gray-500 dark:text-gray-400 mt-1 ${isOwn ? "text-right" : ""}`}>
-                          {formatTime(message.created_at)}
-                        </p>
-                      </div>
+                      <p class={`text-xs text-gray-500 dark:text-gray-400 mt-1 ${isOwn ? "text-right" : ""}`}>
+                        {formatTime(message.created_at)}
+                      </p>
                     </div>
                   </div>
-                );
-              }}
-            </For>
-          </div>
+                </div>
+              );
+            }}
+          </For>
+        </div>
+      </Show>
+    </main>
 
-          {/* Input Form */}
-          <div class="bg-white dark:bg-gray-800 border-t dark:border-gray-700 p-4">
-            <form onSubmit={handleSendMessage} class="max-w-5xl mx-auto flex gap-3">
-              <input
-                type="text"
-                value={newMessage()}
-                onInput={(e) => setNewMessage(e.currentTarget.value)}
-                placeholder="Nachricht schreiben..."
-                class="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500"
-                disabled={sending()}
-              />
-              <button
-                type="submit"
-                disabled={!newMessage().trim() || sending()}
-                class="px-6 py-3 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-                Senden
-              </button>
-            </form>
-          </div>
-        </Show>
-      </main>
-    </div>
-  );
+    {/* Input Form - Fixe Höhe am Ende */}
+    <Show when={!loading()}>
+      <footer class="bg-white dark:bg-gray-800 border-t dark:border-gray-700 p-4 flex-shrink-0">
+        <form onSubmit={handleSendMessage} class="max-w-5xl mx-auto flex gap-3">
+          <input
+            type="text"
+            value={newMessage()}
+            onInput={(e) => setNewMessage(e.currentTarget.value)}
+            placeholder="Nachricht schreiben..."
+            class="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500"
+            disabled={sending()}
+          />
+          <button
+            type="submit"
+            disabled={!newMessage().trim() || sending()}
+            class="px-6 py-3 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+            Senden
+          </button>
+        </form>
+      </footer>
+    </Show>
+  </div>
+);
 }
