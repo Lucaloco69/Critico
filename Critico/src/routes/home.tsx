@@ -3,7 +3,6 @@ import { supabase } from "../lib/supabaseClient";
 import sessionStore, { isLoggedIn } from "../lib/sessionStore";
 import { createSignal, createEffect, For, Show, onCleanup, onMount } from "solid-js";
 
-
 interface Product {
   id: number;
   name: string;
@@ -14,18 +13,15 @@ interface Product {
   tags?: { id: number; name: string }[];
 }
 
-
 interface Tag {
   id: number;
   name: string;
 }
 
-
 interface StarRatingProps {
   rating: number;
   maxStars?: number;
 }
-
 
 // StarRating Komponente mit halben Sternen
 function StarRating(props: StarRatingProps) {
@@ -33,7 +29,6 @@ function StarRating(props: StarRatingProps) {
   
   // Eindeutige ID für diesen Stern-Set
   const gradientId = `starGradient-${Math.random().toString(36).substr(2, 9)}`;
-
 
   return (
     <div class="flex items-center gap-1">
@@ -46,7 +41,6 @@ function StarRating(props: StarRatingProps) {
           </linearGradient>
         </defs>
       </svg>
-
 
       <For each={Array.from({ length: maxStars() })}>
         {(_, index) => {
@@ -65,7 +59,6 @@ function StarRating(props: StarRatingProps) {
             filling = 0; // Leerer Stern
           }
 
-
           return (
             <div class="relative w-5 h-5">
               {/* Leerer Stern (Hintergrund) */}
@@ -77,7 +70,6 @@ function StarRating(props: StarRatingProps) {
               >
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
               </svg>
-
 
               {/* Gefüllter Stern (überlagert) */}
               <div 
@@ -101,10 +93,8 @@ function StarRating(props: StarRatingProps) {
   );
 }
 
-
 export function Home() {
   const navigate = useNavigate();
-
 
   const [products, setProducts] = createSignal<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = createSignal<Product[]>([]);
@@ -117,11 +107,27 @@ export function Home() {
   const [directMessageCount, setDirectMessageCount] = createSignal(0);
   const [currentUserId, setCurrentUserId] = createSignal<number | null>(null);
 
+  // ✅ Ref für Click-Outside Handler
+  let filterDropdownRef: HTMLDivElement | undefined;
+
+  // ✅ Click-Outside Handler
+  onMount(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterDropdownRef && !filterDropdownRef.contains(event.target as Node)) {
+        setShowFilterDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    onCleanup(() => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    });
+  });
 
   // Lade User-ID einmal beim Start
   createEffect(async () => {
     if (!isLoggedIn() || !sessionStore.user) return;
-
 
     try {
       const { data: userData } = await supabase
@@ -129,7 +135,6 @@ export function Home() {
         .select("id")
         .eq("auth_id", sessionStore.user.id)
         .single();
-
 
       if (userData) {
         setCurrentUserId(userData.id);
@@ -139,17 +144,14 @@ export function Home() {
     }
   });
 
-
   // Lade Request Count und Direct Message Count wenn User-ID vorhanden
   createEffect(() => {
     const userId = currentUserId();
     if (!userId) return;
 
-
     // Initial laden
     loadRequestCount(userId);
     loadDirectMessageCount(userId);
-
 
     // Realtime Subscription für Requests
     const requestsChannel = supabase
@@ -166,7 +168,6 @@ export function Home() {
         }
       )
       .subscribe();
-
 
     // Realtime Subscription für Direct Messages
     const messagesChannel = supabase
@@ -185,14 +186,12 @@ export function Home() {
       )
       .subscribe();
 
-
     // Cleanup
     onCleanup(() => {
       supabase.removeChannel(requestsChannel);
       supabase.removeChannel(messagesChannel);
     });
   });
-
 
   // Helper-Funktion zum Laden der Request Count
   const loadRequestCount = async (userId: number) => {
@@ -207,15 +206,12 @@ export function Home() {
           )
         `);
 
-
       if (error) throw error;
-
 
       // Filtere: Nur pending Requests für MEINE Produkte
       const myPendingRequests = (data || []).filter(
         (r: any) => r.Product.owner_id === userId && r.status === null
       );
-
 
       setRequestCount(myPendingRequests.length);
     } catch (err) {
@@ -223,8 +219,7 @@ export function Home() {
     }
   };
 
-
-  // ✅ Helper-Funktion zum Laden ungelesener Direct Messages (NUR von anderen!)
+  // Helper-Funktion zum Laden ungelesener Direct Messages
   const loadDirectMessageCount = async (userId: number) => {
     try {
       const { data, error } = await supabase
@@ -233,11 +228,9 @@ export function Home() {
         .eq("message_type", "direct")
         .eq("receiver_id", userId)
         .eq("read", false)
-        .neq("sender_id", userId);  // ✅ Nicht von mir selbst
-
+        .neq("sender_id", userId);
 
       if (error) throw error;
-
 
       setDirectMessageCount((data || []).length);
     } catch (err) {
@@ -245,91 +238,84 @@ export function Home() {
     }
   };
 
-
   // Lade Produkte + Tags aus DB
-  // Ersetze den createEffect für Produkte laden:
+  createEffect(async () => {
+    try {
+      setLoading(true);
 
-createEffect(async () => {
-  try {
-    setLoading(true);
+      // Hole alle Tags
+      const { data: tagsData, error: tagsError } = await supabase
+        .from("Tags")
+        .select("id, name")
+        .order("name");
 
-    // Hole alle Tags
-    const { data: tagsData, error: tagsError } = await supabase
-      .from("Tags")
-      .select("id, name")
-      .order("name");
+      if (tagsError) throw tagsError;
+      setTags(tagsData || []);
 
-    if (tagsError) throw tagsError;
-    setTags(tagsData || []);
-
-    // ✅ Hole Produkte OHNE picture Spalte
-    const { data: productsData, error: productsError } = await supabase
-      .from("Product")
-      .select(`
-        id,
-        name,
-        beschreibung,
-        owner_id,
-        stars,
-        Product_Tags (
-          tags_id,
-          Tags (
-            id,
-            name
-          )
-        ),
-        Product_Images (
+      // Hole Produkte OHNE picture Spalte
+      const { data: productsData, error: productsError } = await supabase
+        .from("Product")
+        .select(`
           id,
-          image_url,
-          order_index
-        )
-      `)
-      .order("id", { ascending: false });
+          name,
+          beschreibung,
+          owner_id,
+          stars,
+          Product_Tags (
+            tags_id,
+            Tags (
+              id,
+              name
+            )
+          ),
+          Product_Images (
+            id,
+            image_url,
+            order_index
+          )
+        `)
+        .order("id", { ascending: false });
 
-    if (productsError) throw productsError;
+      if (productsError) throw productsError;
 
-    // ✅ Transformiere: Erstes Bild aus Product_Images als Hauptbild
-    const transformedProducts = (productsData || []).map((p: any) => {
-      const allImages: string[] = [];
-      
-      if (p.Product_Images && p.Product_Images.length > 0) {
-        const images = p.Product_Images
-          .sort((a: any, b: any) => a.order_index - b.order_index)
-          .map((img: any) => img.image_url);
-        allImages.push(...images);
-      }
+      // Transformiere: Erstes Bild aus Product_Images als Hauptbild
+      const transformedProducts = (productsData || []).map((p: any) => {
+        const allImages: string[] = [];
+        
+        if (p.Product_Images && p.Product_Images.length > 0) {
+          const images = p.Product_Images
+            .sort((a: any, b: any) => a.order_index - b.order_index)
+            .map((img: any) => img.image_url);
+          allImages.push(...images);
+        }
 
-      return {
-        id: p.id,
-        name: p.name,
-        beschreibung: p.beschreibung,
-        picture: allImages[0] || null, // ✅ Erstes Bild = Hauptbild
-        images: allImages,
-        owner_id: p.owner_id,
-        stars: p.stars || 0,
-        tags: p.Product_Tags?.map((pt: any) => pt.Tags).filter(Boolean) || [],
-      };
-    });
+        return {
+          id: p.id,
+          name: p.name,
+          beschreibung: p.beschreibung,
+          picture: allImages[0] || null,
+          images: allImages,
+          owner_id: p.owner_id,
+          stars: p.stars || 0,
+          tags: p.Product_Tags?.map((pt: any) => pt.Tags).filter(Boolean) || [],
+        };
+      });
 
-    setProducts(transformedProducts);
-    setFilteredProducts(transformedProducts);
-  } catch (err) {
-    console.error("Fehler beim Laden der Produkte:", err);
-  } finally {
-    setLoading(false);
-  }
-});
-
-
+      setProducts(transformedProducts);
+      setFilteredProducts(transformedProducts);
+    } catch (err) {
+      console.error("Fehler beim Laden der Produkte:", err);
+    } finally {
+      setLoading(false);
+    }
+  });
 
   // Filter-Logik (Tags + Search)
   createEffect(() => {
     const query = searchQuery().toLowerCase();
     const selected = selectedTags();
 
-
     let filtered = products();
-
 
     // Filter nach Tags
     if (selected.length > 0) {
@@ -337,7 +323,6 @@ createEffect(async () => {
         p.tags?.some((t) => selected.includes(t.id))
       );
     }
-
 
     // Filter nach Suchbegriff
     if (query) {
@@ -348,17 +333,14 @@ createEffect(async () => {
       );
     }
 
-
     setFilteredProducts(filtered);
   });
-
 
   const toggleTag = (tagId: number) => {
     setSelectedTags((prev) =>
       prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
     );
   };
-
 
   const handleCreateProduct = () => {
     if (!isLoggedIn()) {
@@ -367,7 +349,6 @@ createEffect(async () => {
       navigate("/createProduct");
     }
   };
-
 
   return (
     <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -379,28 +360,27 @@ createEffect(async () => {
             Critico
           </A>
 
-
           {/* Filter Dropdown */}
-          <div class="relative">
+          <div class="relative" ref={filterDropdownRef}>
             <button
               onClick={() => setShowFilterDropdown(!showFilterDropdown())}
-              class="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-2"
+              class="relative px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-2"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
-              Filter
+              <span>Filter</span>
+              {/* Badge mit absolutem Positioning */}
               <Show when={selectedTags().length > 0}>
-                <span class="ml-1 px-2 py-0.5 bg-sky-500 text-white text-xs rounded-full">
+                <span class="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-sky-500 text-white text-xs font-bold rounded-full">
                   {selectedTags().length}
                 </span>
               </Show>
             </button>
 
-
             {/* Dropdown */}
             <Show when={showFilterDropdown()}>
-              <div class="absolute top-full mt-2 left-0 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 max-h-96 overflow-y-auto">
+              <div class="absolute top-full mt-2 left-0 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 max-h-96 overflow-y-auto z-50">
                 <p class="text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">Tags filtern</p>
                 <For each={tags()}>
                   {(tag) => (
@@ -427,7 +407,6 @@ createEffect(async () => {
             </Show>
           </div>
 
-
           {/* Suchleiste */}
           <div class="flex-1 max-w-xl">
             <div class="relative">
@@ -443,7 +422,6 @@ createEffect(async () => {
               />
             </div>
           </div>
-
 
           {/* Action Icons */}
           <div class="flex items-center gap-3">
@@ -463,7 +441,6 @@ createEffect(async () => {
               </Show>
             </A>
 
-
             {/* Direct Messages */}
             <A 
               href="/messages" 
@@ -480,7 +457,6 @@ createEffect(async () => {
               </Show>
             </A>
 
-
             {/* Gespeichert */}
             <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
               <svg class="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -488,14 +464,12 @@ createEffect(async () => {
               </svg>
             </button>
 
-
             {/* Profil */}
             <A href={isLoggedIn() ? "/profile" : "/login"} class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
               <svg class="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </A>
-
 
             {/* Artikel einstellen Button */}
             <button
@@ -508,7 +482,6 @@ createEffect(async () => {
         </div>
       </header>
 
-
       {/* Produkt-Grid */}
       <main class="max-w-7xl mx-auto px-4 py-8">
         <Show when={loading()}>
@@ -517,13 +490,11 @@ createEffect(async () => {
           </div>
         </Show>
 
-
         <Show when={!loading() && filteredProducts().length === 0}>
           <div class="text-center py-20">
             <p class="text-gray-500 dark:text-gray-400 text-lg">Keine Produkte gefunden.</p>
           </div>
         </Show>
-
 
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
           <For each={filteredProducts()}>
@@ -556,18 +527,15 @@ createEffect(async () => {
                     </Show>
                   </div>
 
-
                   {/* Subtiler Overlay beim Hover */}
                   <div class="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-lg"></div>
                 </div>
-
 
                 {/* Info */}
                 <div class="p-4 space-y-2.5">
                   <h3 class="font-semibold text-gray-900 dark:text-white truncate text-base">
                     {product.name}
                   </h3>
-
 
                   {/* Stern-Bewertung mit halben Sternen */}
                   <Show when={product.stars > 0} fallback={
@@ -585,11 +553,9 @@ createEffect(async () => {
                     </div>
                   </Show>
 
-
                   <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 leading-relaxed min-h-[2.5rem]">
                     {product.beschreibung}
                   </p>
-
 
                   {/* Tags */}
                   <Show when={product.tags && product.tags.length > 0}>
