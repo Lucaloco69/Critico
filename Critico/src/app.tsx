@@ -5,7 +5,7 @@ import Login from './routes/login';
 import Signup from './routes/signup';
 import Profile from './routes/profile';
 import CreateProduct from './routes/createProduct';
-import ProductDetails from './routes/productDetails';
+import ProductDetails from './routes/ProductDetail';
 import Requests from './routes/requests';
 import Chat from './routes/chat';
 import Messages from './routes/messages'
@@ -20,7 +20,7 @@ function App() {
         <Route path="/home" component={Home} />
         <Route path="/profile" component={Profile} />
         <Route path="/createProduct" component={CreateProduct} /> 
-        <Route path="/productDetails/:id" component={ProductDetails} />
+        <Route path="/product/:id" component={ProductDetails} />
         <Route path="/requests" component={Requests} />
         <Route path="/chat/:partnerId" component={Chat} />
         <Route path="/messages" component={Messages} />

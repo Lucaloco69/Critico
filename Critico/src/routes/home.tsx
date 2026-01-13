@@ -529,7 +529,7 @@ createEffect(async () => {
           <For each={filteredProducts()}>
             {(product) => (
               <A
-                href={`/productDetails/${product.id}`}
+                href={`/product/${product.id}`}
                 class="group bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-2xl transition-all overflow-hidden hover:-translate-y-1 duration-300"
               >
                 {/* Optimiertes Bild mit Padding & Filter */}
