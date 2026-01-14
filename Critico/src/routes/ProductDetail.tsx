@@ -18,7 +18,7 @@ interface ProductDB {
   Product_Tags?: {
     Tags: { id: number; name: string } | null;
   }[];
-  Product_Images?: {
+  product_images?: {
     id: number;
     image_url: string;
     order_index: number;
@@ -121,7 +121,7 @@ export default function ProductDetail() {
               name
             )
           ),
-          Product_Images (
+          product_images (
             id,
             image_url,
             order_index
@@ -133,8 +133,8 @@ export default function ProductDetail() {
       if (productError || !productData) throw productError;
 
       const imagesList: string[] = [];
-      if (productData.Product_Images && productData.Product_Images.length > 0) {
-        const images = productData.Product_Images
+      if (productData.product_images && productData.product_images.length > 0) {
+        const images = productData.product_images
           .sort((a, b) => a.order_index - b.order_index)
           .map(img => img.image_url);
         imagesList.push(...images);

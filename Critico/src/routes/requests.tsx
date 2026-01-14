@@ -85,46 +85,49 @@ export default function Requests() {
   });
 
   const loadRequests = async (userId: number) => {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const { data, error } = await supabase
-        .from("Requests")
-        .select(`
+    const { data, error } = await supabase
+      .from("Requests")
+      .select(`
+        id,
+        sender_id,
+        product_id,
+        status,
+        created_at,
+        Sender:User!sender_id (
           id,
-          sender_id,
-          product_id,
-          status,
-          created_at,
-          Sender:User!Requests_sender_id_fkey (
-            id,
-            name,
-            surname,
-            picture
-          ),
-          Product (
-            id,
-            name,
-            picture,
-            owner_id
-          )
-        `)
-        .order("created_at", { ascending: false });
+          name,
+          surname,
+          picture
+        ),
+        Product!product_id (
+          id,
+          name,
+          owner_id
+        )
+      `)
+      .order("created_at", { ascending: false });
 
-      if (error) throw error;
+    if (error) throw error;
 
-      // Filtere: Nur Anfragen für MEINE Produkte
-      const myRequests = (data || []).filter(
-        (r: any) => r.Product.owner_id === userId
-      );
+    console.log("📋 All requests:", data);
 
-      setRequests(myRequests as any);
-    } catch (err) {
-      console.error("Error loading requests:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Filtere: Nur Anfragen für MEINE Produkte
+    const myRequests = (data || []).filter(
+      (r: any) => r.Product && r.Product.owner_id === userId
+    );
+
+    console.log("✅ My requests:", myRequests);
+    setRequests(myRequests as any);
+  } catch (err) {
+    console.error("Error loading requests:", err);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // Grant Comment Permission nach akzeptiertem Request
   const grantCommentPermission = async (userId: number, productId: number) => {

@@ -122,9 +122,11 @@ const handleSubmit = async (e: Event) => {
       .from("User")
       .select("id")
       .eq("auth_id", sessionStore.user.id)
-      .single();
+      .maybeSingle();
 
     if (userError) throw userError;
+
+    if (!userData) throw new Error("Benutzer nicht gefunden");
     const userId = userData.id;
 
     const pictureUrls: string[] = [];
@@ -177,7 +179,7 @@ const handleSubmit = async (e: Event) => {
       }));
 
       const { error: imagesError } = await supabase
-        .from("Product_Images")
+        .from("product_images")
         .insert(imageInserts);
 
       if (imagesError) {

@@ -8,6 +8,7 @@ import { HeaderActions } from "../components/HeaderActions";
 import { ProductCard } from "../components/ProductCard";
 import { badgeStore } from "../lib/badgeStore";
 
+
 interface Product {
   id: number;
   name: string;
@@ -18,17 +19,22 @@ interface Product {
   tags?: { id: number; name: string }[];
 }
 
+
 interface Tag {
   id: number;
   name: string;
 }
 
+
 // ✅ Globale Variablen für Channels
 let globalHomeMessagesChannel: any = null;
 let globalHomeRequestsChannel: any = null;
+let globalHomeProductsChannel: any = null;
+
 
 export function Home() {
   const navigate = useNavigate();
+
 
   const [products, setProducts] = createSignal<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = createSignal<Product[]>([]);
@@ -39,8 +45,81 @@ export function Home() {
   const [loading, setLoading] = createSignal(true);
   const [currentUserId, setCurrentUserId] = createSignal<number | null>(null);
 
+
   // ✅ Nutze globalen Badge Store
   const { setDirectMessageCount, setRequestCount } = badgeStore;
+
+
+  // ✅ loadProducts als wiederverwendbare Funktion
+  const loadProducts = async () => {
+    try {
+      setLoading(true);
+
+      // Hole alle Tags
+      const { data: tagsData, error: tagsError } = await supabase
+        .from("Tags")
+        .select("id, name")
+        .order("name");
+
+      if (tagsError) throw tagsError;
+      setTags(tagsData || []);
+
+      // Hole Produkte OHNE picture Spalte
+      const { data: products, error: productsError } = await supabase
+        .from("Product")
+        .select(`
+          id,
+          name,
+          beschreibung,
+          owner_id,
+          stars,
+          Product_Tags!inner (
+            Tags!inner (
+              id,
+              name
+            )
+          ),
+          product_images (
+            id,
+            image_url,
+            order_index
+          )
+        `)
+        .order("id", { ascending: false });
+
+      if (productsError) throw productsError;
+
+      // Transformiere: Erstes Bild aus Product_Images als Hauptbild
+      const transformedProducts = (products || []).map((p: any) => {
+        const allImages: string[] = [];
+        
+        if (p.product_images && p.product_images.length > 0) {
+          const images = p.product_images
+            .sort((a: any, b: any) => a.order_index - b.order_index)
+            .map((img: any) => img.image_url);
+          allImages.push(...images);
+        }
+
+        return {
+          id: p.id,
+          name: p.name,
+          beschreibung: p.beschreibung,
+          picture: allImages[0] || null,
+          images: allImages,
+          owner_id: p.owner_id,
+          stars: p.stars || 0,
+          tags: p.Product_Tags?.map((pt: any) => pt.Tags).filter(Boolean) || [],
+        };
+      });
+
+      setProducts(transformedProducts);
+      setFilteredProducts(transformedProducts);
+    } catch (err) {
+      console.error("Fehler beim Laden der Produkte:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Lade User-ID einmal beim Start
   createEffect(async () => {
@@ -51,7 +130,7 @@ export function Home() {
         .from("User")
         .select("id")
         .eq("auth_id", sessionStore.user.id)
-        .single();
+        .maybeSingle();
 
       if (userData) {
         setCurrentUserId(userData.id);
@@ -63,6 +142,9 @@ export function Home() {
 
   // ✅ Realtime Setup in onMount
   onMount(() => {
+    // Initial laden
+    loadProducts();
+
     // Warte bis userId geladen ist
     const checkUserAndSetup = setInterval(() => {
       const userId = currentUserId();
@@ -118,16 +200,49 @@ export function Home() {
               console.log("📡 HOME Messages Channel Status:", status);
             });
         }
+
+        if (!globalHomeProductsChannel) {
+          console.log("🔌 HOME: Creating Products Channel");
+          globalHomeProductsChannel = supabase
+            .channel("home_products_changes")
+            .on(
+              "postgres_changes",
+              {
+                event: "UPDATE",
+                schema: "public",
+                table: "Product",
+              },
+              (payload) => {
+                console.log("🔔 HOME: Product UPDATE Event!", payload);
+                loadProducts();
+              }
+            )
+            .subscribe((status) => {
+              console.log("📡 HOME Products Channel Status:", status);
+            });
+        }
       }
     }, 100);
 
     // Cleanup nach 10 Sekunden falls User nicht geladen
     setTimeout(() => clearInterval(checkUserAndSetup), 10000);
+  });
 
-    // ✅ Cleanup beim Unmount
-    onCleanup(() => {
-      console.log("🧹 HOME: Cleanup aufgerufen");
-    });
+  // ✅ Cleanup beim Unmount - AUSSERHALB von onMount!
+  onCleanup(() => {
+    console.log("🧹 HOME: Cleanup aufgerufen");
+    if (globalHomeProductsChannel) {
+      supabase.removeChannel(globalHomeProductsChannel);
+      globalHomeProductsChannel = null;
+    }
+    if (globalHomeMessagesChannel) {
+      supabase.removeChannel(globalHomeMessagesChannel);
+      globalHomeMessagesChannel = null;
+    }
+    if (globalHomeRequestsChannel) {
+      supabase.removeChannel(globalHomeRequestsChannel);
+      globalHomeRequestsChannel = null;
+    }
   });
 
   // Helper-Funktion zum Laden der Request Count
@@ -184,78 +299,6 @@ export function Home() {
       console.error("Error loading direct message count:", err);
     }
   };
-
-  // Lade Produkte + Tags aus DB
-  createEffect(async () => {
-    try {
-      setLoading(true);
-
-      // Hole alle Tags
-      const { data: tagsData, error: tagsError } = await supabase
-        .from("Tags")
-        .select("id, name")
-        .order("name");
-
-      if (tagsError) throw tagsError;
-      setTags(tagsData || []);
-
-      // Hole Produkte OHNE picture Spalte
-      const { data: productsData, error: productsError } = await supabase
-        .from("Product")
-        .select(`
-          id,
-          name,
-          beschreibung,
-          owner_id,
-          stars,
-          Product_Tags (
-            tags_id,
-            Tags (
-              id,
-              name
-            )
-          ),
-          Product_Images (
-            id,
-            image_url,
-            order_index
-          )
-        `)
-        .order("id", { ascending: false });
-
-      if (productsError) throw productsError;
-
-      // Transformiere: Erstes Bild aus Product_Images als Hauptbild
-      const transformedProducts = (productsData || []).map((p: any) => {
-        const allImages: string[] = [];
-        
-        if (p.Product_Images && p.Product_Images.length > 0) {
-          const images = p.Product_Images
-            .sort((a: any, b: any) => a.order_index - b.order_index)
-            .map((img: any) => img.image_url);
-          allImages.push(...images);
-        }
-
-        return {
-          id: p.id,
-          name: p.name,
-          beschreibung: p.beschreibung,
-          picture: allImages[0] || null,
-          images: allImages,
-          owner_id: p.owner_id,
-          stars: p.stars || 0,
-          tags: p.Product_Tags?.map((pt: any) => pt.Tags).filter(Boolean) || [],
-        };
-      });
-
-      setProducts(transformedProducts);
-      setFilteredProducts(transformedProducts);
-    } catch (err) {
-      console.error("Fehler beim Laden der Produkte:", err);
-    } finally {
-      setLoading(false);
-    }
-  });
 
   // Filter-Logik (Tags + Search)
   createEffect(() => {
