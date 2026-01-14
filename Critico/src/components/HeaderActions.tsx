@@ -1,14 +1,15 @@
-import { A, useNavigate } from "@solidjs/router";
-import { Show, Accessor } from "solid-js";
+import { A } from "@solidjs/router";
+import { Show } from "solid-js";
 import { isLoggedIn } from "../lib/sessionStore";
+import { badgeStore } from "../lib/badgeStore";
 
 interface HeaderActionsProps {
-  requestCount: Accessor<number>;
-  directMessageCount: Accessor<number>;
   onCreateProduct: () => void;
 }
 
 export function HeaderActions(props: HeaderActionsProps) {
+  const { requestCount, directMessageCount } = badgeStore;
+
   return (
     <div class="flex items-center gap-3">
       {/* Produkt-Anfragen */}
@@ -20,9 +21,9 @@ export function HeaderActions(props: HeaderActionsProps) {
         <svg class="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
-        <Show when={props.requestCount() > 0}>
+        <Show when={requestCount() > 0}>
           <span class="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
-            {props.requestCount()}
+            {requestCount()}
           </span>
         </Show>
       </A>
@@ -36,9 +37,9 @@ export function HeaderActions(props: HeaderActionsProps) {
         <svg class="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
-        <Show when={props.directMessageCount() > 0}>
+        <Show when={directMessageCount() > 0}>
           <span class="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-blue-500 text-white text-xs font-bold rounded-full animate-pulse">
-            {props.directMessageCount()}
+            {directMessageCount()}
           </span>
         </Show>
       </A>

@@ -1,6 +1,6 @@
-import { ChatHeader } from "../components/ChatHeader";
-import { MessagesList } from "../components/MessagesList";
-import { MessageInput } from "../components/MessageInput";
+import { ChatHeader } from "../components/chat/ChatHeader";
+import { MessagesList } from "../components/chat/MessagesList";
+import { MessageInput } from "../components/chat/MessageInput";
 import { useChat } from "../hooks/useChat";
 
 export default function Chat() {

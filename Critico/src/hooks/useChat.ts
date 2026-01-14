@@ -151,6 +151,9 @@ export function useChat() {
             
             if (payload.eventType === "INSERT") {
               console.log("✅ INSERT Event!");
+              console.log("Chat ID:", payload.new.chat_id);
+              console.log("Message Type:", payload.new.message_type);
+              console.log("Sender ID:", payload.new.sender_id);
               
               if (payload.new.chat_id === directChatId && payload.new.message_type === "direct") {
                 console.log("🎯 Richtige Nachricht für diesen Chat!");
@@ -182,22 +185,29 @@ export function useChat() {
                       console.log("📨 Nachricht geladen:", newMsg);
                       setMessages(prev => [...prev, newMsg as any]);
                       
-                      if (newMsg.sender_id !== userId && !newMsg.read) {
-                        supabase
-                          .from("Messages")
-                          .update({ read: true })
-                          .eq("id", newMsg.id)
-                          .then(() => {
-                            setMessages(prev => 
-                              prev.map(msg => 
-                                msg.id === newMsg.id ? { ...msg, read: true } : msg
-                              )
-                            );
-                            console.log("✅ Nachricht als gelesen markiert");
-                          });
+                      // ✅ Markiere als gelesen wenn Chat im Fokus ist (mit Delay)
+                      if (newMsg.sender_id !== userId && !newMsg.read && document.hasFocus()) {
+                        console.log("👁️ Chat hat Fokus, markiere als gelesen nach 1 Sekunde");
+                        
+                        setTimeout(() => {
+                          supabase
+                            .from("Messages")
+                            .update({ read: true })
+                            .eq("id", newMsg.id)
+                            .then(() => {
+                              setMessages(prev => 
+                                prev.map(msg => 
+                                  msg.id === newMsg.id ? { ...msg, read: true } : msg
+                                )
+                              );
+                              console.log("✅ Nachricht als gelesen markiert");
+                            });
+                        }, 1000); // ✅ 1 Sekunde Delay
                       }
                     }
                   });
+              } else {
+                console.log("⏭️ Event ist für anderen Chat oder Typ");
               }
             }
           }
@@ -252,11 +262,14 @@ export function useChat() {
       console.log("📥 Loaded messages:", data?.length || 0);
       setMessages((data || []) as any);
 
+      // ✅ Markiere ungelesene Nachrichten als gelesen (nur beim Öffnen)
       const unreadIds = (data || [])
         .filter(m => m.sender_id !== userId && !m.read)
         .map(m => m.id);
 
       if (unreadIds.length > 0) {
+        console.log("📖 Markiere", unreadIds.length, "Nachrichten als gelesen beim Öffnen");
+        
         await supabase
           .from("Messages")
           .update({ read: true })
@@ -336,7 +349,6 @@ export function useChat() {
     });
   };
 
-  // ✅ Gib auch setMainContainerRef zurück
   const setMainContainerRef = (el: HTMLElement | undefined) => {
     mainContainerRef = el;
   };
@@ -351,6 +363,6 @@ export function useChat() {
     sending,
     handleSendMessage,
     formatTime,
-    setMainContainerRef, // ✅ NEU
+    setMainContainerRef,
   };
 }

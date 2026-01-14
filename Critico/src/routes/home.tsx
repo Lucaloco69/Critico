@@ -6,6 +6,7 @@ import { FilterDropdown } from "../components/FilterDropdown";
 import { SearchBar } from "../components/SearchBar";
 import { HeaderActions } from "../components/HeaderActions";
 import { ProductCard } from "../components/ProductCard";
+import { badgeStore } from "../lib/badgeStore";
 
 interface Product {
   id: number;
@@ -22,6 +23,10 @@ interface Tag {
   name: string;
 }
 
+// ✅ Globale Variablen für Channels
+let globalHomeMessagesChannel: any = null;
+let globalHomeRequestsChannel: any = null;
+
 export function Home() {
   const navigate = useNavigate();
 
@@ -32,10 +37,10 @@ export function Home() {
   const [searchQuery, setSearchQuery] = createSignal("");
   const [showFilterDropdown, setShowFilterDropdown] = createSignal(false);
   const [loading, setLoading] = createSignal(true);
-  const [requestCount, setRequestCount] = createSignal(0);
-  const [directMessageCount, setDirectMessageCount] = createSignal(0);
   const [currentUserId, setCurrentUserId] = createSignal<number | null>(null);
 
+  // ✅ Nutze globalen Badge Store
+  const { setDirectMessageCount, setRequestCount } = badgeStore;
 
   // Lade User-ID einmal beim Start
   createEffect(async () => {
@@ -56,51 +61,76 @@ export function Home() {
     }
   });
 
-  // Lade Request Count und Direct Message Count
-  createEffect(() => {
-    const userId = currentUserId();
-    if (!userId) return;
+  // ✅ Realtime Setup in onMount
+  onMount(() => {
+    // Warte bis userId geladen ist
+    const checkUserAndSetup = setInterval(() => {
+      const userId = currentUserId();
+      if (userId) {
+        clearInterval(checkUserAndSetup);
+        
+        console.log("🚀 HOME: Setup Realtime für User:", userId);
+        
+        // Initial laden
+        loadRequestCount(userId);
+        loadDirectMessageCount(userId);
 
-    loadRequestCount(userId);
-    loadDirectMessageCount(userId);
-
-    const requestsChannel = supabase
-      .channel("requests_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "Requests",
-        },
-        () => {
-          loadRequestCount(userId);
+        // ✅ Setup Realtime nur einmal
+        if (!globalHomeRequestsChannel) {
+          console.log("🔌 HOME: Creating Requests Channel");
+          globalHomeRequestsChannel = supabase
+            .channel("home_requests_changes")
+            .on(
+              "postgres_changes",
+              {
+                event: "*",
+                schema: "public",
+                table: "Requests",
+              },
+              () => {
+                console.log("🔔 HOME: Requests Event");
+                loadRequestCount(userId);
+              }
+            )
+            .subscribe((status) => {
+              console.log("📡 HOME Requests Channel Status:", status);
+            });
         }
-      )
-      .subscribe();
 
-    const messagesChannel = supabase
-      .channel("messages_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "Messages",
-          filter: `message_type=eq.direct`,
-        },
-        () => {
-          loadDirectMessageCount(userId);
+        if (!globalHomeMessagesChannel) {
+          console.log("🔌 HOME: Creating Messages Channel");
+          globalHomeMessagesChannel = supabase
+            .channel("home_messages_changes")
+            .on(
+              "postgres_changes",
+              {
+                event: "INSERT",
+                schema: "public",
+                table: "Messages",
+                filter: `message_type=eq.direct`,
+              },
+              (payload) => {
+                console.log("🔔 HOME: Messages Event empfangen:", payload.eventType);
+                loadDirectMessageCount(userId);
+              }
+            )
+            .subscribe((status) => {
+              console.log("📡 HOME Messages Channel Status:", status);
+            });
         }
-      )
-      .subscribe();
+      }
+    }, 100);
 
+    // Cleanup nach 10 Sekunden falls User nicht geladen
+    setTimeout(() => clearInterval(checkUserAndSetup), 10000);
+
+    // ✅ Cleanup beim Unmount
     onCleanup(() => {
-      supabase.removeChannel(requestsChannel);
-      supabase.removeChannel(messagesChannel);
+      console.log("🧹 HOME: Cleanup aufgerufen");
     });
   });
 
+  // Helper-Funktion zum Laden der Request Count
   const loadRequestCount = async (userId: number) => {
     try {
       const { data, error } = await supabase
@@ -115,6 +145,7 @@ export function Home() {
 
       if (error) throw error;
 
+      // Filtere: Nur pending Requests für MEINE Produkte
       const myPendingRequests = (data || []).filter(
         (r: any) => r.Product.owner_id === userId && r.status === null
       );
@@ -125,19 +156,30 @@ export function Home() {
     }
   };
 
+  // Helper-Funktion zum Laden ungelesener Direct Messages
   const loadDirectMessageCount = async (userId: number) => {
     try {
+      console.log("📊 HOME: Lade ungelesene Nachrichten für User:", userId);
+      
       const { data, error } = await supabase
         .from("Messages")
-        .select("id")
+        .select("id, sender_id, receiver_id, read, content")
         .eq("message_type", "direct")
         .eq("receiver_id", userId)
         .eq("read", false)
         .neq("sender_id", userId);
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ HOME: Fehler beim Laden:", error);
+        throw error;
+      }
 
+      console.log("📬 HOME: Ungelesene Nachrichten gefunden:", (data || []).length);
+      console.log("📋 HOME: Details:", data);
+      
       setDirectMessageCount((data || []).length);
+      
+      console.log("🔢 HOME: DirectMessageCount State gesetzt auf:", (data || []).length);
     } catch (err) {
       console.error("Error loading direct message count:", err);
     }
@@ -148,6 +190,7 @@ export function Home() {
     try {
       setLoading(true);
 
+      // Hole alle Tags
       const { data: tagsData, error: tagsError } = await supabase
         .from("Tags")
         .select("id, name")
@@ -156,6 +199,7 @@ export function Home() {
       if (tagsError) throw tagsError;
       setTags(tagsData || []);
 
+      // Hole Produkte OHNE picture Spalte
       const { data: productsData, error: productsError } = await supabase
         .from("Product")
         .select(`
@@ -181,6 +225,7 @@ export function Home() {
 
       if (productsError) throw productsError;
 
+      // Transformiere: Erstes Bild aus Product_Images als Hauptbild
       const transformedProducts = (productsData || []).map((p: any) => {
         const allImages: string[] = [];
         
@@ -219,12 +264,14 @@ export function Home() {
 
     let filtered = products();
 
+    // Filter nach Tags
     if (selected.length > 0) {
       filtered = filtered.filter((p) =>
         p.tags?.some((t) => selected.includes(t.id))
       );
     }
 
+    // Filter nach Suchbegriff
     if (query) {
       filtered = filtered.filter(
         (p) =>
@@ -249,6 +296,7 @@ export function Home() {
       {/* Header / Navbar */}
       <header class="sticky top-0 z-50 bg-white dark:bg-gray-800 shadow-md">
         <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
+          {/* Logo */}
           <A href="/" class="text-2xl font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 transition-colors">
             Critico
           </A>
@@ -267,8 +315,6 @@ export function Home() {
           />
 
           <HeaderActions
-            requestCount={requestCount}
-            directMessageCount={directMessageCount}
             onCreateProduct={handleCreateProduct}
           />
         </div>
