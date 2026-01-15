@@ -2,6 +2,7 @@ import { Show, Accessor, createEffect } from "solid-js";
 import { ChatsListContent } from "./ChatsListContent";
 import { EmptyChatsState } from "./EmptyChatsState";
 
+
 interface ChatPreview {
   chatId: number;
   partnerId: number;
@@ -10,8 +11,11 @@ interface ChatPreview {
   partnerPicture: string | null;
   lastMessage: string;
   lastMessageTime: string;
+  lastMessageType?: string; // ✅ NEU
   unreadCount: number;
+  hasUnreadRequest?: boolean; // ✅ NEU
 }
+
 
 interface ChatsListProps {
   chats: Accessor<ChatPreview[]>;
@@ -20,11 +24,13 @@ interface ChatsListProps {
   formatTime: (dateString: string) => string;
 }
 
+
 export function ChatsList(props: ChatsListProps) {
   createEffect(() => {
     const chats = props.chats();
     console.log("🎨ChatsList: Chats:", chats.length);
   });
+
 
   return (
     <>
@@ -34,9 +40,9 @@ export function ChatsList(props: ChatsListProps) {
         </div>
       </Show>
 
+
       <Show when={!props.loading()}>
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
-          {/* ✅ Direkte Conditional statt Show fallback */}
           {props.chats().length === 0 ? (
             <EmptyChatsState searchQuery={props.searchQuery} />
           ) : (

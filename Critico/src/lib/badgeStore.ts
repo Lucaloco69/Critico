@@ -1,12 +1,11 @@
 import { createSignal } from "solid-js";
 
-// ✅ Globale Signals außerhalb der Components
+
+// ✅ Globales Signal für Messages (inkl. Requests)
 const [directMessageCount, setDirectMessageCount] = createSignal(0);
-const [requestCount, setRequestCount] = createSignal(0);
+
 
 export const badgeStore = {
   directMessageCount,
   setDirectMessageCount,
-  requestCount,
-  setRequestCount,
 };

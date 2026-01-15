@@ -1,12 +1,15 @@
 import { For, Show, Accessor } from "solid-js";
 import { MessageBubble } from "./MessageBubble";
 
+
 interface Message {
   id: number;
   content: string;
   created_at: string;
   sender_id: number;
   read: boolean;
+  message_type?: "direct" | "request" | "request_accepted" | "request_declined" | "product";
+  product_id?: number;
   User: {
     id: number;
     name: string;
@@ -15,13 +18,18 @@ interface Message {
   };
 }
 
+
 interface MessagesListProps {
   messages: Accessor<Message[]>;
   currentUserId: Accessor<number | null>;
+  productOwnerId?: Accessor<number | null>; // ✅ NEU
   loading: Accessor<boolean>;
-  setMainContainerRef: (el: HTMLElement | undefined) => void; // ✅ GEÄNDERT
+  setMainContainerRef: (el: HTMLElement | undefined) => void;
   formatTime: (dateString: string) => string;
+  onAcceptRequest?: (messageId: number, senderId: number, productId: number) => Promise<void>; // ✅ NEU
+  onDeclineRequest?: (messageId: number) => Promise<void>; // ✅ NEU
 }
+
 
 export function MessagesList(props: MessagesListProps) {
   return (
@@ -31,6 +39,7 @@ export function MessagesList(props: MessagesListProps) {
           <div class="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
         </div>
       </Show>
+
 
       <Show when={!props.loading()}>
         <div class="px-4 py-6 space-y-4 max-w-5xl mx-auto w-full">
@@ -45,6 +54,7 @@ export function MessagesList(props: MessagesListProps) {
             </div>
           </Show>
 
+
           <For each={props.messages()}>
             {(message) => {
               const isOwn = message.sender_id === props.currentUserId();
@@ -53,6 +63,10 @@ export function MessagesList(props: MessagesListProps) {
                   message={message}
                   isOwn={isOwn}
                   formatTime={props.formatTime}
+                  productOwnerId={props.productOwnerId?.() ?? null}
+                  currentUserId={props.currentUserId()}
+                  onAcceptRequest={props.onAcceptRequest}
+                  onDeclineRequest={props.onDeclineRequest}
                 />
               );
             }}
