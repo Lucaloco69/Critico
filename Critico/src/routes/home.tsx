@@ -8,7 +8,6 @@ import { HeaderActions } from "../components/HeaderActions";
 import { ProductCard } from "../components/ProductCard";
 import { badgeStore } from "../lib/badgeStore";
 
-
 interface Product {
   id: number;
   name: string;
@@ -16,25 +15,22 @@ interface Product {
   picture: string | null;
   owner_id: number;
   stars: number;
+  price: number | null; // ✅ NEU: für Trustlevel-Range
   tags?: { id: number; name: string }[];
 }
-
 
 interface Tag {
   id: number;
   name: string;
 }
 
-
 // ✅ Globale Variablen für Channels
 let globalHomeMessagesChannel: any = null;
 let globalHomeRequestsChannel: any = null;
 let globalHomeProductsChannel: any = null;
 
-
 export function Home() {
   const navigate = useNavigate();
-
 
   const [products, setProducts] = createSignal<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = createSignal<Product[]>([]);
@@ -43,12 +39,29 @@ export function Home() {
   const [searchQuery, setSearchQuery] = createSignal("");
   const [showFilterDropdown, setShowFilterDropdown] = createSignal(false);
   const [loading, setLoading] = createSignal(true);
-  const [currentUserId, setCurrentUserId] = createSignal<number | null>(null);
 
+  const [currentUserId, setCurrentUserId] = createSignal<number | null>(null);
+  const [currentTrustlevel, setCurrentTrustlevel] = createSignal<number>(0); // ✅ TL0 default
 
   // ✅ Nutze globalen Badge Store
   const { setDirectMessageCount, setRequestCount } = badgeStore;
 
+  const maxPriceForTrustlevel = (tl: number) => {
+    switch (tl) {
+      case 0:
+        return 2; // ✅ TL0 = 2€
+      case 1:
+        return 5;
+      case 2:
+        return 25;
+      case 3:
+        return 50;
+      case 4:
+        return 200;
+      default:
+        return 999999; // TL5+
+    }
+  };
 
   // ✅ loadProducts als wiederverwendbare Funktion
   const loadProducts = async () => {
@@ -64,13 +77,16 @@ export function Home() {
       if (tagsError) throw tagsError;
       setTags(tagsData || []);
 
-      // Hole Produkte OHNE picture Spalte
-      const { data: products, error: productsError } = await supabase
+      const maxPrice = maxPriceForTrustlevel(currentTrustlevel());
+
+      // Hole Produkte (jetzt inkl. price) + filtere serverseitig nach Preis
+      const { data: productsData, error: productsError } = await supabase
         .from("Product")
         .select(`
           id,
           name,
           beschreibung,
+          price,
           owner_id,
           stars,
           Product_Tags!inner (
@@ -85,14 +101,15 @@ export function Home() {
             order_index
           )
         `)
+        .lte("price", maxPrice) // ✅ nur im Trustlevel-Range [web:278]
         .order("id", { ascending: false });
 
       if (productsError) throw productsError;
 
-      // Transformiere: Erstes Bild aus Product_Images als Hauptbild
-      const transformedProducts = (products || []).map((p: any) => {
+      // Transformiere: Erstes Bild aus product_images als Hauptbild
+      const transformedProducts: Product[] = (productsData || []).map((p: any) => {
         const allImages: string[] = [];
-        
+
         if (p.product_images && p.product_images.length > 0) {
           const images = p.product_images
             .sort((a: any, b: any) => a.order_index - b.order_index)
@@ -104,8 +121,8 @@ export function Home() {
           id: p.id,
           name: p.name,
           beschreibung: p.beschreibung,
+          price: p.price ?? null,
           picture: allImages[0] || null,
-          images: allImages,
           owner_id: p.owner_id,
           stars: p.stars || 0,
           tags: p.Product_Tags?.map((pt: any) => pt.Tags).filter(Boolean) || [],
@@ -121,28 +138,41 @@ export function Home() {
     }
   };
 
-  // Lade User-ID einmal beim Start
+  // Lade User-ID + Trustlevel einmal beim Start
   createEffect(async () => {
-    if (!isLoggedIn() || !sessionStore.user) return;
+    if (!isLoggedIn() || !sessionStore.user) {
+      setCurrentUserId(null);
+      setCurrentTrustlevel(0);
+      return;
+    }
 
     try {
-      const { data: userData } = await supabase
+      const { data: userData, error } = await supabase
         .from("User")
-        .select("id")
+        .select("id, trustlevel")
         .eq("auth_id", sessionStore.user.id)
         .maybeSingle();
 
+      if (error) throw error;
+
       if (userData) {
         setCurrentUserId(userData.id);
+        setCurrentTrustlevel(userData.trustlevel ?? 0);
       }
     } catch (err) {
       console.error("Error loading user:", err);
     }
   });
 
+  // ✅ Wenn Trustlevel sich ändert, Produkte neu laden
+  createEffect(() => {
+    currentTrustlevel();
+    loadProducts();
+  });
+
   // ✅ Realtime Setup in onMount
   onMount(() => {
-    // Initial laden
+    // Initial laden (passiert auch durch Effect, aber schadet nicht)
     loadProducts();
 
     // Warte bis userId geladen ist
@@ -150,9 +180,9 @@ export function Home() {
       const userId = currentUserId();
       if (userId) {
         clearInterval(checkUserAndSetup);
-        
+
         console.log("🚀 HOME: Setup Realtime für User:", userId);
-        
+
         // Initial laden
         loadRequestCount(userId);
         loadDirectMessageCount(userId);
@@ -228,7 +258,7 @@ export function Home() {
     setTimeout(() => clearInterval(checkUserAndSetup), 10000);
   });
 
-  // ✅ Cleanup beim Unmount - AUSSERHALB von onMount!
+  // ✅ Cleanup beim Unmount
   onCleanup(() => {
     console.log("🧹 HOME: Cleanup aufgerufen");
     if (globalHomeProductsChannel) {
@@ -250,20 +280,20 @@ export function Home() {
     try {
       const { data, error } = await supabase
         .from("Requests")
-        .select(`
+        .select(
+          `
           id,
           status,
           Product!inner (
             owner_id
           )
-        `);
+        `
+        );
 
       if (error) throw error;
 
       // Filtere: Nur pending Requests für MEINE Produkte
-      const myPendingRequests = (data || []).filter(
-        (r: any) => r.Product.owner_id === userId && r.status === null
-      );
+      const myPendingRequests = (data || []).filter((r: any) => r.Product.owner_id === userId && r.status === null);
 
       setRequestCount(myPendingRequests.length);
     } catch (err) {
@@ -275,7 +305,7 @@ export function Home() {
   const loadDirectMessageCount = async (userId: number) => {
     try {
       console.log("📊 HOME: Lade ungelesene Nachrichten für User:", userId);
-      
+
       const { data, error } = await supabase
         .from("Messages")
         .select("id, sender_id, receiver_id, read, content")
@@ -291,16 +321,16 @@ export function Home() {
 
       console.log("📬 HOME: Ungelesene Nachrichten gefunden:", (data || []).length);
       console.log("📋 HOME: Details:", data);
-      
+
       setDirectMessageCount((data || []).length);
-      
+
       console.log("🔢 HOME: DirectMessageCount State gesetzt auf:", (data || []).length);
     } catch (err) {
       console.error("Error loading direct message count:", err);
     }
   };
 
-  // Filter-Logik (Tags + Search)
+  // Filter-Logik (Tags + Search) - arbeitet auf bereits preis-gefilterten Produkten
   createEffect(() => {
     const query = searchQuery().toLowerCase();
     const selected = selectedTags();
@@ -309,17 +339,13 @@ export function Home() {
 
     // Filter nach Tags
     if (selected.length > 0) {
-      filtered = filtered.filter((p) =>
-        p.tags?.some((t) => selected.includes(t.id))
-      );
+      filtered = filtered.filter((p) => p.tags?.some((t) => selected.includes(t.id)));
     }
 
     // Filter nach Suchbegriff
     if (query) {
       filtered = filtered.filter(
-        (p) =>
-          p.name.toLowerCase().includes(query) ||
-          p.beschreibung?.toLowerCase().includes(query)
+        (p) => p.name.toLowerCase().includes(query) || p.beschreibung?.toLowerCase().includes(query)
       );
     }
 
@@ -336,10 +362,8 @@ export function Home() {
 
   return (
     <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header / Navbar */}
       <header class="sticky top-0 z-50 bg-white dark:bg-gray-800 shadow-md">
         <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
-          {/* Logo */}
           <A href="/" class="text-2xl font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 transition-colors">
             Critico
           </A>
@@ -352,18 +376,12 @@ export function Home() {
             setShowDropdown={setShowFilterDropdown}
           />
 
-          <SearchBar
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-          />
+          <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
 
-          <HeaderActions
-            onCreateProduct={handleCreateProduct}
-          />
+          <HeaderActions onCreateProduct={handleCreateProduct} />
         </div>
       </header>
 
-      {/* Produkt-Grid */}
       <main class="max-w-7xl mx-auto px-4 py-8">
         <Show when={loading()}>
           <div class="flex justify-center items-center py-20">
@@ -378,9 +396,7 @@ export function Home() {
         </Show>
 
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          <For each={filteredProducts()}>
-            {(product) => <ProductCard product={product} />}
-          </For>
+          <For each={filteredProducts()}>{(product) => <ProductCard product={product} />}</For>
         </div>
       </main>
     </div>

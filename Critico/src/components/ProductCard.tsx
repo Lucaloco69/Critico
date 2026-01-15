@@ -1,6 +1,6 @@
 import { A } from "@solidjs/router";
 import { Show, For } from "solid-js";
-import  StarRating  from "./StarRating";
+import StarRating from "./StarRating";
 
 interface Product {
   id: number;
@@ -9,6 +9,7 @@ interface Product {
   picture: string | null;
   owner_id: number;
   stars: number;
+  price: number | null; // ✅ NEU
   tags?: { id: number; name: string }[];
 }
 
@@ -22,7 +23,6 @@ export function ProductCard(props: ProductCardProps) {
       href={`/product/${props.product.id}`}
       class="group bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-2xl transition-all overflow-hidden hover:-translate-y-1 duration-300"
     >
-      {/* Optimiertes Bild mit Padding & Filter */}
       <div class="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 p-3">
         <div class="aspect-square bg-white dark:bg-gray-900 rounded-lg overflow-hidden shadow-sm">
           <Show
@@ -45,25 +45,30 @@ export function ProductCard(props: ProductCardProps) {
             />
           </Show>
         </div>
-
-        {/* Subtiler Overlay beim Hover */}
         <div class="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-lg"></div>
       </div>
 
-      {/* Info */}
       <div class="p-4 space-y-2.5">
-        <h3 class="font-semibold text-gray-900 dark:text-white truncate text-base">
-          {props.product.name}
-        </h3>
+        <div class="flex items-start justify-between gap-2">
+          <h3 class="font-semibold text-gray-900 dark:text-white truncate text-base">
+            {props.product.name}
+          </h3>
 
-        {/* Stern-Bewertung mit halben Sternen */}
-        <Show when={props.product.stars > 0} fallback={
-          <div class="flex items-center gap-2 h-5">
-            <span class="text-xs text-gray-400 dark:text-gray-500 italic">
-              Noch keine Bewertung
+          <Show when={props.product.price !== null}>
+            <span class="text-sm font-semibold text-sky-600 dark:text-sky-400 tabular-nums whitespace-nowrap">
+              {Number(props.product.price).toFixed(2)} €
             </span>
-          </div>
-        }>
+          </Show>
+        </div>
+
+        <Show
+          when={props.product.stars > 0}
+          fallback={
+            <div class="flex items-center gap-2 h-5">
+              <span class="text-xs text-gray-400 dark:text-gray-500 italic">Noch keine Bewertung</span>
+            </div>
+          }
+        >
           <div class="flex items-center gap-2.5">
             <StarRating rating={props.product.stars} maxStars={5} />
             <span class="text-sm font-medium text-gray-700 dark:text-gray-300 tabular-nums">
@@ -76,7 +81,6 @@ export function ProductCard(props: ProductCardProps) {
           {props.product.beschreibung}
         </p>
 
-        {/* Tags */}
         <Show when={props.product.tags && props.product.tags.length > 0}>
           <div class="flex flex-wrap gap-1.5 pt-1">
             <For each={props.product.tags?.slice(0, 2)}>

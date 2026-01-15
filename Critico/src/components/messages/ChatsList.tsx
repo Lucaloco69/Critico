@@ -2,7 +2,7 @@ import { Show, Accessor, createEffect } from "solid-js";
 import { ChatsListContent } from "./ChatsListContent";
 import { EmptyChatsState } from "./EmptyChatsState";
 
-interface ChatPreview {
+export interface ChatPreview {
   chatId: number;
   partnerId: number;
   partnerName: string;
@@ -11,9 +11,12 @@ interface ChatPreview {
   lastMessage: string;
   lastMessageTime: string;
   unreadCount: number;
+
+  // Optional: falls du später Trustlevel/Emblem auch in der Chatliste zeigen willst
+  partnerTrustlevel?: number | null;
 }
 
-interface ChatsListProps {
+export interface ChatsListProps {
   chats: Accessor<ChatPreview[]>;
   loading: Accessor<boolean>;
   searchQuery: Accessor<string>;
@@ -23,7 +26,7 @@ interface ChatsListProps {
 export function ChatsList(props: ChatsListProps) {
   createEffect(() => {
     const chats = props.chats();
-    console.log("🎨ChatsList: Chats:", chats.length);
+    console.log("🎨 ChatsList: Chats:", chats.length);
   });
 
   return (
@@ -36,14 +39,10 @@ export function ChatsList(props: ChatsListProps) {
 
       <Show when={!props.loading()}>
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
-          {/* ✅ Direkte Conditional statt Show fallback */}
           {props.chats().length === 0 ? (
             <EmptyChatsState searchQuery={props.searchQuery} />
           ) : (
-            <ChatsListContent
-              chats={props.chats}
-              formatTime={props.formatTime}
-            />
+            <ChatsListContent chats={props.chats} formatTime={props.formatTime} />
           )}
         </div>
       </Show>

@@ -36,7 +36,6 @@ export default function ProductDetail() {
   const [canComment, setCanComment] = createSignal<boolean>(false);
   const [checkingPermission, setCheckingPermission] = createSignal(true);
 
-  /* Permission Check */
   const checkCommentPermission = async (userId: number, productId: number): Promise<boolean> => {
     try {
       const { data, error } = await supabase
@@ -50,7 +49,6 @@ export default function ProductDetail() {
         console.error("❌ Permission check error:", error);
         return false;
       }
-
       return !!data;
     } catch (err) {
       console.error("💥 Permission check failed:", err);
@@ -81,7 +79,7 @@ export default function ProductDetail() {
   createEffect(async () => {
     const userId = currentUserId();
     const productId = Number(params.id);
-    
+
     if (!userId || !productId || isNaN(productId)) {
       setCanComment(false);
       setCheckingPermission(false);
@@ -136,7 +134,7 @@ export default function ProductDetail() {
       if (productData.product_images && productData.product_images.length > 0) {
         const images = productData.product_images
           .sort((a, b) => a.order_index - b.order_index)
-          .map(img => img.image_url);
+          .map((img) => img.image_url);
         imagesList.push(...images);
       }
 
@@ -151,16 +149,13 @@ export default function ProductDetail() {
         stars: productData.stars || 0,
         User: productData.User,
         tags:
-          productData.Product_Tags
-            ?.map(pt => pt.Tags)
-            .filter(
-              (t): t is { id: number; name: string } => Boolean(t)
-            ) ?? [],
+          productData.Product_Tags?.map((pt) => pt.Tags).filter((t): t is { id: number; name: string } => Boolean(t)) ??
+          [],
       };
 
       setProduct(transformedProduct);
 
-      // Load comments
+      // ✅ Load comments WITH correct sender + trustlevel
       const { data: messagesData, error: messagesError } = await supabase
         .from("Messages")
         .select(`
@@ -169,20 +164,19 @@ export default function ProductDetail() {
           stars,
           created_at,
           sender_id,
-          User!Messages_sender_id_fkey (
+          sender:User!Messages_sender_id_fkey (
             id,
             name,
             surname,
-            picture
+            picture,
+            trustlevel
           )
         `)
         .eq("product_id", productId)
         .eq("message_type", "product")
         .order("created_at", { ascending: true });
 
-      if (messagesError) {
-        console.error("Error loading messages:", messagesError);
-      }
+      if (messagesError) console.error("Error loading messages:", messagesError);
 
       const transformedComments: Comment[] = (messagesData ?? []).map((msg: any) => ({
         id: msg.id,
@@ -190,7 +184,7 @@ export default function ProductDetail() {
         stars: msg.stars,
         created_at: msg.created_at,
         sender_id: msg.sender_id,
-        User: msg.User || null,
+        User: msg.sender || null,
       }));
 
       setComments(transformedComments);
@@ -198,21 +192,16 @@ export default function ProductDetail() {
       // Calculate average stars
       if (transformedComments.length > 0) {
         const validStars = transformedComments
-          .filter(c => c.stars !== null && c.stars !== undefined)
-          .map(c => c.stars!);
-        
+          .filter((c) => c.stars !== null && c.stars !== undefined)
+          .map((c) => c.stars!);
+
         if (validStars.length > 0) {
           const avgStars = validStars.reduce((sum, s) => sum + s, 0) / validStars.length;
-          
-          await supabase
-            .from("Product")
-            .update({ stars: avgStars })
-            .eq("id", productId);
-          
-          setProduct(prev => prev ? { ...prev, stars: avgStars } : null);
+
+          await supabase.from("Product").update({ stars: avgStars }).eq("id", productId);
+          setProduct((prev) => (prev ? { ...prev, stars: avgStars } : null));
         }
       }
-
     } catch (err) {
       console.error("Error loading product:", err);
     } finally {
@@ -220,7 +209,6 @@ export default function ProductDetail() {
     }
   });
 
-  /* Handlers */
   const handleRequestTest = async () => {
     if (!isLoggedIn()) {
       navigate("/login");
@@ -248,12 +236,10 @@ export default function ProductDetail() {
         return;
       }
 
-      const { error } = await supabase
-        .from("Requests")
-        .insert({
-          sender_id: userId,
-          product_id: productId,
-        });
+      const { error } = await supabase.from("Requests").insert({
+        sender_id: userId,
+        product_id: productId,
+      });
 
       if (error) throw error;
 
@@ -269,11 +255,9 @@ export default function ProductDetail() {
       navigate("/login");
       return;
     }
-    
+
     const ownerId = product()?.owner_id;
-    if (ownerId) {
-      navigate(`/chat/${ownerId}`);
-    }
+    if (ownerId) navigate(`/chat/${ownerId}`);
   };
 
   const handleSubmitComment = async (content: string, stars: number) => {
@@ -311,7 +295,7 @@ export default function ProductDetail() {
           .from("Chats")
           .insert({
             product_id: productId,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
           })
           .select("id")
           .single();
@@ -329,10 +313,9 @@ export default function ProductDetail() {
         created_at: new Date().toISOString(),
       };
 
-      if (stars > 0) {
-        insertData.stars = stars;
-      }
+      if (stars > 0) insertData.stars = stars;
 
+      // ✅ Insert + return WITH correct sender + trustlevel
       const { data, error } = await supabase
         .from("Messages")
         .insert(insertData)
@@ -342,11 +325,12 @@ export default function ProductDetail() {
           stars,
           created_at,
           sender_id,
-          User!Messages_sender_id_fkey (
+          sender:User!Messages_sender_id_fkey (
             id,
             name,
             surname,
-            picture
+            picture,
+            trustlevel
           )
         `)
         .single();
@@ -362,28 +346,33 @@ export default function ProductDetail() {
 
       if (!data) throw new Error("No data returned from insert");
 
-      const updatedComments = [data as any, ...comments()];
+      const newComment: Comment = {
+        id: (data as any).id,
+        content: (data as any).content,
+        stars: (data as any).stars,
+        created_at: (data as any).created_at,
+        sender_id: (data as any).sender_id,
+        User: (data as any).sender || null,
+      };
+
+      const updatedComments = [newComment, ...comments()];
       setComments(updatedComments);
 
-      // Calculate average
       const validStars = updatedComments
-        .map(c => c.stars)
-        .filter((s): s is number => typeof s === 'number' && !isNaN(s) && s > 0);
+        .map((c) => c.stars)
+        .filter((s): s is number => typeof s === "number" && !isNaN(s) && s > 0);
 
       if (validStars.length > 0) {
         const avgStars = validStars.reduce((sum, s) => sum + s, 0) / validStars.length;
         const roundedAvg = Math.round(avgStars * 2) / 2;
-        
+
         const { error: updateError } = await supabase
           .from("Product")
           .update({ stars: roundedAvg })
           .eq("id", productId);
-        
-        if (!updateError) {
-          setProduct(prev => prev ? { ...prev, stars: roundedAvg } : null);
-        }
-      }
 
+        if (!updateError) setProduct((prev) => (prev ? { ...prev, stars: roundedAvg } : null));
+      }
     } catch (err: any) {
       console.error("Error submitting comment:", err);
       alert("Fehler beim Kommentieren: " + (err.message || "Unbekannter Fehler"));
@@ -392,7 +381,6 @@ export default function ProductDetail() {
 
   return (
     <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      {/* Header */}
       <header class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
           <button
@@ -416,41 +404,33 @@ export default function ProductDetail() {
       </Show>
 
       <Show when={!loading() && product()}>
-  <main class="max-w-7xl mx-auto px-4 py-8">
-    {/* Product Details - 2 Column Layout */}
-    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden mb-8">
-      <div class="grid lg:grid-cols-2 gap-8 p-8">
-        {/* Linke Spalte: Image Gallery */}
-        <div class="space-y-4">
-          <ImageGallery 
-            images={product()!.images} 
-            productName={product()!.name} 
+        <main class="max-w-7xl mx-auto px-4 py-8">
+          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden mb-8">
+            <div class="grid lg:grid-cols-2 gap-8 p-8">
+              <div class="space-y-4">
+                <ImageGallery images={product()!.images} productName={product()!.name} />
+              </div>
+
+              <div>
+                <ProductInfo
+                  product={product()!}
+                  commentsCount={comments().filter((c) => c.stars !== null).length}
+                  onRequestTest={handleRequestTest}
+                  onContact={handleContact}
+                />
+              </div>
+            </div>
+          </div>
+
+          <CommentSection
+            comments={comments()}
+            isLoggedIn={isLoggedIn()}
+            canComment={canComment()}
+            checkingPermission={checkingPermission()}
+            onSubmitComment={handleSubmitComment}
           />
-        </div>
-
-        {/* Rechte Spalte: Product Info */}
-        <div>
-          <ProductInfo
-            product={product()!}
-            commentsCount={comments().filter(c => c.stars !== null).length}
-            onRequestTest={handleRequestTest}
-            onContact={handleContact}
-          />
-        </div>
-      </div>
-    </div>
-
-    {/* Comments Section - Full Width */}
-    <CommentSection
-      comments={comments()}
-      isLoggedIn={isLoggedIn()}
-      canComment={canComment()}
-      checkingPermission={checkingPermission()}
-      onSubmitComment={handleSubmitComment}
-    />
-  </main>
-</Show>
-
+        </main>
+      </Show>
     </div>
   );
 }

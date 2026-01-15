@@ -1,7 +1,7 @@
 import { createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import StarRating from "./StarRating";
-import type { Comment, Product } from "../types/product";
+import type { Comment } from "../types/product";
 
 interface CommentSectionProps {
   comments: Comment[];
@@ -50,7 +50,7 @@ export default function CommentSection(props: CommentSectionProps) {
       </h2>
 
       {/* Kommentar-Formular */}
-      <Show 
+      <Show
         when={!props.checkingPermission}
         fallback={
           <div class="flex justify-center py-4 mb-6">
@@ -58,7 +58,7 @@ export default function CommentSection(props: CommentSectionProps) {
           </div>
         }
       >
-        <Show 
+        <Show
           when={props.canComment}
           fallback={
             <div class="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
@@ -67,12 +67,8 @@ export default function CommentSection(props: CommentSectionProps) {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 <div>
-                  <p class="text-sm font-semibold text-yellow-800 dark:text-yellow-300 mb-1">
-                    Keine Bewertungsberechtigung
-                  </p>
-                  <p class="text-sm text-yellow-700 dark:text-yellow-400">
-                    Nur verifizierte Käufer können Bewertungen abgeben.
-                  </p>
+                  <p class="text-sm font-semibold text-yellow-800 dark:text-yellow-300 mb-1">Keine Bewertungsberechtigung</p>
+                  <p class="text-sm text-yellow-700 dark:text-yellow-400">Nur verifizierte Käufer können Bewertungen abgeben.</p>
                 </div>
               </div>
             </div>
@@ -91,9 +87,9 @@ export default function CommentSection(props: CommentSectionProps) {
                       onClick={() => setNewCommentStars(star === newCommentStars() ? 0 : star)}
                       class="transition-transform hover:scale-110"
                     >
-                      <svg 
-                        class={`w-8 h-8 ${star <= newCommentStars() ? 'text-amber-400' : 'text-gray-300 dark:text-gray-600'}`}
-                        fill="currentColor" 
+                      <svg
+                        class={`w-8 h-8 ${star <= newCommentStars() ? "text-amber-400" : "text-gray-300 dark:text-gray-600"}`}
+                        fill="currentColor"
                         viewBox="0 0 20 20"
                       >
                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
@@ -113,6 +109,7 @@ export default function CommentSection(props: CommentSectionProps) {
                 rows="3"
               />
             </div>
+
             <div class="flex justify-end mt-3">
               <button
                 type="submit"
@@ -131,9 +128,7 @@ export default function CommentSection(props: CommentSectionProps) {
 
       <Show when={!props.isLoggedIn}>
         <div class="mb-8 p-6 bg-sky-50 dark:bg-sky-900/20 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
-          <p class="text-gray-700 dark:text-gray-300 mb-3">
-            Melde dich an, um eine Bewertung zu hinterlassen
-          </p>
+          <p class="text-gray-700 dark:text-gray-300 mb-3">Melde dich an, um eine Bewertung zu hinterlassen</p>
           <button
             onClick={() => navigate("/login")}
             class="px-6 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold transition-colors"
@@ -150,9 +145,7 @@ export default function CommentSection(props: CommentSectionProps) {
             <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
             </svg>
-            <p class="text-gray-500 dark:text-gray-400">
-              Noch keine Bewertungen. Sei der Erste!
-            </p>
+            <p class="text-gray-500 dark:text-gray-400">Noch keine Bewertungen. Sei der Erste!</p>
           </div>
         </Show>
 
@@ -160,22 +153,32 @@ export default function CommentSection(props: CommentSectionProps) {
           {(comment) => (
             <div class="p-5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
               <div class="flex items-start gap-3">
-                <div class="w-10 h-10 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-md flex-shrink-0">
-                  {comment.User ? comment.User.name.charAt(0) : "?"}
+                {/* Avatar + Trustlevel Badge */}
+                <div class="relative w-10 h-10 flex-shrink-0">
+                  <div class="w-10 h-10 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-md">
+                    {comment.User ? comment.User.name.charAt(0) : "?"}
+                  </div>
+
+                  <Show when={comment.User?.trustlevel != null}>
+                    <div
+                      class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] leading-[18px] text-center font-semibold bg-black/70 text-white"
+                      title={`Trustlevel ${comment.User!.trustlevel}`}
+                    >
+                      {comment.User!.trustlevel}
+                    </div>
+                  </Show>
                 </div>
+
                 <div class="flex-1 min-w-0">
                   <div class="flex items-start justify-between mb-2">
                     <div>
                       <div class="flex items-baseline gap-2 mb-1">
                         <span class="font-semibold text-gray-900 dark:text-white">
-                          {comment.User
-                            ? `${comment.User.name} ${comment.User.surname}`
-                            : "Unbekannter Nutzer"}
+                          {comment.User ? `${comment.User.name} ${comment.User.surname}` : "Unbekannter Nutzer"}
                         </span>
-                        <span class="text-sm text-gray-500 dark:text-gray-400">
-                          {formatDate(comment.created_at)}
-                        </span>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">{formatDate(comment.created_at)}</span>
                       </div>
+
                       <Show when={comment.stars !== null && comment.stars !== undefined}>
                         <div class="flex items-center gap-2 mb-2">
                           <StarRating rating={comment.stars!} maxStars={5} size="sm" />
@@ -186,9 +189,8 @@ export default function CommentSection(props: CommentSectionProps) {
                       </Show>
                     </div>
                   </div>
-                  <p class="text-gray-700 dark:text-gray-300 leading-relaxed">
-                    {comment.content}
-                  </p>
+
+                  <p class="text-gray-700 dark:text-gray-300 leading-relaxed">{comment.content}</p>
                 </div>
               </div>
             </div>
