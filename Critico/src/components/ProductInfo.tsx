@@ -1,4 +1,5 @@
 import { Show, For } from "solid-js";
+import { A } from "@solidjs/router";
 import type { Product } from "../types/product";
 import StarRating from "./StarRating";
 
@@ -38,21 +39,30 @@ export default function ProductInfo(props: ProductInfoProps) {
         </div>
       </Show>
 
-      {/* Owner Info */}
+      {/* Owner Info (klickbar -> /profile) */}
       <Show when={props.product.User}>
-        <div class="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+        <A
+          href="/profile"
+          class="block mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl
+                 hover:bg-gray-100 dark:hover:bg-gray-700/70
+                 border border-transparent hover:border-sky-200 dark:hover:border-sky-800
+                 transition-colors"
+        >
           <div class="flex items-center gap-3">
             <div class="w-12 h-12 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
               {props.product.User!.name.charAt(0)}
             </div>
-            <div>
+            <div class="min-w-0">
               <p class="text-sm text-gray-500 dark:text-gray-400">Verkäufer</p>
-              <p class="font-semibold text-gray-900 dark:text-white">
+              <p class="font-semibold text-gray-900 dark:text-white truncate">
                 {props.product.User!.name} {props.product.User!.surname}
+              </p>
+              <p class="text-xs text-sky-600 dark:text-sky-300 mt-0.5">
+                Profil ansehen
               </p>
             </div>
           </div>
-        </div>
+        </A>
       </Show>
 
       {/* Description */}

@@ -24,7 +24,6 @@ const trustBadgeClass = (tl: number) => {
 
 export function ChatHeader(props: ChatHeaderProps) {
   const navigate = useNavigate();
-
   const tl = () => props.chatPartner()?.trustlevel ?? null;
 
   return (
@@ -40,7 +39,18 @@ export function ChatHeader(props: ChatHeaderProps) {
         </button>
 
         <Show when={props.chatPartner()}>
-          <div class="flex items-center gap-3">
+          {/* ✅ Klick auf Chatpartner -> /profile */}
+          <div
+            role="button"
+            tabindex="0"
+            onClick={() => navigate("/profile")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") navigate("/profile");
+            }}
+            class="flex items-center gap-3 cursor-pointer rounded-lg px-2 py-1
+                   hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors
+                   focus:outline-none focus:ring-2 focus:ring-sky-400/60"
+          >
             <div class="w-10 h-10 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-md">
               {props.chatPartner()!.name.charAt(0)}
               {props.chatPartner()!.surname.charAt(0)}
