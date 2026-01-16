@@ -40,10 +40,22 @@ export function MessageBubble(props: MessageBubbleProps) {
 
   // Prüfe ob current user der Product Owner ist
   const isOwner = () => {
-    return props.productOwnerId && props.currentUserId 
-      ? props.productOwnerId === props.currentUserId 
-      : false;
-  };
+  const result = props.productOwnerId && props.currentUserId 
+    ? props.productOwnerId === props.currentUserId 
+    : false;
+  
+  console.log("🔍 MessageBubble isOwner Check:", {
+    productOwnerId: props.productOwnerId,
+    currentUserId: props.currentUserId,
+    isOwner: result,
+    messageType: props.message.message_type,
+    isOwn: props.isOwn,
+    senderId: props.message.sender_id
+  });
+  
+  return result;
+};
+
 
   // Helper für Trustlevel
   const tl = () => props.message.sender?.trustlevel;

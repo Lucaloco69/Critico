@@ -3,7 +3,6 @@ import { MessagesHeader } from "../components/messages/MessagesHeader";
 import { MessagesSearchBar } from "../components/messages/MessagesSearchBar";
 import { ChatsList } from "../components/messages/ChatsList";
 import { useMessages } from "../hooks/useMessages";
-import { messagesStore } from "../lib/messagesStore";
 
 export default function Messages() {
 
