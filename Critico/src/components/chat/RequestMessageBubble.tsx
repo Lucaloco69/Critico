@@ -122,7 +122,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
 
 
             {/* Accept/Decline Buttons - nur für Owner bei pending requests */}
-            <Show when={props.message.message_type === "request" && props.isOwner && !props.isOwn}>
+            <Show when={props.message.message_type === "request" && props.isOwner }>
               <div class="flex gap-2 mt-3 pt-3 border-t border-amber-200 dark:border-amber-800">
                 <button
                   onClick={handleAccept}

@@ -30,5 +30,5 @@ export interface Comment {
     surname: string;
     picture: string | null;
     trustlevel?: number | null; // ✅ NEU
-  } | null;
+  };
 }
