@@ -114,7 +114,7 @@ export function Home() {
 
 
       // Transformiere: Erstes Bild aus Product_Images als Hauptbild
-      const transformedProducts = (products || []).map((p: any) => {
+      const transformedProducts = (productsData || []).map((p: any) => {
         const allImages: string[] = [];
 
         if (p.product_images && p.product_images.length > 0) {

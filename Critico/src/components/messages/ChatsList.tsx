@@ -1,26 +1,9 @@
 import { Show, Accessor, createEffect } from "solid-js";
 import { ChatsListContent } from "./ChatsListContent";
 import { EmptyChatsState } from "./EmptyChatsState";
-
-export interface ChatPreview {
-  chatId: number;
-  partnerId: number;
-  partnerName: string;
-  partnerSurname: string;
-  partnerPicture: string | null;
-  lastMessage: string;
-  lastMessageTime: string;
-  lastMessageType?: string; // ✅ NEU
-  unreadCount: number;
-  hasUnreadRequest?: boolean; // ✅ NEU
-}
+import { ChatPreview } from "~/types/messages";
 
 
-interface ChatsListProps {
-
-  // Optional: falls du später Trustlevel/Emblem auch in der Chatliste zeigen willst
-  partnerTrustlevel?: number | null;
-}
 
 export interface ChatsListProps {
   chats: Accessor<ChatPreview[]>;

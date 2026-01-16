@@ -3,21 +3,7 @@ import type { Message } from "../../hooks/useChat";
 import { MessageBubble } from "./MessageBubble";
 
 
-interface Message {
-  id: number;
-  content: string;
-  created_at: string;
-  sender_id: number;
-  read: boolean;
-  message_type?: "direct" | "request" | "request_accepted" | "request_declined" | "product";
-  product_id?: number;
-  User: {
-    id: number;
-    name: string;
-    surname: string;
-    picture: string | null;
-  };
-}
+
 
 
 interface MessagesListProps {

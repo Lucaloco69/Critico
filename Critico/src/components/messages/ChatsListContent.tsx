@@ -1,18 +1,7 @@
 import { For, Accessor } from "solid-js";
 import { ChatPreviewItem } from "./ChatPreviewItem";
+import { ChatPreview } from "~/types/messages";
 
-interface ChatPreview {
-  chatId: number;
-  partnerId: number;
-  partnerName: string;
-  partnerSurname: string;
-  partnerPicture: string | null;
-  lastMessage: string;
-  lastMessageTime: string;
-  lastMessageType?: string;
-  unreadCount: number;
-  hasUnreadRequest?: boolean;
-}
 
 interface ChatsListContentProps {
   chats: Accessor<ChatPreview[]>;

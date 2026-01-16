@@ -1,5 +1,6 @@
 import { Show, createSignal } from "solid-js";
 
+
 interface RequestMessage {
   id: number;
   content: string;
@@ -7,13 +8,15 @@ interface RequestMessage {
   sender_id: number;
   message_type: "request" | "request_accepted" | "request_declined";
   product_id?: number;
-  User: {
+  sender: { // ✅ GEÄNDERT von "User" zu "sender"
     id: number;
     name: string;
     surname: string;
     picture: string | null;
-  };
+    trustlevel?: number | null;
+  } | null;
 }
+
 
 interface RequestMessageBubbleProps {
   message: RequestMessage;
@@ -24,8 +27,10 @@ interface RequestMessageBubbleProps {
   onDecline?: (messageId: number) => Promise<void>;
 }
 
+
 export function RequestMessageBubble(props: RequestMessageBubbleProps) {
   const [processing, setProcessing] = createSignal(false);
+
 
   const handleAccept = async () => {
     if (!props.onAccept || !props.message.product_id) return;
@@ -37,6 +42,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
     }
   };
 
+
   const handleDecline = async () => {
     if (!props.onDecline) return;
     setProcessing(true);
@@ -46,6 +52,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
       setProcessing(false);
     }
   };
+
 
   const getStatusInfo = () => {
     switch (props.message.message_type) {
@@ -73,13 +80,31 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
     }
   };
 
+
   const statusInfo = getStatusInfo();
+  
+  // ✅ Helper für Trustlevel
+  const tl = () => props.message.sender?.trustlevel;
+
 
   return (
     <div class={`flex ${props.isOwn ? "justify-end" : "justify-start"}`}>
       <div class={`flex gap-2 max-w-[70%] ${props.isOwn ? "flex-row-reverse" : ""}`}>
-        <div class="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0">
-          {props.message.User.name.charAt(0)}
+        {/* Avatar mit Trustlevel Badge */}
+        <div class="relative w-8 h-8 flex-shrink-0">
+          <div class="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
+            {props.message.sender?.name?.charAt(0) ?? "?"} {/* ✅ GEÄNDERT */}
+          </div>
+          
+          {/* Trustlevel Badge */}
+          <Show when={tl() != null}>
+            <div
+              class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full text-[9px] leading-[16px] text-center font-semibold bg-black/70 text-white"
+              title={`Trustlevel ${tl()}`}
+            >
+              {tl()}
+            </div>
+          </Show>
         </div>
         
         <div>
@@ -94,6 +119,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
             <p class={`text-sm ${statusInfo.textColor} opacity-80`}>
               {props.message.content}
             </p>
+
 
             {/* Accept/Decline Buttons - nur für Owner bei pending requests */}
             <Show when={props.message.message_type === "request" && props.isOwner && !props.isOwn}>
@@ -115,6 +141,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
               </div>
             </Show>
           </div>
+
 
           <p class={`text-xs text-gray-500 dark:text-gray-400 mt-1 ${props.isOwn ? "text-right" : ""}`}>
             {props.formatTime(props.message.created_at)}

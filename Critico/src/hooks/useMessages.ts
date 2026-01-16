@@ -3,21 +3,10 @@ import { useNavigate, useLocation } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import sessionStore, { isLoggedIn } from "../lib/sessionStore";
 import { badgeStore } from "../lib/badgeStore";
+import { ChatPreview } from "~/types/messages";
 
 
 
-interface ChatPreview {
-  chatId: number;
-  partnerId: number;
-  partnerName: string;
-  partnerSurname: string;
-  partnerPicture: string | null;
-  lastMessage: string;
-  lastMessageTime: string;
-  lastMessageType?: string; // ✅ NEU
-  unreadCount: number;
-  hasUnreadRequest?: boolean; // ✅ NEU
-}
 
 
 let globalMessagesChannel: any = null;
@@ -292,6 +281,8 @@ export function useMessages() {
           lastMessageType: lastMsg?.message_type, // ✅ NEU
           unreadCount: unreadCount,
           hasUnreadRequest: hasUnreadRequest, // ✅ NEU
+          partnerTrustlevel: partner.trustlevel,
+
         });
 
 
