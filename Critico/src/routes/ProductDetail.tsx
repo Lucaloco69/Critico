@@ -39,8 +39,6 @@ export default function ProductDetail() {
   const [canComment, setCanComment] = createSignal<boolean>(false);
   const [checkingPermission, setCheckingPermission] = createSignal(true);
 
-
-  /* Permission Check */
   const checkCommentPermission = async (userId: number, productId: number): Promise<boolean> => {
     try {
       const { data, error } = await supabase
@@ -55,8 +53,6 @@ export default function ProductDetail() {
         console.error("❌ Permission check error:", error);
         return false;
       }
-
-
       return !!data;
     } catch (err) {
       console.error("💥 Permission check failed:", err);
@@ -91,7 +87,7 @@ export default function ProductDetail() {
   createEffect(async () => {
     const userId = currentUserId();
     const productId = Number(params.id);
-    
+
     if (!userId || !productId || isNaN(productId)) {
       setCanComment(false);
       setCheckingPermission(false);
@@ -153,7 +149,7 @@ export default function ProductDetail() {
       if (productData.product_images && productData.product_images.length > 0) {
         const images = productData.product_images
           .sort((a, b) => a.order_index - b.order_index)
-          .map(img => img.image_url);
+          .map((img) => img.image_url);
         imagesList.push(...images);
       }
 
@@ -169,11 +165,8 @@ export default function ProductDetail() {
         stars: productData.stars || 0,
         User: productData.User,
         tags:
-          productData.Product_Tags
-            ?.map(pt => pt.Tags)
-            .filter(
-              (t): t is { id: number; name: string } => Boolean(t)
-            ) ?? [],
+          productData.Product_Tags?.map((pt) => pt.Tags).filter((t): t is { id: number; name: string } => Boolean(t)) ??
+          [],
       };
 
 
@@ -189,11 +182,12 @@ export default function ProductDetail() {
           stars,
           created_at,
           sender_id,
-          User!Messages_sender_id_fkey (
+          sender:User!Messages_sender_id_fkey (
             id,
             name,
             surname,
-            picture
+            picture,
+            trustlevel
           )
         `)
         .eq("product_id", productId)
@@ -212,7 +206,7 @@ export default function ProductDetail() {
         stars: msg.stars,
         created_at: msg.created_at,
         sender_id: msg.sender_id,
-        User: msg.User || null,
+        User: msg.sender || null,
       }));
 
 
@@ -222,22 +216,16 @@ export default function ProductDetail() {
       // Calculate average stars
       if (transformedComments.length > 0) {
         const validStars = transformedComments
-          .filter(c => c.stars !== null && c.stars !== undefined)
-          .map(c => c.stars!);
-        
+          .filter((c) => c.stars !== null && c.stars !== undefined)
+          .map((c) => c.stars!);
+
         if (validStars.length > 0) {
           const avgStars = validStars.reduce((sum, s) => sum + s, 0) / validStars.length;
-          
-          await supabase
-            .from("Product")
-            .update({ stars: avgStars })
-            .eq("id", productId);
-          
-          setProduct(prev => prev ? { ...prev, stars: avgStars } : null);
+
+          await supabase.from("Product").update({ stars: avgStars }).eq("id", productId);
+          setProduct((prev) => (prev ? { ...prev, stars: avgStars } : null));
         }
       }
-
-
     } catch (err) {
       console.error("Error loading product:", err);
     } finally {
@@ -354,11 +342,9 @@ export default function ProductDetail() {
       navigate("/login");
       return;
     }
-    
+
     const ownerId = product()?.owner_id;
-    if (ownerId) {
-      navigate(`/chat/${ownerId}`);
-    }
+    if (ownerId) navigate(`/chat/${ownerId}`);
   };
 
 
@@ -404,7 +390,7 @@ export default function ProductDetail() {
           .from("Chats")
           .insert({
             product_id: productId,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
           })
           .select("id")
           .single();
@@ -439,11 +425,12 @@ export default function ProductDetail() {
           stars,
           created_at,
           sender_id,
-          User!Messages_sender_id_fkey (
+          sender:User!Messages_sender_id_fkey (
             id,
             name,
             surname,
-            picture
+            picture,
+            trustlevel
           )
         `)
         .single();
@@ -468,25 +455,21 @@ export default function ProductDetail() {
 
       // Calculate average
       const validStars = updatedComments
-        .map(c => c.stars)
-        .filter((s): s is number => typeof s === 'number' && !isNaN(s) && s > 0);
+        .map((c) => c.stars)
+        .filter((s): s is number => typeof s === "number" && !isNaN(s) && s > 0);
 
 
       if (validStars.length > 0) {
         const avgStars = validStars.reduce((sum, s) => sum + s, 0) / validStars.length;
         const roundedAvg = Math.round(avgStars * 2) / 2;
-        
+
         const { error: updateError } = await supabase
           .from("Product")
           .update({ stars: roundedAvg })
           .eq("id", productId);
-        
-        if (!updateError) {
-          setProduct(prev => prev ? { ...prev, stars: roundedAvg } : null);
-        }
+
+        if (!updateError) setProduct((prev) => (prev ? { ...prev, stars: roundedAvg } : null));
       }
-
-
     } catch (err: any) {
       console.error("Error submitting comment:", err);
       alert("Fehler beim Kommentieren: " + (err.message || "Unbekannter Fehler"));
@@ -496,7 +479,6 @@ export default function ProductDetail() {
 
   return (
     <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      {/* Header */}
       <header class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
           <button
@@ -547,8 +529,6 @@ export default function ProductDetail() {
             </div>
           </div>
 
-
-          {/* Comments Section - Full Width */}
           <CommentSection
             comments={comments()}
             isLoggedIn={isLoggedIn()}
@@ -558,8 +538,6 @@ export default function ProductDetail() {
           />
         </main>
       </Show>
-
-
     </div>
   );
 }

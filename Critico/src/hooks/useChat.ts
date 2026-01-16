@@ -1,10 +1,18 @@
-import { createSignal, createEffect, onMount, onCleanup } from "solid-js";
+import { createSignal, createEffect, onMount } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import sessionStore, { isLoggedIn } from "../lib/sessionStore";
 
 
-interface Message {
+export type DbUser = {
+  id: number;
+  name: string;
+  surname: string;
+  picture: string | null;
+  trustlevel: number | null;
+};
+
+export interface Message = {
   id: number;
   content: string;
   created_at: string;
@@ -12,21 +20,25 @@ interface Message {
   read: boolean;
   message_type?: "direct" | "request" | "request_accepted" | "request_declined" | "product";
   product_id?: number;
-  User: {
-    id: number;
-    name: string;
-    surname: string;
-    picture: string | null;
-  };
+  User: DbUser | null; // ✅ Sender user
 }
 
-
-interface ChatPartner {
+export type ChatPartner = {
   id: number;
   name: string;
   surname: string;
   picture: string | null;
-}
+  trustlevel: number | null;
+};
+
+type DbMessageRow = {
+  id: number;
+  content: string;
+  created_at: string;
+  sender_id: number;
+  read: boolean;
+  sender: DbUser | null; // ✅ alias in select()
+};
 
 
 let globalChannel: any = null;
@@ -36,7 +48,7 @@ let globalChatId: number | null = null;
 export function useChat() {
   const params = useParams();
   const navigate = useNavigate();
-  
+
   const [messages, setMessages] = createSignal<Message[]>([]);
   const [newMessage, setNewMessage] = createSignal("");
   const [chatPartner, setChatPartner] = createSignal<ChatPartner | null>(null);
@@ -48,15 +60,13 @@ export function useChat() {
 
 
   let mainContainerRef: HTMLElement | undefined;
+  const setMainContainerRef = (el: HTMLElement | undefined) => {
+    mainContainerRef = el;
+  };
 
 
   const scrollToBottom = () => {
-    if (mainContainerRef) {
-      mainContainerRef.scrollTop = mainContainerRef.scrollHeight;
-      console.log("📜 Scrolled to bottom:", mainContainerRef.scrollHeight);
-    } else {
-      console.warn("⚠️ mainContainerRef ist undefined");
-    }
+    if (mainContainerRef) mainContainerRef.scrollTop = mainContainerRef.scrollHeight;
   };
 
 
@@ -76,10 +86,54 @@ export function useChat() {
     }
   });
 
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const mapRow = (row: DbMessageRow): Message => ({
+    id: row.id,
+    content: row.content,
+    created_at: row.created_at,
+    sender_id: row.sender_id,
+    read: row.read,
+    User: row.sender ?? null,
+  });
+
+  const loadMessages = async (directChatId: number) => {
+    const { data, error } = await supabase
+      .from("Messages")
+      .select(
+        `
+        id,
+        content,
+        created_at,
+        sender_id,
+        read,
+        sender:User!Messages_sender_id_fkey (
+          id,
+          name,
+          surname,
+          picture,
+          trustlevel
+        )
+      `
+      )
+      .eq("chat_id", directChatId)
+      .eq("message_type", "direct")
+      .order("created_at", { ascending: true })
+      .returns<DbMessageRow[]>();
+
+    if (error) {
+      console.error("Error loading messages:", error);
+      return;
+    }
+
+    setMessages((data ?? []).map(mapRow));
+    queueMicrotask(scrollToBottom);
+  };
 
   onMount(async () => {
-    console.log("🚀 Component mounted");
-    
     if (!isLoggedIn() || !sessionStore.user) {
       navigate("/login");
       return;
@@ -87,7 +141,9 @@ export function useChat() {
 
 
     try {
-      const { data: userData } = await supabase
+      setLoading(true);
+
+      const { data: userData, error: userErr } = await supabase
         .from("User")
         .select("id")
         .eq("auth_id", sessionStore.user.id)
@@ -117,7 +173,7 @@ export function useChat() {
 
       const { data: partnerData } = await supabase
         .from("User")
-        .select("id, name, surname, picture")
+        .select("id, name, surname, picture, trustlevel")
         .eq("id", partnerId)
         .single();
 
@@ -136,10 +192,8 @@ export function useChat() {
 
 
       if (chatError) throw chatError;
-      
       const directChatId = chatData as number;
       setChatId(directChatId);
-      console.log("💬 Chat ID:", directChatId);
 
 
       await loadMessages(directChatId, userId);
@@ -152,7 +206,6 @@ export function useChat() {
 
 
       if (globalChannel) {
-        console.log("🗑️ Entferne alten Channel");
         await supabase.removeChannel(globalChannel);
         globalChannel = null;
       }
@@ -205,7 +258,8 @@ export function useChat() {
                       id,
                       name,
                       surname,
-                      picture
+                      picture,
+                      trustlevel
                     )
                   `)
                   .eq("id", payload.new.id)
@@ -270,13 +324,10 @@ export function useChat() {
 
 
       globalChatId = directChatId;
-
-
     } catch (err) {
       console.error("Error loading chat:", err);
     } finally {
       setLoading(false);
-      console.log("🏁 Loading finished");
     }
   });
 
@@ -302,7 +353,8 @@ export function useChat() {
             id,
             name,
             surname,
-            picture
+            picture,
+            trustlevel
           )
         `)
         .eq("chat_id", chatId)
@@ -406,7 +458,8 @@ export function useChat() {
             id,
             name,
             surname,
-            picture
+            picture,
+            trustlevel
           )
         `)
         .single();
@@ -420,6 +473,16 @@ export function useChat() {
         setMessages(prev => [...prev, data as any]);
       }
 
+      const mapped = mapRow(data);
+    console.log("🧩 mapped message", {
+      mapped_sender_id: mapped.sender_id,
+      mapped_user_id: mapped.User?.id,
+      mapped_trustlevel: mapped.User?.trustlevel,
+    });
+
+    setMessages((prev) => [...prev, mapped]);
+    setNewMessage("");
+    queueMicrotask(scrollToBottom);
 
       setNewMessage("");
     } catch (err) {
@@ -491,6 +554,8 @@ export function useChat() {
           msg.id === messageId ? { ...msg, message_type: "request_declined" } : msg
         )
       );
+      
+      
 
       console.log("❌ Request abgelehnt!");
     } catch (err) {
@@ -512,6 +577,11 @@ export function useChat() {
   const setMainContainerRef = (el: HTMLElement | undefined) => {
     mainContainerRef = el;
   };
+  
+   createEffect(() => {
+    const last = messages().at(-1);
+    if (last) console.log("last msg trustlevel:", last.User?.trustlevel);
+  });
 
 
   return {

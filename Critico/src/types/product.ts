@@ -13,6 +13,7 @@ export interface Product {
     surname: string;
     email: string;
     picture: string | null;
+    trustlevel?: number | null; // ✅ NEU
   };
   tags: { id: number; name: string }[];
 }
@@ -28,5 +29,6 @@ export interface Comment {
     name: string;
     surname: string;
     picture: string | null;
+    trustlevel?: number | null; // ✅ NEU
   } | null;
 }

@@ -2,8 +2,7 @@ import { Show, Accessor, createEffect } from "solid-js";
 import { ChatsListContent } from "./ChatsListContent";
 import { EmptyChatsState } from "./EmptyChatsState";
 
-
-interface ChatPreview {
+export interface ChatPreview {
   chatId: number;
   partnerId: number;
   partnerName: string;
@@ -18,6 +17,12 @@ interface ChatPreview {
 
 
 interface ChatsListProps {
+
+  // Optional: falls du später Trustlevel/Emblem auch in der Chatliste zeigen willst
+  partnerTrustlevel?: number | null;
+}
+
+export interface ChatsListProps {
   chats: Accessor<ChatPreview[]>;
   loading: Accessor<boolean>;
   searchQuery: Accessor<string>;
@@ -28,7 +33,7 @@ interface ChatsListProps {
 export function ChatsList(props: ChatsListProps) {
   createEffect(() => {
     const chats = props.chats();
-    console.log("🎨ChatsList: Chats:", chats.length);
+    console.log("🎨 ChatsList: Chats:", chats.length);
   });
 
 
@@ -46,10 +51,7 @@ export function ChatsList(props: ChatsListProps) {
           {props.chats().length === 0 ? (
             <EmptyChatsState searchQuery={props.searchQuery} />
           ) : (
-            <ChatsListContent
-              chats={props.chats}
-              formatTime={props.formatTime}
-            />
+            <ChatsListContent chats={props.chats} formatTime={props.formatTime} />
           )}
         </div>
       </Show>
