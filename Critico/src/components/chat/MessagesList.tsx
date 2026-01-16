@@ -2,13 +2,35 @@ import { For, Show, Accessor } from "solid-js";
 import type { Message } from "../../hooks/useChat";
 import { MessageBubble } from "./MessageBubble";
 
+
+interface Message {
+  id: number;
+  content: string;
+  created_at: string;
+  sender_id: number;
+  read: boolean;
+  message_type?: "direct" | "request" | "request_accepted" | "request_declined" | "product";
+  product_id?: number;
+  User: {
+    id: number;
+    name: string;
+    surname: string;
+    picture: string | null;
+  };
+}
+
+
 interface MessagesListProps {
   messages: Accessor<Message[]>;
   currentUserId: Accessor<number | null>;
+  productOwnerId?: Accessor<number | null>; // ✅ NEU
   loading: Accessor<boolean>;
   setMainContainerRef: (el: HTMLElement | undefined) => void;
   formatTime: (dateString: string) => string;
+  onAcceptRequest?: (messageId: number, senderId: number, productId: number) => Promise<void>; // ✅ NEU
+  onDeclineRequest?: (messageId: number) => Promise<void>; // ✅ NEU
 }
+
 
 export function MessagesList(props: MessagesListProps) {
   return (
@@ -19,6 +41,7 @@ export function MessagesList(props: MessagesListProps) {
         </div>
       </Show>
 
+
       <Show when={!props.loading()}>
         <div class="px-4 py-6 space-y-4 max-w-5xl mx-auto w-full">
           <Show when={props.messages().length === 0}>
@@ -27,10 +50,21 @@ export function MessagesList(props: MessagesListProps) {
             </div>
           </Show>
 
+
           <For each={props.messages()}>
             {(message) => {
               const isOwn = message.sender_id === props.currentUserId();
-              return <MessageBubble message={message} isOwn={isOwn} formatTime={props.formatTime} />;
+              return (
+                <MessageBubble
+                  message={message}
+                  isOwn={isOwn}
+                  formatTime={props.formatTime}
+                  productOwnerId={props.productOwnerId?.() ?? null}
+                  currentUserId={props.currentUserId()}
+                  onAcceptRequest={props.onAcceptRequest}
+                  onDeclineRequest={props.onDeclineRequest}
+                />
+              );
             }}
           </For>
         </div>

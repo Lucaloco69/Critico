@@ -1,6 +1,18 @@
-import { Accessor, Index, createEffect } from "solid-js";
+import { For, Accessor } from "solid-js";
 import { ChatPreviewItem } from "./ChatPreviewItem";
-import type { ChatPreview } from "./ChatsList";
+
+interface ChatPreview {
+  chatId: number;
+  partnerId: number;
+  partnerName: string;
+  partnerSurname: string;
+  partnerPicture: string | null;
+  lastMessage: string;
+  lastMessageTime: string;
+  lastMessageType?: string;
+  unreadCount: number;
+  hasUnreadRequest?: boolean;
+}
 
 interface ChatsListContentProps {
   chats: Accessor<ChatPreview[]>;
@@ -8,21 +20,16 @@ interface ChatsListContentProps {
 }
 
 export function ChatsListContent(props: ChatsListContentProps) {
-  createEffect(() => {
-    const chatList = props.chats();
-    console.log("🔥 ChatsListContent Effect: Chats changed!", chatList.length);
-  });
-
   return (
-    <Index each={props.chats()}>
-      {(chat, i) => (
-        <>
-          <ChatPreviewItem chat={chat()} formatTime={props.formatTime} />
-          {i < props.chats().length - 1 && (
-            <div class="border-t border-gray-200 dark:border-gray-700 mx-4" />
-          )}
-        </>
-      )}
-    </Index>
+    <div class="divide-y divide-gray-200 dark:divide-gray-700">
+      <For each={props.chats()}>
+        {(chat) => (
+          <ChatPreviewItem
+            chat={chat}
+            formatTime={props.formatTime}
+          />
+        )}
+      </For>
+    </div>
   );
 }

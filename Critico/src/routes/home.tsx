@@ -26,7 +26,6 @@ interface Tag {
 
 // ✅ Globale Variablen für Channels
 let globalHomeMessagesChannel: any = null;
-let globalHomeRequestsChannel: any = null;
 let globalHomeProductsChannel: any = null;
 
 export function Home() {
@@ -43,8 +42,10 @@ export function Home() {
   const [currentUserId, setCurrentUserId] = createSignal<number | null>(null);
   const [currentTrustlevel, setCurrentTrustlevel] = createSignal<number>(0); // ✅ TL0 default
 
-  // ✅ Nutze globalen Badge Store
-  const { setDirectMessageCount, setRequestCount } = badgeStore;
+
+  // ✅ Nutze globalen Badge Store (Requests entfernt)
+  const { setDirectMessageCount } = badgeStore;
+
 
   const maxPriceForTrustlevel = (tl: number) => {
     switch (tl) {
@@ -66,13 +67,17 @@ export function Home() {
   // ✅ loadProducts als wiederverwendbare Funktion
   const loadProducts = async () => {
     try {
+      console.log("🔄 HOME: Loading products...");
+
       setLoading(true);
+
 
       // Hole alle Tags
       const { data: tagsData, error: tagsError } = await supabase
         .from("Tags")
         .select("id, name")
         .order("name");
+
 
       if (tagsError) throw tagsError;
       setTags(tagsData || []);
@@ -89,8 +94,8 @@ export function Home() {
           price,
           owner_id,
           stars,
-          Product_Tags!inner (
-            Tags!inner (
+          Product_Tags (
+            Tags (
               id,
               name
             )
@@ -104,10 +109,12 @@ export function Home() {
         .lte("price", maxPrice) // ✅ nur im Trustlevel-Range [web:278]
         .order("id", { ascending: false });
 
+
       if (productsError) throw productsError;
 
-      // Transformiere: Erstes Bild aus product_images als Hauptbild
-      const transformedProducts: Product[] = (productsData || []).map((p: any) => {
+
+      // Transformiere: Erstes Bild aus Product_Images als Hauptbild
+      const transformedProducts = (products || []).map((p: any) => {
         const allImages: string[] = [];
 
         if (p.product_images && p.product_images.length > 0) {
@@ -116,6 +123,7 @@ export function Home() {
             .map((img: any) => img.image_url);
           allImages.push(...images);
         }
+
 
         return {
           id: p.id,
@@ -128,6 +136,7 @@ export function Home() {
           tags: p.Product_Tags?.map((pt: any) => pt.Tags).filter(Boolean) || [],
         };
       });
+
 
       setProducts(transformedProducts);
       setFilteredProducts(transformedProducts);
@@ -145,6 +154,7 @@ export function Home() {
       setCurrentTrustlevel(0);
       return;
     }
+
 
     try {
       const { data: userData, error } = await supabase
@@ -175,6 +185,7 @@ export function Home() {
     // Initial laden (passiert auch durch Effect, aber schadet nicht)
     loadProducts();
 
+
     // Warte bis userId geladen ist
     const checkUserAndSetup = setInterval(() => {
       const userId = currentUserId();
@@ -182,33 +193,12 @@ export function Home() {
         clearInterval(checkUserAndSetup);
 
         console.log("🚀 HOME: Setup Realtime für User:", userId);
-
-        // Initial laden
-        loadRequestCount(userId);
+        
+        // Initial laden (nur noch Direct Messages)
         loadDirectMessageCount(userId);
 
-        // ✅ Setup Realtime nur einmal
-        if (!globalHomeRequestsChannel) {
-          console.log("🔌 HOME: Creating Requests Channel");
-          globalHomeRequestsChannel = supabase
-            .channel("home_requests_changes")
-            .on(
-              "postgres_changes",
-              {
-                event: "*",
-                schema: "public",
-                table: "Requests",
-              },
-              () => {
-                console.log("🔔 HOME: Requests Event");
-                loadRequestCount(userId);
-              }
-            )
-            .subscribe((status) => {
-              console.log("📡 HOME Requests Channel Status:", status);
-            });
-        }
 
+        // ✅ Messages Channel - jetzt auch für Requests
         if (!globalHomeMessagesChannel) {
           console.log("🔌 HOME: Creating Messages Channel");
           globalHomeMessagesChannel = supabase
@@ -219,17 +209,22 @@ export function Home() {
                 event: "INSERT",
                 schema: "public",
                 table: "Messages",
-                filter: `message_type=eq.direct`,
+                filter: `receiver_id=eq.${userId}`,
               },
               (payload) => {
                 console.log("🔔 HOME: Messages Event empfangen:", payload.eventType);
-                loadDirectMessageCount(userId);
+                
+                // Zähle nur ungelesene direct messages UND requests
+                if (payload.new.message_type === "direct" || payload.new.message_type === "request") {
+                  loadDirectMessageCount(userId);
+                }
               }
             )
             .subscribe((status) => {
               console.log("📡 HOME Messages Channel Status:", status);
             });
         }
+
 
         if (!globalHomeProductsChannel) {
           console.log("🔌 HOME: Creating Products Channel");
@@ -238,12 +233,13 @@ export function Home() {
             .on(
               "postgres_changes",
               {
-                event: "UPDATE",
+                event: "*",
                 schema: "public",
                 table: "Product",
               },
               (payload) => {
                 console.log("🔔 HOME: Product UPDATE Event!", payload);
+                console.log("🔄 HOME: Calling loadProducts...");
                 loadProducts();
               }
             )
@@ -253,6 +249,7 @@ export function Home() {
         }
       }
     }, 100);
+
 
     // Cleanup nach 10 Sekunden falls User nicht geladen
     setTimeout(() => clearInterval(checkUserAndSetup), 10000);
@@ -269,55 +266,28 @@ export function Home() {
       supabase.removeChannel(globalHomeMessagesChannel);
       globalHomeMessagesChannel = null;
     }
-    if (globalHomeRequestsChannel) {
-      supabase.removeChannel(globalHomeRequestsChannel);
-      globalHomeRequestsChannel = null;
-    }
   });
 
-  // Helper-Funktion zum Laden der Request Count
-  const loadRequestCount = async (userId: number) => {
-    try {
-      const { data, error } = await supabase
-        .from("Requests")
-        .select(
-          `
-          id,
-          status,
-          Product!inner (
-            owner_id
-          )
-        `
-        );
 
-      if (error) throw error;
-
-      // Filtere: Nur pending Requests für MEINE Produkte
-      const myPendingRequests = (data || []).filter((r: any) => r.Product.owner_id === userId && r.status === null);
-
-      setRequestCount(myPendingRequests.length);
-    } catch (err) {
-      console.error("Error loading request count:", err);
-    }
-  };
-
-  // Helper-Funktion zum Laden ungelesener Direct Messages
+  // ✅ Helper: Lade ungelesene Messages (Direct + Requests)
   const loadDirectMessageCount = async (userId: number) => {
     try {
       console.log("📊 HOME: Lade ungelesene Nachrichten für User:", userId);
 
       const { data, error } = await supabase
         .from("Messages")
-        .select("id, sender_id, receiver_id, read, content")
-        .eq("message_type", "direct")
+        .select("id, sender_id, receiver_id, read, message_type")
+        .in("message_type", ["direct", "request"]) // ✅ Beide Typen
         .eq("receiver_id", userId)
         .eq("read", false)
         .neq("sender_id", userId);
+
 
       if (error) {
         console.error("❌ HOME: Fehler beim Laden:", error);
         throw error;
       }
+
 
       console.log("📬 HOME: Ungelesene Nachrichten gefunden:", (data || []).length);
       console.log("📋 HOME: Details:", data);
@@ -335,12 +305,15 @@ export function Home() {
     const query = searchQuery().toLowerCase();
     const selected = selectedTags();
 
+
     let filtered = products();
+
 
     // Filter nach Tags
     if (selected.length > 0) {
       filtered = filtered.filter((p) => p.tags?.some((t) => selected.includes(t.id)));
     }
+
 
     // Filter nach Suchbegriff
     if (query) {
@@ -349,8 +322,10 @@ export function Home() {
       );
     }
 
+
     setFilteredProducts(filtered);
   });
+
 
   const handleCreateProduct = () => {
     if (!isLoggedIn()) {
@@ -360,6 +335,7 @@ export function Home() {
     }
   };
 
+
   return (
     <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
       <header class="sticky top-0 z-50 bg-white dark:bg-gray-800 shadow-md">
@@ -367,6 +343,7 @@ export function Home() {
           <A href="/" class="text-2xl font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 transition-colors">
             Critico
           </A>
+
 
           <FilterDropdown
             tags={tags}
@@ -376,12 +353,21 @@ export function Home() {
             setShowDropdown={setShowFilterDropdown}
           />
 
-          <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
 
-          <HeaderActions onCreateProduct={handleCreateProduct} />
+          <SearchBar
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+          />
+
+
+          <HeaderActions
+            onCreateProduct={handleCreateProduct}
+          />
         </div>
       </header>
 
+
+      {/* Produkt-Grid */}
       <main class="max-w-7xl mx-auto px-4 py-8">
         <Show when={loading()}>
           <div class="flex justify-center items-center py-20">
@@ -389,11 +375,13 @@ export function Home() {
           </div>
         </Show>
 
+
         <Show when={!loading() && filteredProducts().length === 0}>
           <div class="text-center py-20">
             <p class="text-gray-500 dark:text-gray-400 text-lg">Keine Produkte gefunden.</p>
           </div>
         </Show>
+
 
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
           <For each={filteredProducts()}>{(product) => <ProductCard product={product} />}</For>

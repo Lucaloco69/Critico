@@ -1,6 +1,18 @@
 import { A } from "@solidjs/router";
 import { Show } from "solid-js";
-import type { ChatPreview } from "./ChatsList";
+
+interface ChatPreview {
+  chatId: number;
+  partnerId: number;
+  partnerName: string;
+  partnerSurname: string;
+  partnerPicture: string | null;
+  lastMessage: string;
+  lastMessageTime: string;
+  lastMessageType?: string; // ✅ NEU
+  unreadCount: number;
+  hasUnreadRequest?: boolean; // ✅ NEU
+}
 
 interface ChatPreviewItemProps {
   chat: ChatPreview;
@@ -17,6 +29,42 @@ const trustBadgeClass = (tl: number) => {
 };
 
 export function ChatPreviewItem(props: ChatPreviewItemProps) {
+  
+  // ✅ Helper: Preview Text für verschiedene Message Types
+  const getPreviewText = () => {
+    const type = props.chat.lastMessageType;
+    
+    if (type === 'request') {
+      return '🔔 Möchte Produkt testen';
+    }
+    if (type === 'request_accepted') {
+      return '✅ Anfrage akzeptiert';
+    }
+    if (type === 'request_declined') {
+      return '❌ Anfrage abgelehnt';
+    }
+    
+    return props.chat.lastMessage;
+  };
+
+  // ✅ Helper: Text-Style für verschiedene Types
+  const getPreviewStyle = () => {
+    const type = props.chat.lastMessageType;
+    
+    if (type === 'request') {
+      return "text-amber-600 dark:text-amber-400 font-semibold";
+    }
+    if (type === 'request_accepted') {
+      return "text-green-600 dark:text-green-400 font-semibold";
+    }
+    if (type === 'request_declined') {
+      return "text-red-600 dark:text-red-400 font-semibold";
+    }
+    
+    return props.chat.unreadCount > 0
+      ? "text-gray-900 dark:text-white font-medium"
+      : "text-gray-600 dark:text-gray-400";
+  };
   const tl = () => props.chat.partnerTrustlevel;
 
   return (
@@ -62,15 +110,19 @@ export function ChatPreviewItem(props: ChatPreviewItemProps) {
           </span>
         </div>
 
-        <p
-          class={`text-sm truncate ${
-            props.chat.unreadCount > 0
-              ? "text-gray-900 dark:text-white font-medium"
-              : "text-gray-600 dark:text-gray-400"
-          }`}
-        >
-          {props.chat.lastMessage}
-        </p>
+        <div class="flex items-center gap-2">
+          {/* ✅ Request Badge */}
+          <Show when={props.chat.hasUnreadRequest}>
+            <span class="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-semibold rounded-full border border-amber-200 dark:border-amber-800">
+              🔔 Request
+            </span>
+          </Show>
+
+          {/* Last Message Preview */}
+          <p class={`text-sm truncate ${getPreviewStyle()}`}>
+            {getPreviewText()}
+          </p>
+        </div>
       </div>
 
       {/* Chevron */}

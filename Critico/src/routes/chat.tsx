@@ -3,6 +3,7 @@ import { MessagesList } from "../components/chat/MessagesList";
 import { MessageInput } from "../components/chat/MessageInput";
 import { useChat } from "../hooks/useChat";
 
+
 export default function Chat() {
   const {
     messages,
@@ -10,12 +11,16 @@ export default function Chat() {
     setNewMessage,
     chatPartner,
     currentUserId,
+    productOwnerId, // ✅ NEU
     loading,
     sending,
     handleSendMessage,
+    handleAcceptRequest, // ✅ NEU
+    handleDeclineRequest, // ✅ NEU
     formatTime,
-    setMainContainerRef, // ✅ NEU
+    setMainContainerRef,
   } = useChat();
+
 
   return (
     <div class="h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
@@ -24,9 +29,12 @@ export default function Chat() {
       <MessagesList
         messages={messages}
         currentUserId={currentUserId}
+        productOwnerId={productOwnerId} // ✅ NEU
         loading={loading}
-        setMainContainerRef={setMainContainerRef} // ✅ GEÄNDERT
+        setMainContainerRef={setMainContainerRef}
         formatTime={formatTime}
+        onAcceptRequest={handleAcceptRequest} // ✅ NEU
+        onDeclineRequest={handleDeclineRequest} // ✅ NEU
       />
       
       <MessageInput
