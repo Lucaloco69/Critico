@@ -1,17 +1,16 @@
 import { createSignal, For, Show } from "solid-js";
-import { useNavigate } from "@solidjs/router";
+import { useNavigate, A } from "@solidjs/router";
 import StarRating from "./StarRating";
 import type { Comment } from "../types/product";
-
 
 interface CommentSectionProps {
   comments: Comment[];
   isLoggedIn: boolean;
   canComment: boolean;
   checkingPermission: boolean;
+  currentUserId: number | null;
   onSubmitComment: (content: string, stars: number) => Promise<void>;
 }
-
 
 export default function CommentSection(props: CommentSectionProps) {
   const navigate = useNavigate();
@@ -19,11 +18,9 @@ export default function CommentSection(props: CommentSectionProps) {
   const [newCommentStars, setNewCommentStars] = createSignal<number>(0);
   const [submitting, setSubmitting] = createSignal(false);
 
-
   const handleSubmit = async (e: Event) => {
     e.preventDefault();
     if (!newComment().trim()) return;
-
 
     setSubmitting(true);
     try {
@@ -35,7 +32,6 @@ export default function CommentSection(props: CommentSectionProps) {
     }
   };
 
-
   const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString("de-DE", {
       day: "2-digit",
@@ -45,7 +41,6 @@ export default function CommentSection(props: CommentSectionProps) {
       minute: "2-digit",
     });
 
-
   return (
     <div id="comment-section" class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
       <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
@@ -54,7 +49,6 @@ export default function CommentSection(props: CommentSectionProps) {
         </svg>
         Bewertungen & Kommentare ({props.comments.length})
       </h2>
-
 
       {/* Nicht eingeloggt: Anmelde-Banner */}
       <Show when={!props.isLoggedIn}>
@@ -68,7 +62,6 @@ export default function CommentSection(props: CommentSectionProps) {
           </button>
         </div>
       </Show>
-
 
       {/* Eingeloggt: Formular oder Permission-Check */}
       <Show when={props.isLoggedIn}>
@@ -122,7 +115,6 @@ export default function CommentSection(props: CommentSectionProps) {
                 </div>
               </div>
 
-
               <div class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 border-2 border-gray-200 dark:border-gray-600 focus-within:border-sky-500 dark:focus-within:border-sky-400 transition-colors">
                 <textarea
                   value={newComment()}
@@ -132,7 +124,6 @@ export default function CommentSection(props: CommentSectionProps) {
                   rows="3"
                 />
               </div>
-
 
               <div class="flex justify-end mt-3">
                 <button
@@ -151,7 +142,6 @@ export default function CommentSection(props: CommentSectionProps) {
         </Show>
       </Show>
 
-
       {/* Kommentare Liste */}
       <div class="space-y-4">
         <Show when={props.comments.length === 0}>
@@ -163,57 +153,87 @@ export default function CommentSection(props: CommentSectionProps) {
           </div>
         </Show>
 
-
         <For each={props.comments}>
-          {(comment) => (
-            <div class="p-5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
-              <div class="flex items-start gap-3">
-                {/* Avatar + Trustlevel Badge */}
-                <div class="relative w-10 h-10 flex-shrink-0">
-                  <div class="w-10 h-10 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-md">
-                    {comment.User ? comment.User.name.charAt(0) : "?"}
-                  </div>
-
-
-                  <Show when={comment.User?.trustlevel != null}>
-                    <div
-                      class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] leading-[18px] text-center font-semibold bg-black/70 text-white"
-                      title={`Trustlevel ${comment.User!.trustlevel}`}
-                    >
-                      {comment.User!.trustlevel}
-                    </div>
-                  </Show>
-                </div>
-
-
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-start justify-between mb-2">
-                    <div>
-                      <div class="flex items-baseline gap-2 mb-1">
-                        <span class="font-semibold text-gray-900 dark:text-white">
-                          {comment.User ? `${comment.User.name} ${comment.User.surname}` : "Unbekannter Nutzer"}
-                        </span>
-                        <span class="text-sm text-gray-500 dark:text-gray-400">{formatDate(comment.created_at)}</span>
-                      </div>
-
-
-                      <Show when={comment.stars !== null && comment.stars !== undefined}>
-                        <div class="flex items-center gap-2 mb-2">
-                          <StarRating rating={comment.stars!} maxStars={5} size="sm" />
-                          <span class="text-sm font-medium text-gray-600 dark:text-gray-400">
-                            {comment.stars!.toFixed(1)}
-                          </span>
+          {(comment) => {
+            const isOwnComment = comment.sender_id === props.currentUserId;
+            
+            return (
+              <div class={`p-5 rounded-xl border transition-all ${
+                isOwnComment 
+                  ? "bg-sky-50 dark:bg-sky-900/20 border-sky-300 dark:border-sky-700 shadow-md" 
+                  : "bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 hover:shadow-md"
+              }`}>
+                <div class="flex items-start gap-3">
+                  {/* Avatar + Trustlevel Badge - KLICKBAR mit Profilbild */}
+                  <A
+                    href={isOwnComment ? "/profile" : `/profile/${comment.sender_id}`}
+                    class="relative w-10 h-10 flex-shrink-0 hover:opacity-80 transition-opacity"
+                  >
+                    <Show
+                      when={comment.User?.picture}
+                      fallback={
+                        <div class="w-10 h-10 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-md">
+                          {comment.User ? comment.User.name.charAt(0) : "?"}
                         </div>
-                      </Show>
+                      }
+                    >
+                      <img
+                        src={comment.User!.picture!}
+                        alt={`${comment.User?.name} ${comment.User?.surname}`}
+                        class="w-10 h-10 rounded-full object-cover shadow-md"
+                      />
+                    </Show>
+
+                    <Show when={comment.User?.trustlevel != null}>
+                      <div
+                        class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] leading-[18px] text-center font-semibold bg-black/70 text-white"
+                        title={`Trustlevel ${comment.User!.trustlevel}`}
+                      >
+                        {comment.User!.trustlevel}
+                      </div>
+                    </Show>
+                  </A>
+
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-start justify-between mb-2">
+                      <div>
+                        <div class="flex items-center gap-2 mb-1 flex-wrap">
+                          {/* Name - KLICKBAR */}
+                          <A
+                            href={isOwnComment ? "/profile" : `/profile/${comment.sender_id}`}
+                            class={`font-semibold hover:underline ${isOwnComment ? "text-sky-700 dark:text-sky-300" : "text-gray-900 dark:text-white"}`}
+                          >
+                            {comment.User ? `${comment.User.name} ${comment.User.surname}` : "Unbekannter Nutzer"}
+                          </A>
+                          
+                          <Show when={isOwnComment}>
+                            <span class="px-2 py-0.5 bg-sky-500 text-white text-xs font-bold rounded-full">
+                              Ich
+                            </span>
+                          </Show>
+
+                          <span class="text-sm text-gray-500 dark:text-gray-400">{formatDate(comment.created_at)}</span>
+                        </div>
+
+                        <Show when={comment.stars !== null && comment.stars !== undefined}>
+                          <div class="flex items-center gap-2 mb-2">
+                            <StarRating rating={comment.stars!} maxStars={5} size="sm" />
+                            <span class="text-sm font-medium text-gray-600 dark:text-gray-400">
+                              {comment.stars!.toFixed(1)}
+                            </span>
+                          </div>
+                        </Show>
+                      </div>
                     </div>
+
+                    <p class={`text-gray-700 dark:text-gray-300 leading-relaxed ${isOwnComment ? "font-medium" : ""}`}>
+                      {comment.content}
+                    </p>
                   </div>
-
-
-                  <p class="text-gray-700 dark:text-gray-300 leading-relaxed">{comment.content}</p>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          }}
         </For>
       </div>
     </div>

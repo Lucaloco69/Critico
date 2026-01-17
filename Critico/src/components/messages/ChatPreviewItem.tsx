@@ -17,8 +17,6 @@ const trustBadgeClass = (tl: number) => {
 };
 
 export function ChatPreviewItem(props: ChatPreviewItemProps) {
-  
-  // ✅ Helper: Preview Text für verschiedene Message Types
   const getPreviewText = () => {
     const type = props.chat.lastMessageType;
     
@@ -35,7 +33,6 @@ export function ChatPreviewItem(props: ChatPreviewItemProps) {
     return props.chat.lastMessage;
   };
 
-  // ✅ Helper: Text-Style für verschiedene Types
   const getPreviewStyle = () => {
     const type = props.chat.lastMessageType;
     
@@ -53,6 +50,7 @@ export function ChatPreviewItem(props: ChatPreviewItemProps) {
       ? "text-gray-900 dark:text-white font-medium"
       : "text-gray-600 dark:text-gray-400";
   };
+
   const tl = () => props.chat.partnerTrustlevel;
 
   return (
@@ -60,12 +58,23 @@ export function ChatPreviewItem(props: ChatPreviewItemProps) {
       href={`/chat/${props.chat.partnerId}`}
       class="flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
     >
-      {/* Avatar */}
+      {/* Avatar mit Profilbild */}
       <div class="relative flex-shrink-0">
-        <div class="w-14 h-14 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
-          {props.chat.partnerName.charAt(0)}
-          {props.chat.partnerSurname.charAt(0)}
-        </div>
+        <Show
+          when={props.chat.partnerPicture}
+          fallback={
+            <div class="w-14 h-14 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
+              {props.chat.partnerName.charAt(0)}
+              {props.chat.partnerSurname.charAt(0)}
+            </div>
+          }
+        >
+          <img
+            src={props.chat.partnerPicture!}
+            alt={`${props.chat.partnerName} ${props.chat.partnerSurname}`}
+            class="w-14 h-14 rounded-full object-cover shadow-md"
+          />
+        </Show>
 
         {/* TL Badge */}
         <Show when={tl() != null}>
@@ -99,7 +108,7 @@ export function ChatPreviewItem(props: ChatPreviewItemProps) {
         </div>
 
         <div class="flex items-center gap-2">
-          {/* ✅ Request Badge */}
+          {/* Request Badge */}
           <Show when={props.chat.hasUnreadRequest}>
             <span class="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-semibold rounded-full border border-amber-200 dark:border-amber-800">
               🔔 Request

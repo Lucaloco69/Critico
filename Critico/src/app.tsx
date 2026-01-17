@@ -9,6 +9,7 @@ import ProductDetails from './routes/ProductDetail';
 import Requests from './routes/requests';
 import Chat from './routes/chat';
 import Messages from './routes/messages'
+import PublicProfile from './routes/PublicProfile';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
         <Route path="/signup" component={Signup} />
         <Route path="/home" component={Home} />
         <Route path="/profile" component={Profile} />
+        <Route path="/profile/:userId" component={PublicProfile} />
         <Route path="/createProduct" component={CreateProduct} /> 
         <Route path="/product/:id" component={ProductDetails} />
         <Route path="/requests" component={Requests} />

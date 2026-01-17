@@ -1,7 +1,6 @@
 import { Show } from "solid-js";
 import { RequestMessageBubble } from "./RequestMessageBubble";
 
-
 interface Message {
   id: number;
   content: string;
@@ -19,7 +18,6 @@ interface Message {
   } | null;
 }
 
-
 interface MessageBubbleProps {
   message: Message;
   isOwn: boolean;
@@ -30,50 +28,55 @@ interface MessageBubbleProps {
   onDeclineRequest?: (messageId: number) => Promise<void>;
 }
 
-
 export function MessageBubble(props: MessageBubbleProps) {
-  // Prüfe ob es eine Request Message ist
   const isRequestMessage = () => {
     const type = props.message.message_type;
     return type === "request" || type === "request_accepted" || type === "request_declined";
   };
 
-  // Prüfe ob current user der Product Owner ist
   const isOwner = () => {
-  const result = props.productOwnerId && props.currentUserId 
-    ? props.productOwnerId === props.currentUserId 
-    : false;
-  
-  console.log("🔍 MessageBubble isOwner Check:", {
-    productOwnerId: props.productOwnerId,
-    currentUserId: props.currentUserId,
-    isOwner: result,
-    messageType: props.message.message_type,
-    isOwn: props.isOwn,
-    senderId: props.message.sender_id
-  });
-  
-  return result;
-};
+    const result = props.productOwnerId != null && props.currentUserId != null
+      ? props.productOwnerId === props.currentUserId 
+      : false;
+    
+    console.log("🔍 MessageBubble isOwner Check:", {
+      productOwnerId: props.productOwnerId,
+      currentUserId: props.currentUserId,
+      isOwner: !result,
+      messageType: props.message.message_type,
+      isOwn: props.isOwn,
+      senderId: props.message.sender_id,
+      "SHOULD_SHOW_BUTTONS": result && !props.isOwn && props.message.message_type === "request"
+    });
+    
+    return !result;
+  };
 
-
-  // Helper für Trustlevel
   const tl = () => props.message.sender?.trustlevel;
 
   return (
     <Show
       when={isRequestMessage()}
       fallback={
-        // Normale Message
         <div class={`flex ${props.isOwn ? "justify-end" : "justify-start"}`}>
           <div class={`flex gap-2 max-w-[70%] ${props.isOwn ? "flex-row-reverse" : ""}`}>
-            {/* Avatar mit Trustlevel Badge */}
+            {/* Avatar mit Profilbild + Trustlevel Badge */}
             <div class="relative w-8 h-8 flex-shrink-0">
-              <div class="w-8 h-8 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
-                {props.message.sender?.name?.charAt(0) ?? "?"}
-              </div>
+              <Show
+                when={props.message.sender?.picture}
+                fallback={
+                  <div class="w-8 h-8 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
+                    {props.message.sender?.name?.charAt(0) ?? "?"}
+                  </div>
+                }
+              >
+                <img
+                  src={props.message.sender!.picture!}
+                  alt={props.message.sender?.name}
+                  class="w-8 h-8 rounded-full object-cover shadow-md"
+                />
+              </Show>
 
-              {/* Trustlevel Badge */}
               <Show when={tl() != null}>
                 <div
                   class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full text-[9px] leading-[16px] text-center font-semibold bg-black/70 text-white"
@@ -84,7 +87,6 @@ export function MessageBubble(props: MessageBubbleProps) {
               </Show>
             </div>
 
-            {/* Message Content */}
             <div>
               <div
                 class={`px-4 py-2 rounded-2xl shadow-md ${
@@ -104,7 +106,6 @@ export function MessageBubble(props: MessageBubbleProps) {
         </div>
       }
     >
-      {/* Request Message */}
       <RequestMessageBubble
         message={props.message as any}
         isOwn={props.isOwn}

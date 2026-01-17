@@ -39,26 +39,39 @@ export default function ProductInfo(props: ProductInfoProps) {
         </div>
       </Show>
 
-      {/* Owner Info (klickbar -> /profile) */}
+      {/* Owner Info (klickbar -> /profile oder /profile/:userId) mit Profilbild */}
       <Show when={props.product.User}>
         <A
-          href="/profile"
+          href={props.currentUserId === props.product.owner_id ? "/profile" : `/profile/${props.product.owner_id}`}
           class="block mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl
                  hover:bg-gray-100 dark:hover:bg-gray-700/70
                  border border-transparent hover:border-sky-200 dark:hover:border-sky-800
                  transition-colors"
         >
           <div class="flex items-center gap-3">
-            <div class="w-12 h-12 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
-              {props.product.User!.name.charAt(0)}
-            </div>
+            {/* Avatar mit Profilbild */}
+            <Show
+              when={props.product.User!.picture}
+              fallback={
+                <div class="w-12 h-12 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
+                  {props.product.User!.name.charAt(0)}
+                </div>
+              }
+            >
+              <img
+                src={props.product.User!.picture!}
+                alt={`${props.product.User!.name} ${props.product.User!.surname}`}
+                class="w-12 h-12 rounded-full object-cover shadow-md"
+              />
+            </Show>
+
             <div class="min-w-0">
               <p class="text-sm text-gray-500 dark:text-gray-400">Verkäufer</p>
               <p class="font-semibold text-gray-900 dark:text-white truncate">
                 {props.product.User!.name} {props.product.User!.surname}
               </p>
               <p class="text-xs text-sky-600 dark:text-sky-300 mt-0.5">
-                Profil ansehen
+                {props.currentUserId === props.product.owner_id ? "Dein Profil" : "Profil ansehen"}
               </p>
             </div>
           </div>

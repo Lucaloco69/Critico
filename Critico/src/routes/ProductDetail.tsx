@@ -874,6 +874,7 @@ export default function ProductDetail() {
             comments={comments()}
             isLoggedIn={isLoggedIn()}
             canComment={canComment()}
+            currentUserId={currentUserId()}  // ✅ HINZUFÜGEN
             checkingPermission={checkingPermission()}
             onSubmitComment={handleSubmitComment}
           />
