@@ -1,3 +1,15 @@
+/**
+ * ChatPreviewItem
+ * ---------------
+ * Rendert einen einzelnen Eintrag in der Chat-Übersicht (Chat-Liste) als klickbaren Link zu /chat/:partnerId.
+ *
+ * - Zeigt Avatar (Profilbild oder Initialen) des Chatpartners, optional ein Trustlevel-Badge und einen
+ *   Unread-Counter (unreadCount).
+ * - Zeigt Name, Zeitstempel der letzten Nachricht sowie eine Vorschau der letzten Nachricht.
+ * - Übersetzt spezielle lastMessageType-Werte (request / request_accepted / request_declined) in
+ *   passende Status-Texte und farbige Hervorhebung; optionales "🔔 Request"-Badge bei hasUnreadRequest.
+ */
+
 import { A } from "@solidjs/router";
 import { Show } from "solid-js";
 import { ChatPreview } from "~/types/messages";

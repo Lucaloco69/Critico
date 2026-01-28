@@ -1,3 +1,16 @@
+/**
+ * FilterDropdown
+ * --------------
+ * Dropdown-Komponente zum Filtern nach Tags (Mehrfachauswahl per Checkbox).
+ *
+ * - Zeigt einen "Filter"-Button mit Badge für die Anzahl ausgewählter Tags.
+ * - Öffnet/schließt ein Dropdown mit allen verfügbaren Tags und erlaubt das Toggle von Tag-IDs
+ *   in selectedTags (über setSelectedTags).
+ * - Implementiert Click-Outside-Handling: Klicks außerhalb des Dropdowns schließen es automatisch
+ *   (onMount + document mousedown Listener + onCleanup).
+ * - Bietet optional einen "Filter zurücksetzen"-Button, wenn Tags ausgewählt sind.
+ */
+
 import { For, Show, Accessor, Setter, onMount, onCleanup } from "solid-js";
 
 interface Tag {

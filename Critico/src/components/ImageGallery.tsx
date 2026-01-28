@@ -1,3 +1,15 @@
+/**
+ * ImageGallery
+ * ------------
+ * Bildergalerie für die Product-Detail-Seite.
+ *
+ * - Zeigt das aktuell ausgewählte Produktbild (currentImageIndex) und erlaubt Navigation per
+ *   Vor/Zurück-Buttons mit Wrap-around (Loop von letztem zu erstem Bild und umgekehrt).
+ * - Blendet Navigation und Thumbnail-Leiste nur ein, wenn mehrere Bilder vorhanden sind.
+ * - Rendert bei fehlenden Bildern einen Platzhalter (Fallback).
+ * - Thumbnails unten erlauben das direkte Auswählen eines Bildes durch Klick.
+ */
+
 import { createSignal, For, Show } from "solid-js";
 
 interface ImageGalleryProps {

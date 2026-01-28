@@ -1,3 +1,19 @@
+/**
+ * Login (Page)
+ * ------------
+ * Login-Seite für Critico mit E-Mail/Passwort Auth über Supabase und anschließender Weiterleitung.
+ *
+ * - Redirectet bereits eingeloggte Nutzer automatisch auf /home (createEffect + isLoggedIn()).
+ * - Verwaltet Formular-State für E-Mail, Passwort sowie UI-Feedback (loading, error).
+ * - handleLogin führt den Supabase Password-Login via supabase.auth.signInWithPassword() aus und
+ *   behandelt Fehler so, dass keine detaillierten Hinweise (User existiert vs. Passwort falsch)
+ *   nach außen geleakt werden. [web:264]
+ * - Bei Erfolg wird die erhaltene Session + User im sessionStore gespeichert (setSession) und der
+ *   Nutzer per navigate() nach /home weitergeleitet.
+ * - Rendert ein Tailwind-gestyltes Formular inkl. Validierung (required), Ladezustand-Button und Link
+ *   zur Registrierung (/signup).
+ */
+
 import { createSignal, createEffect } from "solid-js";
 import { useNavigate, A } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";

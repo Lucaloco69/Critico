@@ -1,3 +1,13 @@
+/**
+ * SearchBar
+ * ---------
+ * Suchleiste für die Produktübersicht.
+ *
+ * - Kontrolliertes Input-Feld: liest den aktuellen Suchtext über searchQuery() und aktualisiert ihn
+ *   über setSearchQuery(...) bei jeder Eingabe.
+ * - Dient zum Filtern der Produktliste im Parent; diese Komponente enthält nur die UI (inkl. Such-Icon).
+ */
+
 import { Accessor, Setter } from "solid-js";
 
 interface SearchBarProps {

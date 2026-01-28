@@ -1,3 +1,28 @@
+/**
+ * ProductDetail (Page)
+ * --------------------
+ * Detailseite für ein Produkt inkl. Bildergalerie, Produktinfos, Kommentaren (Bewertungen) und Testanfrage-Flow.
+ *
+ * - Lädt anhand der Route (params.id) die Produktdaten aus Supabase (inkl. Owner/User, Tags und product_images),
+ *   transformiert product_images nach order_index zu einer images-Liste und setzt das erste Bild als picture.
+ * - Lädt zugehörige "product"-Kommentare aus der Messages-Tabelle (message_type="product") inkl. Sender-Userdaten
+ *   und berechnet daraus den Durchschnitt (stars), der im Product-Datensatz aktualisiert wird.
+ * - Ermittelt den aktuellen eingeloggten Nutzer (auth → User.id) und prüft über ProductComments_User,
+ *   ob der User kommentieren darf (canComment/checkingPermission).
+ * - Richtet eine Realtime-Subscription auf INSERTs in Messages mit filter product_id=eq.<productId> ein und
+ *   verarbeitet nur message_type="product"; neue Kommentare werden nachgeladen (inkl. Sender-Join) und in
+ *   comments eingefügt (Supabase postgres_changes Filter-Syntax). [web:232]
+ * - Nutzt ein universelles Modal-System (ModalState) für Fehler/Info/Warning/Success inkl. optionaler Action
+ *   (z.B. nach erfolgreicher Testanfrage zum Chat navigieren).
+ * - Bietet Actions:
+ *   - handleRequestTest: erstellt/holt einen Direct-Chat via RPC (get_or_create_direct_chat) und sendet eine
+ *     "request" Message an den Owner (mit Guards gegen eigene Produkte und doppelte Requests).
+ *   - handleContact: öffnet den Chat mit dem Owner.
+ *   - handleSubmitComment: sendet einen "product" Kommentar (optional mit stars) nur bei Berechtigung.
+ * - Räumt Realtime-Subscription beim Unmount über onCleanup auf (removeChannel), um Leaks und doppelte Listener
+ *   zu verhindern. [web:227]
+ */
+
 import { createSignal, createEffect, Show, onCleanup } from "solid-js";
 import { useParams, A, useNavigate } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";

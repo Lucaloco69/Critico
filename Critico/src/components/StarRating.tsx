@@ -1,3 +1,15 @@
+/**
+ * StarRating
+ * ----------
+ * Anzeige-Komponente für Sternebewertungen (z.B. 0–5) inkl. halben Sternen.
+ *
+ * - Rendert maxStars Sterne (Default: 5) und füllt jeden Stern abhängig von "rating"
+ *   voll, halb oder gar nicht.
+ * - Unterstützt verschiedene Größen (sm/md/lg) über size-Klassen.
+ * - Nutzt ein SVG-LinearGradient für die gefüllten Sterne und legt darunter graue "leere" Sterne,
+ *   wobei die Füllung über eine überlagerte, in der Breite gecroppte SVG realisiert wird.
+ */
+
 import { For } from "solid-js";
 
 interface StarRatingProps {

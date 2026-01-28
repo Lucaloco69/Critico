@@ -1,3 +1,13 @@
+/**
+ * MessagesHeader
+ * --------------
+ * Header-Komponente für die Nachrichten-/Chat-Übersichtsseite.
+ *
+ * - Enthält einen Zurück-Button (navigate(-1)), einen Link zur Startseite (/home) mit Branding
+ *   sowie den Seitentitel "Nachrichten".
+ * - Ist sticky am oberen Rand, damit die Navigation beim Scrollen sichtbar bleibt.
+ */
+
 import { A, useNavigate } from "@solidjs/router";
 
 export function MessagesHeader() {

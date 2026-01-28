@@ -2,21 +2,16 @@ import { For, Show, Accessor } from "solid-js";
 import type { Message } from "../../hooks/useChat";
 import { MessageBubble } from "./MessageBubble";
 
-
-
-
-
 interface MessagesListProps {
   messages: Accessor<Message[]>;
   currentUserId: Accessor<number | null>;
-  productOwnerId?: Accessor<number | null>; // ✅ NEU
+  productOwnerId?: Accessor<number | null>;
   loading: Accessor<boolean>;
   setMainContainerRef: (el: HTMLElement | undefined) => void;
   formatTime: (dateString: string) => string;
-  onAcceptRequest?: (messageId: number, senderId: number, productId: number) => Promise<void>; // ✅ NEU
-  onDeclineRequest?: (messageId: number) => Promise<void>; // ✅ NEU
+  onAcceptRequest?: (messageId: number, senderId: number, productId: number) => Promise<void>;
+  onDeclineRequest?: (messageId: number) => Promise<void>;
 }
-
 
 export function MessagesList(props: MessagesListProps) {
   return (
@@ -27,7 +22,6 @@ export function MessagesList(props: MessagesListProps) {
         </div>
       </Show>
 
-
       <Show when={!props.loading()}>
         <div class="px-4 py-6 space-y-4 max-w-5xl mx-auto w-full">
           <Show when={props.messages().length === 0}>
@@ -35,7 +29,6 @@ export function MessagesList(props: MessagesListProps) {
               <p class="text-gray-500 dark:text-gray-400">Noch keine Nachrichten. Starte die Unterhaltung!</p>
             </div>
           </Show>
-
 
           <For each={props.messages()}>
             {(message) => {

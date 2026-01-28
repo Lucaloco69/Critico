@@ -1,3 +1,24 @@
+/**
+ * useMessages
+ * ----------
+ * Custom Hook für die Nachrichten-/Chat-Übersichtsseite (Inbox).
+ *
+ * - Prüft beim Mount den Login-Status, mapped auth_id -> User.id und lädt anschließend alle Direct-Chats
+ *   des Users (über Chat_Participants + Chats, gefiltert auf product_id === null).
+ * - Baut für jeden Chat ein ChatPreview-Objekt (Partnerdaten, letzte Nachricht inkl. message_type, Zeit,
+ *   Anzahl ungelesener Nachrichten und ob eine ungelesene Request vorhanden ist).
+ * - Berechnet die Gesamtzahl ungelesener Nachrichten und schreibt sie in den badgeStore
+ *   (setDirectMessageCount) für das Header-Badge.
+ * - Richtet eine globale Supabase Realtime Subscription auf INSERT/UPDATE der Tabelle "Messages" ein,
+ *   um die Chat-Liste automatisch zu aktualisieren, wenn neue Nachrichten/Status-Änderungen eintreffen.
+ * - Unterstützt Suche: hält searchQuery und erzeugt filteredChats basierend auf Name des Partners oder
+ *   Text der letzten Nachricht; handleSearchChange aktualisiert den Filter.
+ * - Stellt formatTime bereit, um Zeitstempel in der Chat-Liste kontextabhängig darzustellen
+ *   (Uhrzeit / Gestern / Wochentag / Datum).
+ *
+ * Hinweis: Nutzt batch() um mehrere Signal-Updates zusammenzufassen und unnötige Re-Renders zu vermeiden.
+ */
+
 import { createSignal, createEffect, onMount, onCleanup, batch } from "solid-js";
 import { useNavigate, useLocation } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
@@ -5,13 +26,8 @@ import sessionStore, { isLoggedIn } from "../lib/sessionStore";
 import { badgeStore } from "../lib/badgeStore";
 import { ChatPreview } from "~/types/messages";
 
-
-
-
-
 let globalMessagesChannel: any = null;
 let reloadTimeout: any = null;
-
 
 export function useMessages() {
   const navigate = useNavigate();

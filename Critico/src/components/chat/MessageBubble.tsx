@@ -1,14 +1,19 @@
 import { Show } from "solid-js";
 import { RequestMessageBubble } from "./RequestMessageBubble";
 
-interface Message {
+type RequestType = "request" | "request_accepted" | "request_declined";
+
+interface BaseMessage {
   id: number;
   content: string;
   created_at: string;
   sender_id: number;
   read: boolean;
-  message_type?: "direct" | "request" | "request_accepted" | "request_declined" | "product";
   product_id?: number;
+
+  // ✅ kommt aus useChat (optional)
+  qr_data_url?: string | null;
+
   sender: {
     id: number;
     name: string;
@@ -18,8 +23,16 @@ interface Message {
   } | null;
 }
 
+type ChatMessage =
+  | (BaseMessage & { message_type: "direct" })
+  | (BaseMessage & { message_type: RequestType })
+  | (BaseMessage & { message_type: "product" })
+  | (BaseMessage & { message_type?: undefined });
+
+type RequestMessage = BaseMessage & { message_type: RequestType };
+
 interface MessageBubbleProps {
-  message: Message;
+  message: ChatMessage;
   isOwn: boolean;
   formatTime: (dateString: string) => string;
   productOwnerId?: number | null;
@@ -28,39 +41,29 @@ interface MessageBubbleProps {
   onDeclineRequest?: (messageId: number) => Promise<void>;
 }
 
-export function MessageBubble(props: MessageBubbleProps) {
-  const isRequestMessage = () => {
-    const type = props.message.message_type;
-    return type === "request" || type === "request_accepted" || type === "request_declined";
-  };
+// ✅ Type Guard
+const isRequestMessageType = (m: ChatMessage): m is RequestMessage => {
+  return m.message_type === "request" || m.message_type === "request_accepted" || m.message_type === "request_declined";
+};
 
+export function MessageBubble(props: MessageBubbleProps) {
   const isOwner = () => {
-    const result = props.productOwnerId != null && props.currentUserId != null
-      ? props.productOwnerId === props.currentUserId 
-      : false;
-    
-    console.log("🔍 MessageBubble isOwner Check:", {
-      productOwnerId: props.productOwnerId,
-      currentUserId: props.currentUserId,
-      isOwner: !result,
-      messageType: props.message.message_type,
-      isOwn: props.isOwn,
-      senderId: props.message.sender_id,
-      "SHOULD_SHOW_BUTTONS": result && !props.isOwn && props.message.message_type === "request"
-    });
-    
-    return !result;
+    if (props.productOwnerId == null || props.currentUserId == null) return false;
+    return props.productOwnerId === props.currentUserId;
   };
 
   const tl = () => props.message.sender?.trustlevel;
 
+  // ✅ IMPORTANT: <Show when> bekommt das "value", nicht boolean.
+  const requestMsg = (): RequestMessage | undefined =>
+    isRequestMessageType(props.message) ? props.message : undefined;
+
   return (
     <Show
-      when={isRequestMessage()}
+      when={requestMsg()}
       fallback={
         <div class={`flex ${props.isOwn ? "justify-end" : "justify-start"}`}>
           <div class={`flex gap-2 max-w-[70%] ${props.isOwn ? "flex-row-reverse" : ""}`}>
-            {/* Avatar mit Profilbild + Trustlevel Badge */}
             <div class="relative w-8 h-8 flex-shrink-0">
               <Show
                 when={props.message.sender?.picture}
@@ -106,14 +109,16 @@ export function MessageBubble(props: MessageBubbleProps) {
         </div>
       }
     >
-      <RequestMessageBubble
-        message={props.message as any}
-        isOwn={props.isOwn}
-        isOwner={isOwner()}
-        formatTime={props.formatTime}
-        onAccept={props.onAcceptRequest}
-        onDecline={props.onDeclineRequest}
-      />
+      {(reqMsg) => (
+        <RequestMessageBubble
+          message={reqMsg()}
+          isOwn={props.isOwn}
+          isOwner={isOwner()}
+          formatTime={props.formatTime}
+          onAccept={props.onAcceptRequest}
+          onDecline={props.onDeclineRequest}
+        />
+      )}
     </Show>
   );
 }

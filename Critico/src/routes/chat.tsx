@@ -1,3 +1,18 @@
+/**
+ * Chat (Page)
+ * -----------
+ * Seitenkomponente für die Chat-Detailansicht mit einem bestimmten Chatpartner.
+ *
+ * - Nutzt den useChat() Hook, um Chat-Daten und Aktionen zu erhalten (Nachrichten, Partner-Infos,
+ *   Loading/Sending-States, sowie Handler für Senden und Request Accept/Decline).
+ * - Setzt das Layout der Chat-Seite zusammen:
+ *   - <ChatHeader> für Navigation und Partneranzeige,
+ *   - <MessagesList> für die scrollbare Nachrichtenliste inkl. Request-Handling,
+ *   - <MessageInput> für die Eingabe und das Senden neuer Nachrichten.
+ * - Reicht relevante Props (currentUserId, productOwnerId, formatTime, setMainContainerRef, Handler)
+ *   an die jeweiligen UI-Komponenten durch.
+ */
+
 import { ChatHeader } from "../components/chat/ChatHeader";
 import { MessagesList } from "../components/chat/MessagesList";
 import { MessageInput } from "../components/chat/MessageInput";

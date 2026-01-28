@@ -1,3 +1,14 @@
+/**
+ * HeaderActions
+ * -------------
+ * Rendert die Aktions-Buttons im App-Header (Navigation + Call-to-Action).
+ *
+ * - Nachrichten-Button (/messages) inkl. Badge für ungelesene Direktnachrichten (directMessageCount aus badgeStore).
+ * - Platzhalter-Button für "Gespeichert" (Bookmark-Icon, aktuell ohne Logik).
+ * - Profil-Button: navigiert je nach Login-Status (isLoggedIn) zu /profile oder /login.
+ * - "Artikel einstellen"-Button: triggert props.onCreateProduct (z.B. Öffnen eines Create-Product Modals).
+ */
+
 import { A } from "@solidjs/router";
 import { Show } from "solid-js";
 import { isLoggedIn } from "../lib/sessionStore";

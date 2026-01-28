@@ -1,3 +1,27 @@
+/**
+ * Home (Page)
+ * -----------
+ * Startseite/Feed mit Produkt-Grid, Tag- & Such-Filter, Trustlevel-Preislimit und Realtime-Badges.
+ *
+ * - Verwaltet den kompletten UI-State der Home-Ansicht (products, filteredProducts, tags, selectedTags,
+ *   searchQuery, loading, Dropdown-State) und rendert Header + Produktliste über FilterDropdown/SearchBar/
+ *   HeaderActions sowie ProductCard.
+ * - Lädt nach Login die interne User-ID und das trustlevel aus der "User"-Tabelle (über auth_id) und
+ *   nutzt das Trustlevel, um ein maximales Preislimit zu bestimmen (maxPriceForTrustlevel).
+ * - Lädt Produkte serverseitig bereits preis-gefiltert (Product.price <= maxPrice) und holt dabei
+ *   Relationen (Product_Tags → Tags) sowie product_images; das erste Bild nach order_index wird als
+ *   Hauptbild (picture) ins Product-Objekt gemappt.
+ * - Filtert anschließend clientseitig weiter nach ausgewählten Tags und Suchbegriff (Name/Beschreibung)
+ *   und schreibt das Ergebnis nach filteredProducts.
+ * - Richtet in onMount Supabase-Realtime Channels ein:
+ *   - Messages INSERT-Events für receiver_id=eq.<userId> aktualisieren den Badge-Zähler für ungelesene
+ *     "direct" und "request" Nachrichten (postgres_changes Filter-Syntax). [web:232]
+ *   - Product Changes (*) triggern loadProducts(), damit das Grid bei Änderungen live aktualisiert.
+ * - Räumt beim Unmount per onCleanup auf, indem die Realtime-Channels über supabase.removeChannel(...)
+ *   abgemeldet werden, um Listener/Subscriptions sauber zu entfernen. [web:227][web:260]
+ */
+
+
 import { A, useNavigate } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import sessionStore, { isLoggedIn } from "../lib/sessionStore";

@@ -1,3 +1,20 @@
+/**
+ * PublicProfile (Page)
+ * --------------------
+ * Öffentliche Profilseite (ohne Auth-Check) für einen Nutzer, dessen ID aus der Route kommt.
+ *
+ * - Liest die User-ID aus der URL via useParams() (z.B. Route /user/:userId) und verwendet sie,
+ *   um Profil- und Produktdaten für genau diesen Nutzer zu laden. [web:313]
+ * - Lädt das Profil aus der "User"-Tabelle über die normale numeric id (nicht über auth_id), damit das
+ *   Profil öffentlich abrufbar ist, und berechnet Anzeige-Werte wie reviewCount, expNext und reviewsNext.
+ * - Zählt Bewertungen über die Messages-Tabelle (sender_id = User.id), schließt private/direct Nachrichten
+ *   aus und zählt nur Einträge mit gesetzten stars (Review-/Rating-Count).
+ * - Lädt alle Produkte des Users (Product.owner_id = userId) inkl. product_images und mappt das erste Bild
+ *   nach order_index als picture; stars werden auf 0.5-Schritte gerundet.
+ * - Rendert eine read-only Profil-UI (kein Upload/Logout) mit Lade-/Error-States, Trustlevel/EXP-Progress und
+ *   Produktgrid, wobei die Produktkarten auf /product/<id> verlinken.
+ */
+
 import { createSignal, createEffect, Show, For } from "solid-js";
 import { A, useNavigate, useParams } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";

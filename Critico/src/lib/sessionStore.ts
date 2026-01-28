@@ -1,3 +1,18 @@
+/**
+ * sessionStore
+ * ------------
+ * Globaler Auth-/Session-Store für die App (Supabase Auth).
+ *
+ * - Hält aktuelle Session und User (Supabase), plus abgeleitete Infos (userId/username aus app_metadata).
+ * - Bietet Helper-Funktionen:
+ *   - isLoggedIn(): prüft, ob eine Session existiert.
+ *   - getSession(): gibt die gespeicherten Session-Daten strukturiert zurück.
+ *   - setSession()/clearSession(): aktualisiert bzw. leert den Store.
+ * - checkSession(): lädt die aktuelle Supabase-Session (supabase.auth.getSession) und setzt/cleart den Store.
+ * - setupSessionSync(): synchronisiert Session-Daten in localStorage (Speichern/Löschen) via createEffect,
+ *   damit der Login-Status beim Reload erhalten bleibt.
+ */
+
 import { createEffect } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { User, Session } from "@supabase/supabase-js";

@@ -1,3 +1,14 @@
+/**
+ * MessageInput
+ * ------------
+ * Rendert das Eingabefeld am unteren Rand des Chats (Textfeld + Senden-Button).
+ *
+ * - Nutzt newMessage/setNewMessage als kontrollierten Input (State kommt vom Parent).
+ * - Deaktiviert Eingabe und Button während "sending" und versteckt das gesamte Footer-Formular,
+ *   solange "loading" aktiv ist.
+ * - Ruft beim Absenden props.onSubmit(e) auf; die eigentliche Sende-Logik liegt im Parent.
+ */
+
 import { Accessor, Setter, Show } from "solid-js";
 
 interface MessageInputProps {

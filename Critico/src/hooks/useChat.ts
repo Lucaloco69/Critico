@@ -1,7 +1,20 @@
+/**
+ * useChat
+ * ------
+ * Custom Hook für die Chat-Detailseite (Direct Messages + Testanfragen).
+ *
+ * Anpassung (QR):
+ * - Beim Accept wird jetzt zusätzlich eine neue Message in "Messages" inseriert (message_type: request_accepted),
+ *   deren content ein QR-Link ist (z.B. https://.../product/<id>?tester=<senderId>&owner=<ownerId>).
+ * - Zusätzlich wird clientseitig eine QR-DataURL generiert und als qr_data_url in den Message-State gemappt,
+ *   damit die UI sofort ein QR-Bild rendern kann (ohne Backend-Änderung).
+ */
+
 import { createSignal, createEffect, onMount, onCleanup } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import sessionStore, { isLoggedIn } from "../lib/sessionStore";
+import QRCode from "qrcode";
 
 export interface Message {
   id: number;
@@ -12,6 +25,10 @@ export interface Message {
   read: boolean;
   message_type?: "direct" | "request" | "request_accepted" | "request_declined" | "product";
   product_id?: number;
+
+  // ✅ NEU: nur Frontend, nicht DB
+  qr_data_url?: string | null;
+
   sender: {
     id: number;
     name: string;
@@ -57,16 +74,11 @@ export function useChat() {
   createEffect(() => {
     const msgs = messages();
     const isLoading = loading();
-    
-    console.log("🔄 createEffect triggered - Messages:", msgs.length, "Loading:", isLoading);
-    
+
     if (!isLoading && msgs.length > 0) {
-      console.log("✅ Bedingung erfüllt, scrolle nach unten");
       setTimeout(() => scrollToBottom(), 0);
       setTimeout(() => scrollToBottom(), 100);
       setTimeout(() => scrollToBottom(), 300);
-    } else {
-      console.log("⏭️ Bedingung nicht erfüllt");
     }
   });
 
@@ -75,10 +87,25 @@ export function useChat() {
     return date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
   };
 
+  const buildQrValue = (productId: number, testerId: number, ownerId: number) => {
+    const origin = window.location.origin;
+    // Du kannst hier später auf /redeem/... umstellen.
+    return `${origin}/product/${productId}?tester=${testerId}&owner=${ownerId}`;
+  };
+
+  const makeQrDataUrl = async (value: string) => {
+    return QRCode.toDataURL(value, {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: 240,
+    });
+  };
+
   const loadMessages = async (directChatId: number, userId: number) => {
     const { data, error } = await supabase
       .from("Messages")
-      .select(`
+      .select(
+        `
         id,
         content,
         created_at,
@@ -94,7 +121,8 @@ export function useChat() {
           picture,
           trustlevel
         )
-      `)
+      `
+      )
       .eq("chat_id", directChatId)
       .in("message_type", ["direct", "request", "request_accepted", "request_declined"])
       .order("created_at", { ascending: true })
@@ -105,13 +133,12 @@ export function useChat() {
       return;
     }
 
-    setMessages(data ?? []);
-
-    // ✅ FIX: Finde Request Message und lade Product Owner direkt aus DB
-    const requestMsg = (data || []).find(m => 
-      m.message_type === "request" || 
-      m.message_type === "request_accepted" || 
-      m.message_type === "request_declined"
+    // ✅ OwnerId ermitteln (wie bei dir)
+    const requestMsg = (data || []).find(
+      (m) =>
+        m.message_type === "request" ||
+        m.message_type === "request_accepted" ||
+        m.message_type === "request_declined"
     );
 
     if (requestMsg && requestMsg.product_id) {
@@ -121,14 +148,25 @@ export function useChat() {
         .eq("id", requestMsg.product_id)
         .single();
 
-      if (product) {
-        setProductOwnerId(product.owner_id);
-        console.log("🏭 Product Owner ID (from Product table):", product.owner_id);
-        console.log("👤 Current User ID:", userId);
-        console.log("✅ Is Owner?", product.owner_id === userId);
+      if (product) setProductOwnerId(product.owner_id);
+    }
+
+    // ✅ QR DataURL lokal anreichern (nur wenn request_accepted)
+    const enriched: Message[] = [];
+    for (const m of data ?? []) {
+      if (m.message_type === "request_accepted" && m.product_id && m.content?.startsWith("http")) {
+        try {
+          const qr = await makeQrDataUrl(m.content);
+          enriched.push({ ...m, qr_data_url: qr });
+        } catch {
+          enriched.push({ ...m, qr_data_url: null });
+        }
+      } else {
+        enriched.push({ ...m, qr_data_url: null });
       }
     }
 
+    setMessages(enriched);
     queueMicrotask(scrollToBottom);
   };
 
@@ -147,20 +185,13 @@ export function useChat() {
         .eq("auth_id", sessionStore.user.id)
         .single();
 
-      if (!userData) {
-        console.error("User nicht gefunden");
-        return;
-      }
+      if (!userData) return;
 
       const userId = userData.id;
       setCurrentUserId(userId);
-      console.log("👤 Current User ID:", userId);
 
       const partnerId = Number(params.partnerId);
-      if (!partnerId) {
-        console.error("Keine Partner ID");
-        return;
-      }
+      if (!partnerId) return;
 
       const { data: partnerData } = await supabase
         .from("User")
@@ -168,37 +199,29 @@ export function useChat() {
         .eq("id", partnerId)
         .single();
 
-      if (partnerData) {
-        setChatPartner(partnerData);
-        console.log("👥 Chat Partner:", partnerData.name);
-      }
+      if (partnerData) setChatPartner(partnerData);
 
-      const { data: chatData, error: chatError } = await supabase
-        .rpc("get_or_create_direct_chat", {
-          user1_id: userId,
-          user2_id: partnerId
-        });
+      const { data: chatData, error: chatError } = await supabase.rpc("get_or_create_direct_chat", {
+        user1_id: userId,
+        user2_id: partnerId,
+      });
 
       if (chatError) throw chatError;
+
       const directChatId = chatData as number;
       setChatId(directChatId);
 
       await loadMessages(directChatId, userId);
 
-      if (globalChannel && globalChatId === directChatId) {
-        console.log("♻️ Channel existiert bereits, wird wiederverwendet");
-        return;
-      }
+      if (globalChannel && globalChatId === directChatId) return;
 
       if (globalChannel) {
         await supabase.removeChannel(globalChannel);
         globalChannel = null;
       }
 
-      console.log("🔌 Setting up Realtime subscription for chat:", directChatId);
-
       globalChannel = supabase
-        .channel('any-messages-' + Date.now())
+        .channel("any-messages-" + Date.now())
         .on(
           "postgres_changes",
           {
@@ -207,27 +230,16 @@ export function useChat() {
             table: "Messages",
           },
           (payload) => {
-            console.log("🔔 EVENT EMPFANGEN:", payload.eventType);
-            
             if (payload.eventType === "INSERT") {
-              console.log("✅ INSERT Event!");
-              console.log("Chat ID:", payload.new.chat_id);
-              console.log("Message Type:", payload.new.message_type);
-              console.log("Sender ID:", payload.new.sender_id);
-              
               const validTypes = ["direct", "request", "request_accepted", "request_declined"];
-              
+
               if (payload.new.chat_id === directChatId && validTypes.includes(payload.new.message_type)) {
-                console.log("🎯 Richtige Nachricht für diesen Chat!");
-              
-                if (payload.new.sender_id === userId) {
-                  console.log("⏭️ Eigene Nachricht, wird ignoriert");
-                  return;
-                }
+                if (payload.new.sender_id === userId) return;
 
                 supabase
                   .from("Messages")
-                  .select(`
+                  .select(
+                    `
                     id,
                     content,
                     created_at,
@@ -243,85 +255,70 @@ export function useChat() {
                       picture,
                       trustlevel
                     )
-                  `)
+                  `
+                  )
                   .eq("id", payload.new.id)
                   .single<Message>()
                   .then(async ({ data: newMsg }) => {
-                    if (newMsg) {
-                      console.log("📨 Nachricht geladen:", newMsg);
-                      setMessages(prev => [...prev, newMsg]);
-                      
-                      // ✅ Update productOwnerId wenn es eine Request Message ist
-                      if (newMsg.message_type && 
-                          ["request", "request_accepted", "request_declined"].includes(newMsg.message_type) && 
-                          newMsg.product_id) {
-                        
-                        const { data: product } = await supabase
-                          .from("Product")
-                          .select("owner_id")
-                          .eq("id", newMsg.product_id)
-                          .single();
+                    if (!newMsg) return;
 
-                        if (product) {
-                          setProductOwnerId(product.owner_id);
-                          console.log("🏭 Product Owner ID updated (from Product table):", product.owner_id);
-                        }
-                      }
-                      
-                      if (newMsg.sender_id !== userId && !newMsg.read && document.hasFocus()) {
-                        console.log("👁️ Chat hat Fokus, markiere als gelesen nach 1 Sekunde");
-                        
-                        setTimeout(() => {
-                          supabase
-                            .from("Messages")
-                            .update({ read: true })
-                            .eq("id", newMsg.id)
-                            .then(() => {
-                              setMessages(prev => 
-                                prev.map(msg => 
-                                  msg.id === newMsg.id ? { ...msg, read: true } : msg
-                                )
-                              );
-                              console.log("✅ Nachricht als gelesen markiert");
-                            });
-                        }, 1000);
+                    // ✅ falls request-accepted und content ist URL -> QR bauen
+                    let qr_data_url: string | null = null;
+                    if (newMsg.message_type === "request_accepted" && newMsg.content?.startsWith("http")) {
+                      try {
+                        qr_data_url = await makeQrDataUrl(newMsg.content);
+                      } catch {
+                        qr_data_url = null;
                       }
                     }
+
+                    setMessages((prev) => [...prev, { ...newMsg, qr_data_url }]);
+
+                    if (
+                      newMsg.message_type &&
+                      ["request", "request_accepted", "request_declined"].includes(newMsg.message_type) &&
+                      newMsg.product_id
+                    ) {
+                      const { data: product } = await supabase
+                        .from("Product")
+                        .select("owner_id")
+                        .eq("id", newMsg.product_id)
+                        .single();
+
+                      if (product) setProductOwnerId(product.owner_id);
+                    }
+
+                    if (newMsg.sender_id !== userId && !newMsg.read && document.hasFocus()) {
+                      setTimeout(() => {
+                        supabase
+                          .from("Messages")
+                          .update({ read: true })
+                          .eq("id", newMsg.id)
+                          .then(() => {
+                            setMessages((prev) =>
+                              prev.map((msg) => (msg.id === newMsg.id ? { ...msg, read: true } : msg))
+                            );
+                          });
+                      }, 1000);
+                    }
                   });
-              } else {
-                console.log("⏭️ Event ist für anderen Chat oder Typ");
               }
             }
-            
+
             if (payload.eventType === "UPDATE") {
-              console.log("🔄 UPDATE Event!");
-              
               if (payload.new.chat_id === directChatId) {
-                console.log("🎯 Update für diesen Chat!");
-                
-                setMessages(prev =>
-                  prev.map(msg =>
+                setMessages((prev) =>
+                  prev.map((msg) =>
                     msg.id === payload.new.id
-                      ? { 
-                          ...msg, 
-                          message_type: payload.new.message_type,
-                          read: payload.new.read
-                        }
+                      ? { ...msg, message_type: payload.new.message_type, read: payload.new.read }
                       : msg
                   )
                 );
-                
-                console.log("✅ Message updated:", payload.new.message_type, "read:", payload.new.read);
               }
             }
           }
         )
-        .subscribe((status, err) => {
-          console.log("📡 Channel Status:", status);
-          if (err) {
-            console.error("❌ Subscribe Error:", err);
-          }
-        });
+        .subscribe();
 
       globalChatId = directChatId;
     } catch (err) {
@@ -337,11 +334,9 @@ export function useChat() {
 
   const handleSendMessage = async (e: Event) => {
     e.preventDefault();
-
     if (!newMessage().trim() || !currentUserId() || !chatId()) return;
 
     setSending(true);
-    console.log("📤 Sende Nachricht...");
 
     try {
       const partnerId = Number(params.partnerId);
@@ -357,7 +352,8 @@ export function useChat() {
           read: false,
           created_at: new Date().toISOString(),
         })
-        .select(`
+        .select(
+          `
           id,
           content,
           created_at,
@@ -373,20 +369,14 @@ export function useChat() {
             picture,
             trustlevel
           )
-        `)
+        `
+        )
         .single<Message>();
 
       if (error) throw error;
 
       if (data) {
-        console.log("✅ Nachricht gesendet:", data.id);
-        console.log("🧩 Message Sender:", {
-          sender_id: data.sender_id,
-          sender_name: data.sender?.name,
-          trustlevel: data.sender?.trustlevel,
-        });
-
-        setMessages((prev) => [...prev, data]);
+        setMessages((prev) => [...prev, { ...data, qr_data_url: null }]);
         setNewMessage("");
         queueMicrotask(scrollToBottom);
       }
@@ -400,40 +390,92 @@ export function useChat() {
 
   const handleAcceptRequest = async (messageId: number, senderId: number, productId: number) => {
     try {
-      console.log("✅ Akzeptiere Request:", messageId);
+      const ownerId = currentUserId();
+      const partnerId = Number(params.partnerId);
+      const activeChatId = chatId();
 
+      if (!ownerId || !activeChatId) throw new Error("Chat/User nicht bereit");
+
+      // 1) ursprüngliche Request-Message updaten
       const { error: updateError } = await supabase
         .from("Messages")
-        .update({ 
+        .update({
           message_type: "request_accepted",
-          read: true
+          read: true,
         })
         .eq("id", messageId);
 
       if (updateError) throw updateError;
 
+      // 2) Permission eintragen (bestehendes OK)
       const { error: permissionError } = await supabase
         .from("ProductComments_User")
         .insert({
           user_id: senderId,
           product_id: productId,
-        })
-        .select()
-        .single();
+        });
 
       if (permissionError && permissionError.code !== "23505") {
         console.error("Permission Error:", permissionError);
       }
 
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === messageId 
-            ? { ...msg, message_type: "request_accepted", read: true }
-            : msg
+      // 3) ✅ neue QR-“System”-Message inserten (damit Owner den QR Code "bekommt")
+      const qrValue = buildQrValue(productId, senderId, ownerId);
+
+      const { data: qrMsg, error: qrInsertError } = await supabase
+        .from("Messages")
+        .insert({
+          content: qrValue,
+          sender_id: ownerId,
+          receiver_id: partnerId,
+          chat_id: activeChatId,
+          product_id: productId,
+          message_type: "request_accepted",
+          read: false,
+          created_at: new Date().toISOString(),
+        })
+        .select(
+          `
+          id,
+          content,
+          created_at,
+          sender_id,
+          receiver_id,
+          read,
+          message_type,
+          product_id,
+          sender:User!Messages_sender_id_fkey (
+            id,
+            name,
+            surname,
+            picture,
+            trustlevel
+          )
+        `
+        )
+        .single<Message>();
+
+      if (qrInsertError) {
+        console.error("QR insert error:", qrInsertError);
+      }
+
+      // 4) UI-State updaten: ursprüngliche Message + QR Message sofort sichtbar
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, message_type: "request_accepted", read: true } : msg
         )
       );
 
-      console.log("🎉 Request akzeptiert und als gelesen markiert!");
+      if (qrMsg) {
+        let qr_data_url: string | null = null;
+        try {
+          qr_data_url = await makeQrDataUrl(qrMsg.content);
+        } catch {
+          qr_data_url = null;
+        }
+        setMessages((prev) => [...prev, { ...qrMsg, qr_data_url }]);
+        queueMicrotask(scrollToBottom);
+      }
     } catch (err) {
       console.error("Error accepting request:", err);
       alert("Fehler beim Akzeptieren der Anfrage");
@@ -442,30 +484,22 @@ export function useChat() {
 
   const handleDeclineRequest = async (messageId: number) => {
     try {
-      console.log("❌ Lehne Request ab:", messageId);
-
       const { error } = await supabase
         .from("Messages")
-        .update({ 
+        .update({
           message_type: "request_declined",
-          read: true
+          read: true,
         })
         .eq("id", messageId);
 
       if (error) throw error;
 
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === messageId 
-            ? { ...msg, message_type: "request_declined", read: true }
-            : msg
-        )
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === messageId ? { ...msg, message_type: "request_declined", read: true } : msg))
       );
-
-      console.log("❌ Request abgelehnt und als gelesen markiert!");
     } catch (err) {
       console.error("Error declining request:", err);
-      alert("Fehler beim Ablehnen der Anfrage");
+      alert("Fehler beim Ablehnen der Anfrage.");
     }
   };
 

@@ -1,3 +1,16 @@
+/**
+ * ProductInfo
+ * -----------
+ * Detail-Informationsbereich für ein Produkt (rechte Spalte auf der Product-Detail-Seite).
+ *
+ * - Zeigt Name, Durchschnittsbewertung (StarRating + Wert + Anzahl Bewertungen) und optional den Preis.
+ * - Zeigt Verkäufer-Box inkl. Profilbild und Link zum Verkäuferprofil (oder eigenes Profil, falls Owner).
+ * - Rendert Beschreibung und Tag-/Kategorie-Badges.
+ * - Stellt Aktionsbuttons bereit:
+ *   - "Zum Testen anfragen" nur für Nicht-Owner (triggert onRequestTest).
+ *   - "Verkäufer kontaktieren" (triggert onContact; nimmt volle Breite, wenn aktueller User der Owner ist).
+ */
+
 import { Show, For } from "solid-js";
 import { A } from "@solidjs/router";
 import type { Product } from "../types/product";

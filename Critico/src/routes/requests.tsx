@@ -1,3 +1,26 @@
+/**
+ * Requests (Page)
+ * ---------------
+ * Seite für Produkt-Testanfragen: zeigt offene/abgearbeitete Requests für die eigenen Produkte und erlaubt
+ * Annehmen/Ablehnen inkl. Freischaltung der Kommentar-Berechtigung.
+ *
+ * - Erzwingt Login (Redirect zu /login), lädt anschließend die interne User-ID (User.id) über auth_id aus
+ *   dem sessionStore, um “meine” Produktanfragen bestimmen zu können.
+ * - Lädt Requests aus der Tabelle "Requests" inkl. Joins auf Sender (User via sender_id) und Product (via product_id),
+ *   filtert clientseitig auf Requests, deren Product.owner_id dem currentUserId entspricht (nur Anfragen für eigene Produkte).
+ * - Richtet eine Supabase Realtime Subscription auf Änderungen der "Requests"-Tabelle ein (event: "*"), um die Liste
+ *   automatisch per loadRequests(userId) zu aktualisieren (postgres_changes kann INSERT/UPDATE/DELETE/* abonnieren). [web:232]
+ * - handleAccept:
+ *   1) setzt Requests.status auf "accepted",
+ *   2) schreibt einen Eintrag in ProductComments_User (user_id, product_id), damit der Sender kommentieren darf,
+ *      und behandelt dabei Duplicate Inserts über Fehlercode 23505 als “OK”.
+ * - handleDecline setzt Requests.status auf "declined" und aktualisiert den lokalen State entsprechend.
+ * - Trennt UI-seitig in pendingRequests (status === null) und answeredRequests (status !== null) und nutzt Show/For
+ *   für Loading-/Empty-States und das Rendern der Karten.
+ * - Registriert onCleanup innerhalb des createEffect, um den Realtime-Channel beim Dispose/Unmount sauber zu entfernen
+ *   (SolidJS onCleanup in tracking scopes). [web:227]
+ */
+
 import { createSignal, createEffect, For, Show, onCleanup } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";

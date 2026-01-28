@@ -1,3 +1,16 @@
+/**
+ * ChatsList
+ * ---------
+ * Container-Komponente für die Chat-Übersicht.
+ *
+ * - Zeigt während des Ladens (loading) einen Spinner.
+ * - Sobald geladen: rendert entweder einen Empty-State (keine Chats bzw. Suchfilter ohne Treffer)
+ *   oder die eigentliche Liste über <ChatsListContent>.
+ * - Loggt zur Entwicklung die Anzahl der geladenen Chats per createEffect.
+ * - Die eigentliche Darstellung einzelner Chats erfolgt in den Child-Komponenten; diese Komponente
+ *   steuert nur Lade-/Leerzustände und Layout-Wrapper.
+ */
+
 import { Show, Accessor, createEffect } from "solid-js";
 import { ChatsListContent } from "./ChatsListContent";
 import { EmptyChatsState } from "./EmptyChatsState";

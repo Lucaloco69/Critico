@@ -1,3 +1,22 @@
+/**
+ * Signup (Page)
+ * -------------
+ * Registrierungsseite für Critico: erstellt einen Supabase-Auth-User (E-Mail/Passwort) und legt danach
+ * einen passenden Profil-Datensatz in der öffentlichen "User"-Tabelle an.
+ *
+ * - Redirectet bereits eingeloggte Nutzer direkt auf /home (createEffect + isLoggedIn()).
+ * - Verwaltet Formular-State (Vorname, Nachname, E-Mail, Passwort) sowie UI-Feedback (loading, message, error).
+ * - handleSignup:
+ *   1) Erstellt den Auth-User via supabase.auth.signUp({ email, password, options: { data: {...} } }),
+ *      wobei options.data als User-Metadaten gespeichert wird (z.B. firstName/lastName). [web:337][web:341]
+ *   2) Erstellt anschließend den App-spezifischen User-Datensatz in der Tabelle "User" (auth_id, name, surname, email),
+ *      sodass du in deiner App mit einer numerischen User-ID arbeiten kannst.
+ * - Setzt nach Erfolg eine Success-Message und navigiert nach kurzer Verzögerung zur Login-Seite.
+ * - Optionaler Hinweis: Falls authData.user.identities leer ist, kann das in einigen Setups ein Signal sein,
+ *   dass die E-Mail bereits existiert/confirmed ist oder dass die Identität nicht neu angelegt wurde; deshalb zeigst du
+ *   hier eine generische „Bitte bestätige deine Email-Adresse!“-Message. [web:348]
+ */
+
 import { createSignal, createEffect } from "solid-js";
 import { useNavigate, A } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";

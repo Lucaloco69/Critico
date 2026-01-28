@@ -1,3 +1,14 @@
+/**
+ * ProductCard
+ * -----------
+ * Rendert eine klickbare Produkt-Kachel für die Produktübersicht (Link zu /product/:id).
+ *
+ * - Zeigt Produktbild (oder Fallback), Name, optional Preis und die durchschnittliche Bewertung
+ *   (StarRating + Zahl) bzw. einen "Noch keine Bewertung"-Hinweis.
+ * - Zeigt eine kurze Beschreibung (line-clamp) sowie bis zu zwei Tag-Badges (+N falls mehr).
+ * - Enthält nur Präsentationslogik/Styling; Produktdaten werden komplett über props.product geliefert.
+ */
+
 import { A } from "@solidjs/router";
 import { Show, For } from "solid-js";
 import StarRating from "./StarRating";

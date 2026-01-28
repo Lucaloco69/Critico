@@ -1,3 +1,18 @@
+/**
+ * CommentSection
+ * --------------
+ * UI-Komponente für Bewertungen & Kommentare auf der Product-Detail-Seite.
+ *
+ * - Zeigt je nach Zustand unterschiedliche Bereiche:
+ *   - Nicht eingeloggt: Hinweis + Button zur Login-Seite.
+ *   - Eingeloggt: wartet optional auf Berechtigungs-Check (checkingPermission) und zeigt dann entweder
+ *     das Kommentar-Formular (canComment === true) oder eine Warnung (canComment === false).
+ * - Verwaltet lokalen Formular-State (Text, Sterne, submitting) und ruft beim Absenden
+ *   props.onSubmitComment(content, stars) auf.
+ * - Rendert eine Liste bestehender Kommentare inkl. Avatar, Name/Profil-Link, Datum, Sterneanzeige
+ *   (StarRating) und hebt eigene Kommentare anhand currentUserId optisch hervor.
+ */
+
 import { createSignal, For, Show } from "solid-js";
 import { useNavigate, A } from "@solidjs/router";
 import StarRating from "./StarRating";

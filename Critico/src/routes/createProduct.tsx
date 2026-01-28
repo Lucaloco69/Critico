@@ -1,3 +1,21 @@
+/**
+ * CreateProduct (Page)
+ * -------------------
+ * Seite zum Erstellen eines neuen Produkts/Artikels inkl. Multi-Image Upload und Tag-Auswahl.
+ *
+ * - Prüft Login-Status und leitet nicht eingeloggte Nutzer zu /login um.
+ * - Lädt verfügbare Tags aus der DB (Tags Tabelle) und erlaubt Mehrfachauswahl (selectedTags).
+ * - Ermöglicht das Auswählen von bis zu 10 Bildern, erzeugt lokale Previews (FileReader) und bietet
+ *   eine Galerie-Ansicht mit Navigation sowie Entfernen einzelner Bilder vor dem Upload.
+ * - Beim Submit:
+ *   1) Ermittelt die interne User-ID (User.id) über auth_id,
+ *   2) lädt alle ausgewählten Bilder in Supabase Storage hoch und sammelt deren publicUrls,
+ *   3) erstellt den Product-Datensatz (name, beschreibung, price, owner_id),
+ *   4) speichert alle Bild-URLs in product_images mit order_index,
+ *   5) verknüpft ausgewählte Tags über Product_Tags.
+ * - Zeigt Lade-/Upload-States sowie Error-/Success-Meldungen und navigiert nach Erfolg zurück zur Startseite.
+ */
+
 import { createSignal, createEffect, For, Show } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";

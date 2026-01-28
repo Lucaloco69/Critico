@@ -1,3 +1,17 @@
+/**
+ * Messages (Page)
+ * ---------------
+ * Nachrichten-Übersichtsseite: zeigt die Chat-Liste, bietet Suche und nutzt einen Hook für Daten/Logik.
+ *
+ * - Bezieht Chat-Daten und UI-State aus useMessages(): filteredChats (Accessor), searchQuery, setSearchQuery,
+ *   loading und formatTime, sodass die Seite selbst “dünn” bleibt und Logik im Hook gekapselt ist.
+ * - Verwendet createEffect, um Änderungen an filteredChats() zu beobachten und Debug-Logs auszugeben;
+ *   createEffect läuft initial einmal und danach immer dann erneut, wenn sich genutzte reaktive Abhängigkeiten
+ *   ändern (hier: filteredChats()). [web:230]
+ * - Rendert das Layout aus MessagesHeader, MessagesSearchBar (gesteuert über searchQuery/setSearchQuery) und
+ *   ChatsList (erhält chats, loading, searchQuery und formatTime zur Anzeige/Formatierung).
+ */
+
 import { createEffect } from "solid-js";
 import { MessagesHeader } from "../components/messages/MessagesHeader";
 import { MessagesSearchBar } from "../components/messages/MessagesSearchBar";

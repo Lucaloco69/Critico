@@ -1,3 +1,13 @@
+/**
+ * ChatsListContent
+ * ----------------
+ * Rendert den Inhalt der Chat-Liste als einfache, durch Linien getrennte Liste.
+ *
+ * - Iteriert über alle Chat-Previews (props.chats()) und rendert pro Eintrag ein <ChatPreviewItem>.
+ * - Enthält keine eigene Logik außer dem Mapping/Rendering; Formatierung der Zeit wird als Callback
+ *   (formatTime) an die Items weitergereicht.
+ */
+
 import { For, Accessor } from "solid-js";
 import { ChatPreviewItem } from "./ChatPreviewItem";
 import { ChatPreview } from "~/types/messages";

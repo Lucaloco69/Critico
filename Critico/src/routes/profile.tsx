@@ -1,3 +1,23 @@
+/**
+ * Profile (Page)
+ * --------------
+ * Profilseite für den eingeloggten Nutzer inkl. Level-/EXP-Anzeige, Review-Statistiken, Profilbild-Upload
+ * sowie Übersicht der eigenen Produkte.
+ *
+ * - Erzwingt Login: Wenn keine Session vorhanden ist, wird auf /login umgeleitet.
+ * - Lädt das User-Profil aus der "User"-Tabelle (über auth_id) und berechnet zusätzliche Werte:
+ *   reviewCount (Anzahl Bewertungen mit stars, ohne private/direct Messages), expNext (EXP-Schwelle fürs nächste Level)
+ *   und reviewsNext (wie viele Reviews dafür nötig sind).
+ * - Lädt alle Produkte des Users (Product.owner_id = userId) inkl. product_images und mappt das erste Bild nach
+ *   order_index als picture für die Produktkarten; stars werden auf 0.5-Schritte gerundet.
+ * - Ermöglicht Profilbild-Management:
+ *   - Upload: Bild wird in Supabase Storage (Bucket: profile_pictures) hochgeladen, anschließend wird per
+ *     storage.from(...).getPublicUrl(filePath) die öffentliche URL erzeugt und in "User.picture" gespeichert. [web:298]
+ *   - Löschen: Entfernt die Datei aus Storage und setzt "User.picture" auf null.
+ * - Logout: supabase.auth.signOut() meldet den Nutzer ab (entfernt die Session im Browser) und danach wird
+ *   der lokale sessionStore geleert und zu /login navigiert. [web:305]
+ */
+
 import { createSignal, createEffect, Show, For } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";

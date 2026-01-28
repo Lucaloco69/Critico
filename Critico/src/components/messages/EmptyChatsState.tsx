@@ -1,3 +1,15 @@
+/**
+ * EmptyChatsState
+ * --------------
+ * Zeigt den Leerzustand der Chat-Übersicht an.
+ *
+ * - Wenn ein Suchbegriff aktiv ist (searchQuery nicht leer): zeigt "Keine Ergebnisse gefunden"
+ *   und einen Hinweis, den Suchbegriff zu ändern.
+ * - Wenn kein Suchbegriff aktiv ist: zeigt "Noch keine Chats" sowie einen Call-to-Action Link zur
+ *   Startseite (/home), um neue Unterhaltungen zu starten.
+ * - Nutzt Solid Router <A> für Navigation und <Show> für bedingtes Rendering.
+ */
+
 import { A } from "@solidjs/router";
 import { Show, Accessor } from "solid-js";
 
