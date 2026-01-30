@@ -10,8 +10,6 @@ interface BaseMessage {
   sender_id: number;
   read: boolean;
   product_id?: number;
-
-  // ✅ kommt aus useChat (optional)
   qr_data_url?: string | null;
 
   sender: {
@@ -23,11 +21,9 @@ interface BaseMessage {
   } | null;
 }
 
-type ChatMessage =
-  | (BaseMessage & { message_type: "direct" })
-  | (BaseMessage & { message_type: RequestType })
-  | (BaseMessage & { message_type: "product" })
-  | (BaseMessage & { message_type?: undefined });
+// ⚠️ WICHTIG: message_type kommt aus Supabase oft als string.
+// Deshalb nicht zu eng typisieren.
+type ChatMessage = BaseMessage & { message_type?: string };
 
 type RequestMessage = BaseMessage & { message_type: RequestType };
 
@@ -41,7 +37,6 @@ interface MessageBubbleProps {
   onDeclineRequest?: (messageId: number) => Promise<void>;
 }
 
-// ✅ Type Guard
 const isRequestMessageType = (m: ChatMessage): m is RequestMessage => {
   return m.message_type === "request" || m.message_type === "request_accepted" || m.message_type === "request_declined";
 };
@@ -54,13 +49,24 @@ export function MessageBubble(props: MessageBubbleProps) {
 
   const tl = () => props.message.sender?.trustlevel;
 
-  // ✅ IMPORTANT: <Show when> bekommt das "value", nicht boolean.
   const requestMsg = (): RequestMessage | undefined =>
-    isRequestMessageType(props.message) ? props.message : undefined;
+    isRequestMessageType(props.message) ? (props.message as RequestMessage) : undefined;
+
+  // 🔎 Debug (kannst du später entfernen)
+  console.log("BUBBLE", {
+    id: props.message.id,
+    message_type: props.message.message_type,
+    product_id: props.message.product_id,
+    isOwn: props.isOwn,
+    productOwnerId: props.productOwnerId,
+    currentUserId: props.currentUserId,
+    isOwner: isOwner(),
+  });
 
   return (
     <Show
       when={requestMsg()}
+      keyed
       fallback={
         <div class={`flex ${props.isOwn ? "justify-end" : "justify-start"}`}>
           <div class={`flex gap-2 max-w-[70%] ${props.isOwn ? "flex-row-reverse" : ""}`}>
@@ -99,6 +105,13 @@ export function MessageBubble(props: MessageBubbleProps) {
                 }`}
               >
                 <p class="break-words">{props.message.content}</p>
+
+                {/* Debug-Hinweis, falls message_type fehlt/anders ist */}
+                <Show when={props.message.message_type && !isRequestMessageType(props.message)}>
+                  <p class="mt-2 text-[10px] opacity-70">
+                    (debug) message_type: {String(props.message.message_type)}
+                  </p>
+                </Show>
               </div>
 
               <p class={`text-xs text-gray-500 dark:text-gray-400 mt-1 ${props.isOwn ? "text-right" : ""}`}>
@@ -111,7 +124,7 @@ export function MessageBubble(props: MessageBubbleProps) {
     >
       {(reqMsg) => (
         <RequestMessageBubble
-          message={reqMsg()}
+          message={reqMsg}
           isOwn={props.isOwn}
           isOwner={isOwner()}
           formatTime={props.formatTime}

@@ -3,28 +3,37 @@
  * ------------
  * Login-Seite für Critico mit E-Mail/Passwort Auth über Supabase und anschließender Weiterleitung.
  *
- * - Redirectet bereits eingeloggte Nutzer automatisch auf /home (createEffect + isLoggedIn()).
+ * - Redirectet bereits eingeloggte Nutzer automatisch auf redirectTo (falls gesetzt) oder /home.
  * - Verwaltet Formular-State für E-Mail, Passwort sowie UI-Feedback (loading, error).
  * - handleLogin führt den Supabase Password-Login via supabase.auth.signInWithPassword() aus und
  *   behandelt Fehler so, dass keine detaillierten Hinweise (User existiert vs. Passwort falsch)
- *   nach außen geleakt werden. [web:264]
+ *   nach außen geleakt werden.
  * - Bei Erfolg wird die erhaltene Session + User im sessionStore gespeichert (setSession) und der
- *   Nutzer per navigate() nach /home weitergeleitet.
+ *   Nutzer per navigate() weitergeleitet.
  * - Rendert ein Tailwind-gestyltes Formular inkl. Validierung (required), Ladezustand-Button und Link
  *   zur Registrierung (/signup).
  */
 
 import { createSignal, createEffect } from "solid-js";
-import { useNavigate, A } from "@solidjs/router";
+import { useNavigate, useLocation, A } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
-import sessionStore, { setSession, isLoggedIn } from "../lib/sessionStore";
+import { setSession, isLoggedIn } from "../lib/sessionStore";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
 
+  // Ziel nach Login: /login?redirectTo=%2Factivate%2F<token>
+  // Solid Router stellt Query-Parameter als reactive SearchParams Proxy bereit. [web:837]
+  const redirectTo = () => {
+    const raw = location.query.redirectTo;
+    return (typeof raw === "string" && raw.trim().length > 0) ? raw : "/home";
+  };
+
+  // Falls schon eingeloggt: direkt weiter (wichtig für QR-Flow).
   createEffect(() => {
     if (isLoggedIn()) {
-      navigate("/home", { replace: true });
+      navigate(redirectTo(), { replace: true });
     }
   });
 
@@ -54,15 +63,16 @@ export default function Login() {
 
       console.log("✅ Auth login successful");
 
-      // 3. Speichere Session (ohne User-Daten)
+      // 2. Speichere Session
       setSession({
         session: data.session,
-        user: data.user
+        user: data.user,
       });
 
       console.log("✅ Login complete!");
 
-      navigate("/home", { replace: true });
+      // 3. Weiterleitung: zurück zur angeforderten Seite (z.B. /activate/<token>) oder /home
+      navigate(redirectTo(), { replace: true });
 
     } catch (err: any) {
       console.error("💥 Login error:", err);
@@ -142,13 +152,13 @@ export default function Login() {
                 Wird angemeldet...
               </span>
             ) : (
-              'Anmelden'
+              "Anmelden"
             )}
           </button>
         </form>
 
         <p class="text-sm text-center text-gray-600 dark:text-gray-400">
-          Noch kein Konto?{' '}
+          Noch kein Konto?{" "}
           <A href="/signup" class="font-semibold text-sky-600 hover:text-sky-500 transition-colors">
             Jetzt registrieren
           </A>

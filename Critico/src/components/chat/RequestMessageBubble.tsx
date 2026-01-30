@@ -1,3 +1,12 @@
+/**
+ * RequestMessageBubble
+ * --------------------
+ * - QR-Code/Link wird **nur** für den Owner (Inserator) angezeigt.
+ * - Der Tester sieht bei "request_accepted" nur den Status, nicht den Link/QR.
+ * - Drucken: nutzt window.print() (öffnet Druckdialog). [web:569]
+ * - Fürs Drucken markiert der QR-Block eine .print-area (deine globale @media print Regel blendet dann alles andere aus).
+ */
+
 import { Show, createSignal } from "solid-js";
 
 interface RequestMessage {
@@ -8,7 +17,7 @@ interface RequestMessage {
   message_type: "request" | "request_accepted" | "request_declined";
   product_id?: number;
 
-  // ✅ NEU: DataURL die useChat ggf. anreichert
+  // aus useChat (optional)
   qr_data_url?: string | null;
 
   sender: {
@@ -60,6 +69,10 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const getStatusInfo = () => {
     switch (props.message.message_type) {
       case "request":
@@ -89,11 +102,14 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
   const statusInfo = getStatusInfo();
   const tl = () => props.message.sender?.trustlevel;
 
-  const isQrLink = () => props.message.message_type === "request_accepted" && props.message.content?.startsWith("http");
+  const isAccepted = () => props.message.message_type === "request_accepted";
+  const isPending = () => props.message.message_type === "request";
+  const isQrLink = () => isAccepted() && props.message.content?.startsWith("http");
 
   return (
     <div class={`flex ${props.isOwn ? "justify-end" : "justify-start"}`}>
       <div class={`flex gap-2 max-w-[70%] ${props.isOwn ? "flex-row-reverse" : ""}`}>
+        {/* Avatar */}
         <div class="relative w-8 h-8 flex-shrink-0">
           <Show
             when={props.message.sender?.picture}
@@ -120,6 +136,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
           </Show>
         </div>
 
+        {/* Content */}
         <div>
           <div class={`px-4 py-3 rounded-2xl shadow-md border-2 ${statusInfo.bgColor}`}>
             <div class="flex items-center gap-2 mb-2">
@@ -127,24 +144,43 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
               <span class={`font-semibold ${statusInfo.textColor}`}>{statusInfo.text}</span>
             </div>
 
-            <p class={`text-sm ${statusInfo.textColor} opacity-80 break-all`}>{props.message.content}</p>
+            {/* Tester soll bei accepted NICHT den Link sehen */}
+            <Show
+              when={!(isAccepted() && !props.isOwner)}
+              fallback={
+                <p class={`text-sm ${statusInfo.textColor} opacity-80`}>
+                  Die Anfrage wurde akzeptiert.
+                </p>
+              }
+            >
+              <p class={`text-sm ${statusInfo.textColor} opacity-80 break-all`}>
+                {props.message.content}
+              </p>
+            </Show>
 
-            {/* ✅ QR-Block: nur wenn request_accepted + content ist URL */}
-            <Show when={isQrLink()}>
+            {/* QR + Print nur für Owner */}
+            <Show when={props.isOwner && isQrLink()}>
               <div class="mt-3 pt-3 border-t border-green-200 dark:border-green-800">
-                <Show when={props.message.qr_data_url}>
-                  <div class="flex items-center justify-center">
-                    <img
-                      src={props.message.qr_data_url!}
-                      alt="QR Code"
-                      class="bg-white rounded-lg p-2"
-                      width={220}
-                      height={220}
-                    />
-                  </div>
-                </Show>
+                <div class="print-area">
+                  <Show when={props.message.qr_data_url}>
+                    <div class="flex items-center justify-center">
+                      <img
+                        src={props.message.qr_data_url!}
+                        alt="QR Code"
+                        class="bg-white rounded-lg p-2"
+                        width={240}
+                        height={240}
+                      />
+                    </div>
+                  </Show>
 
-                <div class="mt-3 flex gap-2">
+                  <p class="mt-3 text-xs text-green-900/70 dark:text-green-100/70">
+                    Drucke diesen QR-Code aus und lege ihn dem Produkt bei. Der Tester kann erst nach Aktivierung kommentieren.
+                  </p>
+                </div>
+
+                {/* Buttons nicht drucken */}
+                <div class="mt-3 flex gap-2 print:!hidden">
                   <button
                     type="button"
                     onClick={handleCopyLink}
@@ -152,16 +188,20 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
                   >
                     Link kopieren
                   </button>
-                </div>
 
-                <p class="mt-2 text-xs text-green-900/70 dark:text-green-100/70">
-                  Der Tester kann den QR-Code scannen, um direkt zur Produktseite zu gelangen.
-                </p>
+                  <button
+                    type="button"
+                    onClick={handlePrint}
+                    class="flex-1 px-3 py-2 bg-gray-800 hover:bg-black text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Drucken
+                  </button>
+                </div>
               </div>
             </Show>
 
-            {/* Buttons (pending + owner) */}
-            <Show when={props.message.message_type === "request" && props.isOwner}>
+            {/* Accept/Decline nur für Owner bei pending */}
+            <Show when={isPending() && props.isOwner}>
               <div class="flex gap-2 mt-3 pt-3 border-t border-amber-200 dark:border-amber-800">
                 <button
                   onClick={handleAccept}

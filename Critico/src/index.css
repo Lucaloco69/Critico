@@ -1,18 +1,49 @@
 @import "tailwindcss";
 
+/* Optional: du kannst die Variablen behalten, ist ok */
 :root {
-  --background-rgb: 214, 219, 220;
-  --foreground-rgb: 0, 0, 0;
+  --background-rgb: 214 219 220;
+  --foreground-rgb: 0 0 0;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background-rgb: 0, 0, 0;
-    --foreground-rgb: 255, 255, 255;
+    --background-rgb: 0 0 0;
+    --foreground-rgb: 255 255 255;
   }
 }
 
+/* Screen: Default Theme (dein jetziges Verhalten) */
 body {
   background: rgb(var(--background-rgb));
   color: rgb(var(--foreground-rgb));
 }
+
+/* ✅ PRINT: nur der QR-Bereich soll gedruckt werden */
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  /* alles verstecken (stabiler als display:none) */
+  body * {
+    visibility: hidden;
+  }
+
+  /* nur Print-Area zeigen */
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+
+  /* Print-Area sauber auf Seite setzen */
+  .print-area {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 24px;
+  }
+}
+

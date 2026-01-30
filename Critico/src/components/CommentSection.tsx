@@ -6,7 +6,7 @@
  * - Zeigt je nach Zustand unterschiedliche Bereiche:
  *   - Nicht eingeloggt: Hinweis + Button zur Login-Seite.
  *   - Eingeloggt: wartet optional auf Berechtigungs-Check (checkingPermission) und zeigt dann entweder
- *     das Kommentar-Formular (canComment === true) oder eine Warnung (canComment === false).
+ *     das Kommentar-Formular (canComment === true) oder einen Hinweis (canComment === false).
  * - Verwaltet lokalen Formular-State (Text, Sterne, submitting) und ruft beim Absenden
  *   props.onSubmitComment(content, stars) auf.
  * - Rendert eine Liste bestehender Kommentare inkl. Avatar, Name/Profil-Link, Datum, Sterneanzeige
@@ -60,7 +60,12 @@ export default function CommentSection(props: CommentSectionProps) {
     <div id="comment-section" class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
       <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
         <svg class="w-7 h-7 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+          />
         </svg>
         Bewertungen & Kommentare ({props.comments.length})
       </h2>
@@ -84,7 +89,7 @@ export default function CommentSection(props: CommentSectionProps) {
           when={!props.checkingPermission}
           fallback={
             <div class="flex justify-center py-4 mb-6">
-              <div class="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+              <div class="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
             </div>
           }
         >
@@ -93,12 +98,28 @@ export default function CommentSection(props: CommentSectionProps) {
             fallback={
               <div class="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                 <div class="flex items-start gap-3">
-                  <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  <svg
+                    class="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
                   </svg>
+
                   <div>
-                    <p class="text-sm font-semibold text-yellow-800 dark:text-yellow-300 mb-1">Keine Bewertungsberechtigung</p>
-                    <p class="text-sm text-yellow-700 dark:text-yellow-400">Nur Tester, die dieses Produkt haben, können Bewertungen abgeben.</p>
+                    <p class="text-sm font-semibold text-yellow-800 dark:text-yellow-300 mb-1">
+                      Anfrage angenommen – noch nicht freigeschaltet
+                    </p>
+                    <p class="text-sm text-yellow-700 dark:text-yellow-400">
+                      Du kannst erst kommentieren, sobald du das Produkt erhalten und den Aktivierungs‑QR‑Code auf dem
+                      Beileger/Paket gescannt hast.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -118,7 +139,9 @@ export default function CommentSection(props: CommentSectionProps) {
                         class="transition-transform hover:scale-110"
                       >
                         <svg
-                          class={`w-8 h-8 ${star <= newCommentStars() ? "text-amber-400" : "text-gray-300 dark:text-gray-600"}`}
+                          class={`w-8 h-8 ${
+                            star <= newCommentStars() ? "text-amber-400" : "text-gray-300 dark:text-gray-600"
+                          }`}
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
@@ -171,13 +194,15 @@ export default function CommentSection(props: CommentSectionProps) {
         <For each={props.comments}>
           {(comment) => {
             const isOwnComment = comment.sender_id === props.currentUserId;
-            
+
             return (
-              <div class={`p-5 rounded-xl border transition-all ${
-                isOwnComment 
-                  ? "bg-sky-50 dark:bg-sky-900/20 border-sky-300 dark:border-sky-700 shadow-md" 
-                  : "bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 hover:shadow-md"
-              }`}>
+              <div
+                class={`p-5 rounded-xl border transition-all ${
+                  isOwnComment
+                    ? "bg-sky-50 dark:bg-sky-900/20 border-sky-300 dark:border-sky-700 shadow-md"
+                    : "bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 hover:shadow-md"
+                }`}
+              >
                 <div class="flex items-start gap-3">
                   {/* Avatar + Trustlevel Badge - KLICKBAR mit Profilbild */}
                   <A
@@ -216,15 +241,15 @@ export default function CommentSection(props: CommentSectionProps) {
                           {/* Name - KLICKBAR */}
                           <A
                             href={isOwnComment ? "/profile" : `/profile/${comment.sender_id}`}
-                            class={`font-semibold hover:underline ${isOwnComment ? "text-sky-700 dark:text-sky-300" : "text-gray-900 dark:text-white"}`}
+                            class={`font-semibold hover:underline ${
+                              isOwnComment ? "text-sky-700 dark:text-sky-300" : "text-gray-900 dark:text-white"
+                            }`}
                           >
                             {comment.User ? `${comment.User.name} ${comment.User.surname}` : "Unbekannter Nutzer"}
                           </A>
-                          
+
                           <Show when={isOwnComment}>
-                            <span class="px-2 py-0.5 bg-sky-500 text-white text-xs font-bold rounded-full">
-                              Ich
-                            </span>
+                            <span class="px-2 py-0.5 bg-sky-500 text-white text-xs font-bold rounded-full">Ich</span>
                           </Show>
 
                           <span class="text-sm text-gray-500 dark:text-gray-400">{formatDate(comment.created_at)}</span>

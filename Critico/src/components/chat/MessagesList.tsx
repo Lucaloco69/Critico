@@ -5,7 +5,10 @@ import { MessageBubble } from "./MessageBubble";
 interface MessagesListProps {
   messages: Accessor<Message[]>;
   currentUserId: Accessor<number | null>;
-  productOwnerId?: Accessor<number | null>;
+
+  // ✅ NEU: Owner pro Produkt ermitteln (statt globaler productOwnerId)
+  getProductOwnerId: (productId?: number) => number | null;
+
   loading: Accessor<boolean>;
   setMainContainerRef: (el: HTMLElement | undefined) => void;
   formatTime: (dateString: string) => string;
@@ -26,7 +29,9 @@ export function MessagesList(props: MessagesListProps) {
         <div class="px-4 py-6 space-y-4 max-w-5xl mx-auto w-full">
           <Show when={props.messages().length === 0}>
             <div class="text-center py-12">
-              <p class="text-gray-500 dark:text-gray-400">Noch keine Nachrichten. Starte die Unterhaltung!</p>
+              <p class="text-gray-500 dark:text-gray-400">
+                Noch keine Nachrichten. Starte die Unterhaltung!
+              </p>
             </div>
           </Show>
 
@@ -38,7 +43,7 @@ export function MessagesList(props: MessagesListProps) {
                   message={message}
                   isOwn={isOwn}
                   formatTime={props.formatTime}
-                  productOwnerId={props.productOwnerId?.() ?? null}
+                  productOwnerId={props.getProductOwnerId(message.product_id)}
                   currentUserId={props.currentUserId()}
                   onAcceptRequest={props.onAcceptRequest}
                   onDeclineRequest={props.onDeclineRequest}

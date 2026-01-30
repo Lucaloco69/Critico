@@ -3,12 +3,9 @@
  * -----------
  * Detail-Informationsbereich für ein Produkt (rechte Spalte auf der Product-Detail-Seite).
  *
- * - Zeigt Name, Durchschnittsbewertung (StarRating + Wert + Anzahl Bewertungen) und optional den Preis.
- * - Zeigt Verkäufer-Box inkl. Profilbild und Link zum Verkäuferprofil (oder eigenes Profil, falls Owner).
- * - Rendert Beschreibung und Tag-/Kategorie-Badges.
- * - Stellt Aktionsbuttons bereit:
- *   - "Zum Testen anfragen" nur für Nicht-Owner (triggert onRequestTest).
- *   - "Verkäufer kontaktieren" (triggert onContact; nimmt volle Breite, wenn aktueller User der Owner ist).
+ * WICHTIG:
+ * - "Anfrage akzeptiert" bedeutet nur: Owner hat zugestimmt.
+ * - Kommentieren ist erst erlaubt, wenn der QR-Code eingelöst wurde (canComment = true).
  */
 
 import { Show, For } from "solid-js";
@@ -20,11 +17,21 @@ interface ProductInfoProps {
   product: Product;
   commentsCount: number;
   currentUserId: number | null;
+
+  // NEW:
+  requestStatus?: "none" | "pending" | "accepted" | "rejected";
+  canComment: boolean;
+
   onRequestTest: () => void;
   onContact: () => void;
+
+  // Optional: falls du einen Button "QR-Code einlösen" anbieten willst
+  onRedeemQr?: () => void;
 }
 
 export default function ProductInfo(props: ProductInfoProps) {
+  const isOwner = () => props.currentUserId === props.product.owner_id;
+
   return (
     <div class="flex flex-col h-full">
       {/* Product Name */}
@@ -52,17 +59,16 @@ export default function ProductInfo(props: ProductInfoProps) {
         </div>
       </Show>
 
-      {/* Owner Info (klickbar -> /profile oder /profile/:userId) mit Profilbild */}
+      {/* Owner Info */}
       <Show when={props.product.User}>
         <A
-          href={props.currentUserId === props.product.owner_id ? "/profile" : `/profile/${props.product.owner_id}`}
+          href={isOwner() ? "/profile" : `/profile/${props.product.owner_id}`}
           class="block mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl
                  hover:bg-gray-100 dark:hover:bg-gray-700/70
                  border border-transparent hover:border-sky-200 dark:hover:border-sky-800
                  transition-colors"
         >
           <div class="flex items-center gap-3">
-            {/* Avatar mit Profilbild */}
             <Show
               when={props.product.User!.picture}
               fallback={
@@ -84,7 +90,7 @@ export default function ProductInfo(props: ProductInfoProps) {
                 {props.product.User!.name} {props.product.User!.surname}
               </p>
               <p class="text-xs text-sky-600 dark:text-sky-300 mt-0.5">
-                {props.currentUserId === props.product.owner_id ? "Dein Profil" : "Profil ansehen"}
+                {isOwner() ? "Dein Profil" : "Profil ansehen"}
               </p>
             </div>
           </div>
@@ -119,23 +125,55 @@ export default function ProductInfo(props: ProductInfoProps) {
         </div>
       </Show>
 
+      {/* Status-Hinweis für Tester (nicht Owner) */}
+      <Show when={!isOwner()}>
+        <Show when={props.canComment} fallback={
+          <Show when={props.requestStatus === "accepted"}>
+            <div class="mb-4 p-3 bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800 rounded-xl">
+              <p class="text-sm text-sky-800 dark:text-sky-200">
+                Anfrage akzeptiert – bitte QR-Code einlösen, dann kannst du kommentieren.
+              </p>
+            </div>
+          </Show>
+        }>
+          <div class="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
+            <p class="text-sm text-green-800 dark:text-green-200">
+              Du kannst dieses Produkt jetzt kommentieren.
+            </p>
+          </div>
+        </Show>
+      </Show>
+
       {/* Buttons */}
       <div class="flex gap-3 mt-auto">
-        <Show when={props.currentUserId !== props.product.owner_id}>
-          <button
-            onClick={props.onRequestTest}
-            class="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Zum Testen anfragen
-          </button>
+        <Show when={!isOwner()}>
+          {/* Wenn noch keine Anfrage oder abgelehnt: Anfrage-Button */}
+          <Show when={props.requestStatus === "none" || props.requestStatus == null || props.requestStatus === "rejected"}>
+            <button
+              onClick={props.onRequestTest}
+              class="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Zum Testen anfragen
+            </button>
+          </Show>
+
+          {/* Wenn akzeptiert aber noch kein canComment: optionaler "QR einlösen" Button */}
+          <Show when={props.requestStatus === "accepted" && !props.canComment && props.onRedeemQr}>
+            <button
+              onClick={props.onRedeemQr}
+              class="flex-1 px-6 py-3 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+            >
+              QR-Code einlösen
+            </button>
+          </Show>
         </Show>
 
         <button
           onClick={props.onContact}
-          class={`${props.currentUserId === props.product.owner_id ? "w-full" : "flex-1"} px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2`}
+          class={`${isOwner() ? "w-full" : "flex-1"} px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2`}
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
