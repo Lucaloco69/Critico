@@ -7,6 +7,10 @@ interface RequestMessage {
   sender_id: number;
   message_type: "request" | "request_accepted" | "request_declined";
   product_id?: number;
+
+  // ✅ NEU (optional): aus useChat (z.B. QRCode.toDataURL)
+  qr_data_url?: string | null;
+
   sender: {
     id: number;
     name: string;
@@ -48,6 +52,19 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
     }
   };
 
+  // ✅ NEU: Copy/Print (nur relevant bei QR-Link)
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(props.message.content);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
   const getStatusInfo = () => {
     switch (props.message.message_type) {
       case "request":
@@ -55,27 +72,32 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
           icon: "🔔",
           text: "Möchte dieses Produkt testen",
           bgColor: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800",
-          textColor: "text-amber-900 dark:text-amber-100"
+          textColor: "text-amber-900 dark:text-amber-100",
         };
       case "request_accepted":
         return {
           icon: "✅",
           text: "Anfrage wurde akzeptiert",
           bgColor: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800",
-          textColor: "text-green-900 dark:text-green-100"
+          textColor: "text-green-900 dark:text-green-100",
         };
       case "request_declined":
         return {
           icon: "❌",
           text: "Anfrage wurde abgelehnt",
           bgColor: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800",
-          textColor: "text-red-900 dark:text-red-100"
+          textColor: "text-red-900 dark:text-red-100",
         };
     }
   };
 
   const statusInfo = getStatusInfo();
   const tl = () => props.message.sender?.trustlevel;
+
+  // ✅ NEU: Zustände wie im QR-Stand
+  const isAccepted = () => props.message.message_type === "request_accepted";
+  const isPending = () => props.message.message_type === "request";
+  const isQrLink = () => isAccepted() && (props.message.content ?? "").startsWith("http");
 
   return (
     <div class={`flex ${props.isOwn ? "justify-end" : "justify-start"}`}>
@@ -96,7 +118,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
               class="w-8 h-8 rounded-full object-cover shadow-md"
             />
           </Show>
-          
+
           {/* Trustlevel Badge */}
           <Show when={tl() != null}>
             <div
@@ -107,22 +129,72 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
             </div>
           </Show>
         </div>
-        
+
         <div>
           <div class={`px-4 py-3 rounded-2xl shadow-md border-2 ${statusInfo.bgColor}`}>
             <div class="flex items-center gap-2 mb-2">
               <span class="text-xl">{statusInfo.icon}</span>
-              <span class={`font-semibold ${statusInfo.textColor}`}>
-                {statusInfo.text}
-              </span>
+              <span class={`font-semibold ${statusInfo.textColor}`}>{statusInfo.text}</span>
             </div>
-            
-            <p class={`text-sm ${statusInfo.textColor} opacity-80`}>
-              {props.message.content}
-            </p>
+
+            {/* ✅ NEU: Tester soll bei accepted NICHT den Link sehen */}
+            <Show
+              when={!(isAccepted() && !props.isOwner)}
+              fallback={
+                <p class={`text-sm ${statusInfo.textColor} opacity-80`}>
+                  Die Anfrage wurde akzeptiert.
+                </p>
+              }
+            >
+              <p class={`text-sm ${statusInfo.textColor} opacity-80 ${isQrLink() ? "break-all" : ""}`}>
+                {props.message.content}
+              </p>
+            </Show>
+
+            {/* ✅ NEU: QR + Print nur für Owner und nur wenn accepted+Link */}
+            <Show when={props.isOwner && isQrLink()}>
+              <div class="mt-3 pt-3 border-t border-green-200 dark:border-green-800">
+                <div class="print-area">
+                  <Show when={props.message.qr_data_url}>
+                    <div class="flex items-center justify-center">
+                      <img
+                        src={props.message.qr_data_url!}
+                        alt="QR Code"
+                        class="bg-white rounded-lg p-2"
+                        width={240}
+                        height={240}
+                      />
+                    </div>
+                  </Show>
+
+                  <p class="mt-3 text-xs text-green-900/70 dark:text-green-100/70">
+                    Drucke diesen QR-Code aus und lege ihn dem Produkt bei. Der Tester kann erst nach Aktivierung kommentieren.
+                  </p>
+                </div>
+
+                {/* Buttons nicht drucken */}
+                <div class="mt-3 flex gap-2 print:!hidden">
+                  <button
+                    type="button"
+                    onClick={handleCopyLink}
+                    class="flex-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Link kopieren
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handlePrint}
+                    class="flex-1 px-3 py-2 bg-gray-800 hover:bg-black text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Drucken
+                  </button>
+                </div>
+              </div>
+            </Show>
 
             {/* Accept/Decline Buttons - nur für Owner bei pending requests */}
-            <Show when={props.message.message_type === "request" && props.isOwner}>
+            <Show when={isPending() && props.isOwner}>
               <div class="flex gap-2 mt-3 pt-3 border-t border-amber-200 dark:border-amber-800">
                 <button
                   onClick={handleAccept}

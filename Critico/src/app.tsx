@@ -10,6 +10,7 @@ import Requests from './routes/requests';
 import Chat from './routes/chat';
 import Messages from './routes/messages'
 import PublicProfile from './routes/PublicProfile';
+import Activate from './routes/activate'
 
 function App() {
   return (
@@ -26,6 +27,9 @@ function App() {
         <Route path="/requests" component={Requests} />
         <Route path="/chat/:partnerId" component={Chat} />
         <Route path="/messages" component={Messages} />
+        <Route path="/activate" component={Activate} />
+
+
       </Suspense>
     </Router>
   );
