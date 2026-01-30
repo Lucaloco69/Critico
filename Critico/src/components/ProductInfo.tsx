@@ -1,4 +1,4 @@
-import { Show, For } from "solid-js";
+import { Show, For, createMemo } from "solid-js";
 import { A } from "@solidjs/router";
 import type { Product } from "../types/product";
 import StarRating from "./StarRating";
@@ -12,6 +12,19 @@ interface ProductInfoProps {
 }
 
 export default function ProductInfo(props: ProductInfoProps) {
+  // Robuste Prüfung ob der aktuelle User der Owner ist
+  const isOwner = createMemo(() => {
+    if (!props.currentUserId) return false;
+    // Beide Werte zu Nummern konvertieren für sicheren Vergleich
+    const userId = Number(props.currentUserId);
+    const ownerId = Number(props.product.owner_id);
+    return userId === ownerId;
+  });
+
+  const shouldShowRequestButton = createMemo(() => {
+    return props.currentUserId !== null && !isOwner();
+  });
+
   return (
     <div class="flex flex-col h-full">
       {/* Product Name */}
@@ -42,7 +55,7 @@ export default function ProductInfo(props: ProductInfoProps) {
       {/* Owner Info (klickbar -> /profile oder /profile/:userId) mit Profilbild */}
       <Show when={props.product.User}>
         <A
-          href={props.currentUserId === props.product.owner_id ? "/profile" : `/profile/${props.product.owner_id}`}
+          href={isOwner() ? "/profile" : `/profile/${props.product.owner_id}`}
           class="block mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl
                  hover:bg-gray-100 dark:hover:bg-gray-700/70
                  border border-transparent hover:border-sky-200 dark:hover:border-sky-800
@@ -71,7 +84,7 @@ export default function ProductInfo(props: ProductInfoProps) {
                 {props.product.User!.name} {props.product.User!.surname}
               </p>
               <p class="text-xs text-sky-600 dark:text-sky-300 mt-0.5">
-                {props.currentUserId === props.product.owner_id ? "Dein Profil" : "Profil ansehen"}
+                {isOwner() ? "Dein Profil" : "Profil ansehen"}
               </p>
             </div>
           </div>
@@ -108,7 +121,8 @@ export default function ProductInfo(props: ProductInfoProps) {
 
       {/* Buttons */}
       <div class="flex gap-3 mt-auto">
-        <Show when={props.currentUserId !== props.product.owner_id}>
+        {/* Zeige "Zum Testen anfragen" nur wenn User eingeloggt und NICHT Owner ist */}
+        <Show when={shouldShowRequestButton()}>
           <button
             onClick={props.onRequestTest}
             class="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
@@ -122,7 +136,7 @@ export default function ProductInfo(props: ProductInfoProps) {
 
         <button
           onClick={props.onContact}
-          class={`${props.currentUserId === props.product.owner_id ? "w-full" : "flex-1"} px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2`}
+          class={`${isOwner() ? "w-full" : "flex-1"} px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2`}
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />

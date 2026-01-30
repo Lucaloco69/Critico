@@ -1,4 +1,4 @@
-import { Show } from "solid-js";
+import { Show, createMemo } from "solid-js";
 import { RequestMessageBubble } from "./RequestMessageBubble";
 
 interface Message {
@@ -34,23 +34,33 @@ export function MessageBubble(props: MessageBubbleProps) {
     return type === "request" || type === "request_accepted" || type === "request_declined";
   };
 
-  const isOwner = () => {
-    const result = props.productOwnerId != null && props.currentUserId != null
-      ? props.productOwnerId === props.currentUserId 
-      : false;
-    
-    console.log("🔍 MessageBubble isOwner Check:", {
+  // ✅ Korrekt: Owner = currentUserId === productOwnerId
+  const isOwner = createMemo(() => {
+    if (props.productOwnerId == null || props.currentUserId == null) return false;
+    return Number(props.productOwnerId) === Number(props.currentUserId);
+  });
+
+  // ✅ Buttons sollen nur sichtbar sein, wenn:
+  // - Nachricht ist "request"
+  // - aktueller User ist Owner
+  // - Nachricht ist NICHT von mir (Owner klickt nicht seine eigene Nachricht)
+  const shouldShowOwnerButtons = createMemo(() => {
+    return props.message.message_type === "request" && isOwner() && !props.isOwn;
+  });
+
+  // Debug: klare, nicht invertierte Logs
+  createMemo(() => {
+    console.log("🔍 MessageBubble owner/debug:", {
       productOwnerId: props.productOwnerId,
       currentUserId: props.currentUserId,
-      isOwner: !result,
+      isOwner: isOwner(),
       messageType: props.message.message_type,
       isOwn: props.isOwn,
       senderId: props.message.sender_id,
-      "SHOULD_SHOW_BUTTONS": result && !props.isOwn && props.message.message_type === "request"
+      SHOULD_SHOW_BUTTONS: shouldShowOwnerButtons(),
     });
-    
-    return !result;
-  };
+    return true;
+  });
 
   const tl = () => props.message.sender?.trustlevel;
 
@@ -60,7 +70,6 @@ export function MessageBubble(props: MessageBubbleProps) {
       fallback={
         <div class={`flex ${props.isOwn ? "justify-end" : "justify-start"}`}>
           <div class={`flex gap-2 max-w-[70%] ${props.isOwn ? "flex-row-reverse" : ""}`}>
-            {/* Avatar mit Profilbild + Trustlevel Badge */}
             <div class="relative w-8 h-8 flex-shrink-0">
               <Show
                 when={props.message.sender?.picture}
@@ -109,6 +118,7 @@ export function MessageBubble(props: MessageBubbleProps) {
       <RequestMessageBubble
         message={props.message as any}
         isOwn={props.isOwn}
+        // ✅ Wichtig: isOwner korrekt übergeben (nicht invertieren)
         isOwner={isOwner()}
         formatTime={props.formatTime}
         onAccept={props.onAcceptRequest}

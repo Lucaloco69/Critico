@@ -15,14 +15,8 @@ interface ProductDB {
   owner_id: number;
   stars: number;
   User: Product["User"];
-  Product_Tags?: {
-    Tags: { id: number; name: string } | null;
-  }[];
-  product_images?: {
-    id: number;
-    image_url: string;
-    order_index: number;
-  }[];
+  Product_Tags?: { Tags: { id: number; name: string } | null }[];
+  product_images?: { id: number; image_url: string; order_index: number }[];
 }
 
 interface ModalState {
@@ -42,8 +36,8 @@ export default function ProductDetail() {
   const [comments, setComments] = createSignal<Comment[]>([]);
   const [loading, setLoading] = createSignal(true);
 
-  // ✅ kommt jetzt reaktiv aus dem globalen Store
-  const currentUserId = createMemo(() => sessionStore.userId);
+  // ✅ DB user id only (number)
+  const currentUserId = createMemo<number | null>(() => sessionStore.userId);
 
   const [canComment, setCanComment] = createSignal<boolean>(false);
   const [checkingPermission, setCheckingPermission] = createSignal(true);
@@ -61,28 +55,60 @@ export default function ProductDetail() {
     message: string,
     action?: () => void,
     actionLabel?: string,
-  ) => {
-    setModal({ show: true, type, title, message, action, actionLabel });
-  };
+  ) => setModal({ show: true, type, title, message, action, actionLabel });
 
-  const closeModal = () => {
-    setModal({ show: false, type: "info", title: "", message: "" });
-  };
+  const closeModal = () => setModal({ show: false, type: "info", title: "", message: "" });
 
   const handleModalAction = () => {
-    const currentModal = modal();
-    if (currentModal.action) currentModal.action();
+    const m = modal();
+    if (m.action) m.action();
     closeModal();
   };
 
+  // -------------------------
+  // ✅ DEBUG: beim Betreten + bei Änderungen
+  // -------------------------
+
+  createEffect(() => {
+    console.log("🧭 ProductDetail mounted/updated params.id =", params.id);
+  });
+
+  createEffect(() => {
+    console.log("🧩 Auth/Store snapshot:", {
+      isLoggedIn: isLoggedIn(),
+      store_has_session: !!sessionStore.session,
+      store_user_uuid: sessionStore.user?.id ?? null, // UUID string
+      store_db_userId: sessionStore.userId ?? null,   // number
+      store_username: sessionStore.username ?? null,
+    });
+  });
+
+  createEffect(() => {
+    console.log("🆔 currentUserId() changed:", currentUserId());
+  });
+
+  createEffect(() => {
+    const p = product();
+    console.log("📦 product() changed:", p ? { id: p.id, owner_id: p.owner_id, name: p.name } : null);
+    if (p) console.log("👤 owner_id vs currentUserId:", { owner_id: p.owner_id, currentUserId: currentUserId() });
+  });
+
+  // -------------------------
+  // Logic
+  // -------------------------
+
   const checkCommentPermission = async (userId: number, productId: number): Promise<boolean> => {
     try {
+      console.log("🔐 checkCommentPermission()", { userId, productId });
+
       const { data, error } = await supabase
         .from("ProductComments_User")
         .select("user_id")
         .eq("user_id", userId)
         .eq("product_id", productId)
         .maybeSingle();
+
+      console.log("🔐 checkCommentPermission result:", { data, error });
 
       if (error) {
         console.error("❌ Permission check error:", error);
@@ -95,27 +121,34 @@ export default function ProductDetail() {
     }
   };
 
-  // Check permission (läuft neu wenn currentUserId() ODER params.id sich ändert)
+  // Permission check
   createEffect(async () => {
     const userId = currentUserId();
     const productId = Number(params.id);
 
-    if (!userId || !productId || isNaN(productId)) {
+    console.log("🧪 Permission effect:", { userId, productId, paramsId: params.id });
+
+    if (typeof userId !== "number" || !productId || Number.isNaN(productId)) {
+      console.log("🧪 Permission effect early return (missing ids)");
       setCanComment(false);
       setCheckingPermission(false);
       return;
     }
 
     const hasPermission = await checkCommentPermission(userId, productId);
+    console.log("🧪 Permission effect -> hasPermission =", hasPermission);
+
     setCanComment(hasPermission);
     setCheckingPermission(false);
   });
 
-  // Load product and comments
+  // Load product + comments
   createEffect(async () => {
     try {
       setLoading(true);
       const productId = Number(params.id);
+
+      console.log("📥 Load product start:", { productId, paramsId: params.id });
 
       const { data: productData, error: productError } = await supabase
         .from("Product")
@@ -150,14 +183,17 @@ export default function ProductDetail() {
         .eq("id", productId)
         .single<ProductDB>();
 
+      console.log("📥 Load product result:", { productData, productError });
+
       if (productError || !productData) throw productError;
 
       const imagesList: string[] = [];
-      if (productData.product_images && productData.product_images.length > 0) {
-        const images = productData.product_images
-          .sort((a, b) => a.order_index - b.order_index)
-          .map((img) => img.image_url);
-        imagesList.push(...images);
+      if (productData.product_images?.length) {
+        imagesList.push(
+          ...productData.product_images
+            .sort((a, b) => a.order_index - b.order_index)
+            .map((img) => img.image_url),
+        );
       }
 
       const transformedProduct: Product = {
@@ -175,9 +211,9 @@ export default function ProductDetail() {
           [],
       };
 
+      console.log("📦 setProduct()", { id: transformedProduct.id, owner_id: transformedProduct.owner_id });
       setProduct(transformedProduct);
 
-      // Load comments
       const { data: messagesData, error: messagesError } = await supabase
         .from("Messages")
         .select(
@@ -200,9 +236,7 @@ export default function ProductDetail() {
         .eq("message_type", "product")
         .order("created_at", { ascending: true });
 
-      if (messagesError) {
-        console.error("Error loading messages:", messagesError);
-      }
+      console.log("💬 Load comments result:", { count: messagesData?.length ?? 0, messagesError });
 
       const transformedComments: Comment[] = (messagesData ?? []).map((msg: any) => ({
         id: msg.id,
@@ -215,7 +249,7 @@ export default function ProductDetail() {
 
       setComments(transformedComments);
 
-      // Calculate average stars
+      // avg stars
       if (transformedComments.length > 0) {
         const validStars = transformedComments
           .filter((c) => c.stars !== null && c.stars !== undefined)
@@ -223,6 +257,7 @@ export default function ProductDetail() {
 
         if (validStars.length > 0) {
           const avgStars = validStars.reduce((sum, s) => sum + s, 0) / validStars.length;
+          console.log("⭐ Updating avgStars:", avgStars);
 
           await supabase.from("Product").update({ stars: avgStars }).eq("id", productId);
           setProduct((prev) => (prev ? { ...prev, stars: avgStars } : null));
@@ -235,15 +270,17 @@ export default function ProductDetail() {
     }
   });
 
-  // Realtime subscription für neue Kommentare
+  // Realtime comments
   let commentChannel: any = null;
 
   createEffect(() => {
     const productId = Number(params.id);
-    if (!productId || isNaN(productId)) return;
+    if (!productId || Number.isNaN(productId)) return;
 
-    // Cleanup old channel
+    console.log("🔌 Setup realtime comments channel:", productId);
+
     if (commentChannel) {
+      console.log("🧹 Removing old commentChannel");
       supabase.removeChannel(commentChannel);
     }
 
@@ -251,16 +288,13 @@ export default function ProductDetail() {
       .channel("product-comments-" + productId)
       .on(
         "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "Messages",
-          filter: `product_id=eq.${productId}`,
-        },
+        { event: "INSERT", schema: "public", table: "Messages", filter: `product_id=eq.${productId}` },
         async (payload) => {
+          console.log("🔔 Realtime INSERT payload:", payload.new);
+
           if (payload.new.message_type !== "product") return;
 
-          const { data: newComment, error: commentError } = await supabase
+          const { data: newComment, error } = await supabase
             .from("Messages")
             .select(
               `
@@ -283,10 +317,10 @@ export default function ProductDetail() {
             .eq("message_type", "product")
             .maybeSingle();
 
-          if (commentError || !newComment) return;
+          console.log("🔔 Loaded realtime comment:", { newComment, error });
 
-          const exists = comments().some((c) => c.id === newComment.id);
-          if (exists) return;
+          if (error || !newComment) return;
+          if (comments().some((c) => c.id === newComment.id)) return;
 
           const transformedComment: Comment = {
             id: newComment.id,
@@ -299,8 +333,8 @@ export default function ProductDetail() {
 
           setComments([transformedComment, ...comments()]);
 
-          const updatedComments = [transformedComment, ...comments()];
-          const validStars = updatedComments
+          const updated = [transformedComment, ...comments()];
+          const validStars = updated
             .map((c) => c.stars)
             .filter((s): s is number => typeof s === "number" && !isNaN(s) && s > 0);
 
@@ -311,45 +345,56 @@ export default function ProductDetail() {
           }
         },
       )
-      .subscribe();
+      .subscribe((status: any) => {
+        console.log("📡 Comment channel status:", status);
+      });
   });
 
   onCleanup(() => {
     if (commentChannel) {
+      console.log("🧹 Cleanup comment channel");
       supabase.removeChannel(commentChannel);
     }
   });
 
   const handleRequestTest = async () => {
+    console.log("🟩 Click: request test", {
+      isLoggedIn: isLoggedIn(),
+      currentUserId: currentUserId(),
+      product: product() ? { id: product()!.id, owner_id: product()!.owner_id } : null,
+    });
+
     if (!isLoggedIn()) {
       navigate("/login");
       return;
     }
 
+    const userId = currentUserId();
+    const prod = product();
+
+    if (typeof userId !== "number" || !prod) {
+      showModal("info", "Einen Moment", "Dein Konto oder das Produkt wird noch geladen. Bitte versuche es gleich nochmal.");
+      return;
+    }
+
+    if (userId === prod.owner_id) {
+      showModal("warning", "Eigenes Produkt", "Du kannst keine Testanfrage für dein eigenes Produkt stellen.");
+      return;
+    }
+
     try {
-      const userId = currentUserId();
-      const prod = product();
-
-      if (!userId || !prod) {
-        showModal("error", "Fehler", "Daten nicht verfügbar. Bitte lade die Seite neu.");
-        return;
-      }
-
       const productId = prod.id;
       const ownerId = prod.owner_id;
 
-      if (userId === ownerId) {
-        showModal("warning", "Eigenes Produkt", "Du kannst keine Testanfrage für dein eigenes Produkt stellen.");
-        return;
-      }
-
-      const { data: existingRequest } = await supabase
+      const { data: existingRequest, error: existingError } = await supabase
         .from("Messages")
         .select("id, message_type")
         .eq("sender_id", userId)
         .eq("product_id", productId)
         .in("message_type", ["request", "request_accepted"])
         .maybeSingle();
+
+      console.log("🔎 existingRequest:", { existingRequest, existingError });
 
       if (existingRequest) {
         if (existingRequest.message_type === "request_accepted") {
@@ -365,10 +410,10 @@ export default function ProductDetail() {
         user2_id: ownerId,
       });
 
+      console.log("💬 rpc get_or_create_direct_chat:", { chatData, chatError });
       if (chatError) throw chatError;
 
       const chatId = chatData as number;
-
       const requestContent = `Ich möchte gerne dein Produkt "${prod.name}" testen!`;
 
       const { error: messageError } = await supabase.from("Messages").insert({
@@ -382,6 +427,7 @@ export default function ProductDetail() {
         created_at: new Date().toISOString(),
       });
 
+      console.log("📨 insert request message:", { messageError });
       if (messageError) throw messageError;
 
       showModal(
@@ -398,11 +444,12 @@ export default function ProductDetail() {
   };
 
   const handleContact = () => {
+    console.log("🟦 Click: contact seller", { isLoggedIn: isLoggedIn(), ownerId: product()?.owner_id ?? null });
+
     if (!isLoggedIn()) {
       navigate("/login");
       return;
     }
-
     const ownerId = product()?.owner_id;
     if (ownerId) navigate(`/chat/${ownerId}`);
   };
@@ -415,7 +462,7 @@ export default function ProductDetail() {
 
     const userId = currentUserId();
     const productId = Number(params.id);
-    if (!userId || !content.trim()) return;
+    if (typeof userId !== "number" || !content.trim() || Number.isNaN(productId)) return;
 
     try {
       const hasPermission = await checkCommentPermission(userId, productId);
@@ -435,10 +482,7 @@ export default function ProductDetail() {
       } else {
         const { data: newChat, error: chatError } = await supabase
           .from("Chats")
-          .insert({
-            product_id: productId,
-            created_at: new Date().toISOString(),
-          })
+          .insert({ product_id: productId, created_at: new Date().toISOString() })
           .select("id")
           .single();
 
@@ -509,7 +553,7 @@ export default function ProductDetail() {
         return (
           <div class="flex-shrink-0 w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
             <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0 0z" />
             </svg>
           </div>
         );
@@ -518,7 +562,6 @@ export default function ProductDetail() {
 
   return (
     <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      {/* Universal Modal */}
       <Show when={modal().show}>
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={closeModal}>
           <div
@@ -532,24 +575,15 @@ export default function ProductDetail() {
                 <p class="text-gray-600 dark:text-gray-300 mb-4">{modal().message}</p>
                 <div class="flex gap-3">
                   <Show when={modal().action}>
-                    <button
-                      onClick={handleModalAction}
-                      class="flex-1 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold transition-colors"
-                    >
+                    <button onClick={handleModalAction} class="flex-1 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold transition-colors">
                       {modal().actionLabel || "OK"}
                     </button>
-                    <button
-                      onClick={closeModal}
-                      class="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg font-semibold transition-colors"
-                    >
+                    <button onClick={closeModal} class="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg font-semibold transition-colors">
                       Abbrechen
                     </button>
                   </Show>
                   <Show when={!modal().action}>
-                    <button
-                      onClick={closeModal}
-                      class="w-full px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold transition-colors"
-                    >
+                    <button onClick={closeModal} class="w-full px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold transition-colors">
                       Verstanden
                     </button>
                   </Show>
