@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import sessionStore, { isLoggedIn } from "../lib/sessionStore";
 import { badgeStore } from "../lib/badgeStore";
-import { ChatPreview } from "~/types/messages";
+import { ChatPreview } from "~/types/chat";
 
 
 

@@ -10,8 +10,18 @@ export interface Message {
   sender_id: number;
   receiver_id?: number;
   read: boolean;
-  message_type?: "direct" | "request" | "request_accepted" | "request_declined" | "product";
+  message_type?:
+    | "direct"
+    | "request"
+    | "request_qr_ready"
+    | "request_accepted"
+    | "request_declined"
+    | "product";
   product_id?: number;
+
+  // embedded join
+  product?: { id: number; owner_id: number } | null;
+
   sender: {
     id: number;
     name: string;
@@ -43,6 +53,8 @@ export function useChat() {
   const [chatId, setChatId] = createSignal<number | null>(null);
   const [loading, setLoading] = createSignal(true);
   const [sending, setSending] = createSignal(false);
+
+  // optional (z.B. Header)
   const [productOwnerId, setProductOwnerId] = createSignal<number | null>(null);
 
   let mainContainerRef: HTMLElement | undefined;
@@ -54,19 +66,42 @@ export function useChat() {
     if (mainContainerRef) mainContainerRef.scrollTop = mainContainerRef.scrollHeight;
   };
 
+  const validTypes = ["direct", "request", "request_qr_ready", "request_accepted", "request_declined"];
+
+  const messageSelect = `
+    id,
+    content,
+    created_at,
+    sender_id,
+    receiver_id,
+    read,
+    message_type,
+    product_id,
+    product:Product ( id, owner_id ),
+    sender:User!Messages_sender_id_fkey (
+      id, name, surname, picture, trustlevel
+    )
+  `;
+
   createEffect(() => {
     const msgs = messages();
     const isLoading = loading();
-    
+
     console.log("🔄 createEffect triggered - Messages:", msgs.length, "Loading:", isLoading);
-    
+
     if (!isLoading && msgs.length > 0) {
-      console.log("✅ Bedingung erfüllt, scrolle nach unten");
       setTimeout(() => scrollToBottom(), 0);
       setTimeout(() => scrollToBottom(), 100);
       setTimeout(() => scrollToBottom(), 300);
-    } else {
-      console.log("⏭️ Bedingung nicht erfüllt");
+    }
+  });
+
+  createEffect(() => {
+    const ids = Array.from(
+      new Set(messages().map((m) => m.product_id).filter((x): x is number => typeof x === "number"))
+    );
+    if (ids.length > 1) {
+      console.log("🧩 Chat enthält mehrere product_id (erlaubt):", { chatId: chatId(), productIds: ids });
     }
   });
 
@@ -75,28 +110,31 @@ export function useChat() {
     return date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
   };
 
+  const upsertMessageLocal = (msg: Message) => {
+    setMessages((prev) => {
+      const idx = prev.findIndex((m) => m.id === msg.id);
+      if (idx === -1) return [...prev, msg];
+      const copy = prev.slice();
+      copy[idx] = msg;
+      return copy;
+    });
+  };
+
+  const fetchMessageById = async (id: number) => {
+    const { data, error } = await supabase.from("Messages").select(messageSelect).eq("id", id).single<Message>();
+    if (error) {
+      console.warn("⚠️ fetchMessageById failed:", { id, error });
+      return null;
+    }
+    return data;
+  };
+
   const loadMessages = async (directChatId: number, userId: number) => {
     const { data, error } = await supabase
       .from("Messages")
-      .select(`
-        id,
-        content,
-        created_at,
-        sender_id,
-        receiver_id,
-        read,
-        message_type,
-        product_id,
-        sender:User!Messages_sender_id_fkey (
-          id,
-          name,
-          surname,
-          picture,
-          trustlevel
-        )
-      `)
+      .select(messageSelect)
       .eq("chat_id", directChatId)
-      .in("message_type", ["direct", "request", "request_accepted", "request_declined"])
+      .in("message_type", validTypes)
       .order("created_at", { ascending: true })
       .returns<Message[]>();
 
@@ -107,27 +145,13 @@ export function useChat() {
 
     setMessages(data ?? []);
 
-    // ✅ FIX: Finde Request Message und lade Product Owner direkt aus DB
-    const requestMsg = (data || []).find(m => 
-      m.message_type === "request" || 
-      m.message_type === "request_accepted" || 
-      m.message_type === "request_declined"
-    );
+    // optional owner for header (latest request-like with product join)
+    const req =
+      (data || []).find((m) => m.message_type === "request") ||
+      (data || []).find((m) => m.message_type === "request_qr_ready") ||
+      (data || []).find((m) => m.message_type === "request_accepted" || m.message_type === "request_declined");
 
-    if (requestMsg && requestMsg.product_id) {
-      const { data: product } = await supabase
-        .from("Product")
-        .select("owner_id")
-        .eq("id", requestMsg.product_id)
-        .single();
-
-      if (product) {
-        setProductOwnerId(product.owner_id);
-        console.log("🏭 Product Owner ID (from Product table):", product.owner_id);
-        console.log("👤 Current User ID:", userId);
-        console.log("✅ Is Owner?", product.owner_id === userId);
-      }
-    }
+    setProductOwnerId(req?.product?.owner_id ?? null);
 
     queueMicrotask(scrollToBottom);
   };
@@ -154,7 +178,6 @@ export function useChat() {
 
       const userId = userData.id;
       setCurrentUserId(userId);
-      console.log("👤 Current User ID:", userId);
 
       const partnerId = Number(params.partnerId);
       if (!partnerId) {
@@ -168,160 +191,71 @@ export function useChat() {
         .eq("id", partnerId)
         .single();
 
-      if (partnerData) {
-        setChatPartner(partnerData);
-        console.log("👥 Chat Partner:", partnerData.name);
-      }
+      if (partnerData) setChatPartner(partnerData);
 
-      const { data: chatData, error: chatError } = await supabase
-        .rpc("get_or_create_direct_chat", {
-          user1_id: userId,
-          user2_id: partnerId
-        });
+      const { data: chatData, error: chatError } = await supabase.rpc("get_or_create_direct_chat", {
+        user1_id: userId,
+        user2_id: partnerId,
+      });
 
       if (chatError) throw chatError;
+
       const directChatId = chatData as number;
       setChatId(directChatId);
 
       await loadMessages(directChatId, userId);
 
-      if (globalChannel && globalChatId === directChatId) {
-        console.log("♻️ Channel existiert bereits, wird wiederverwendet");
-        return;
-      }
+      if (globalChannel && globalChatId === directChatId) return;
 
       if (globalChannel) {
         await supabase.removeChannel(globalChannel);
         globalChannel = null;
       }
 
-      console.log("🔌 Setting up Realtime subscription for chat:", directChatId);
-
       globalChannel = supabase
-        .channel('any-messages-' + Date.now())
+        .channel(`chat-messages-${directChatId}`)
         .on(
           "postgres_changes",
           {
             event: "*",
             schema: "public",
             table: "Messages",
+            filter: `chat_id=eq.${directChatId}`,
           },
           (payload) => {
             console.log("🔔 EVENT EMPFANGEN:", payload.eventType);
-            
+
             if (payload.eventType === "INSERT") {
-              console.log("✅ INSERT Event!");
-              console.log("Chat ID:", payload.new.chat_id);
-              console.log("Message Type:", payload.new.message_type);
-              console.log("Sender ID:", payload.new.sender_id);
-              
-              const validTypes = ["direct", "request", "request_accepted", "request_declined"];
-              
-              if (payload.new.chat_id === directChatId && validTypes.includes(payload.new.message_type)) {
-                console.log("🎯 Richtige Nachricht für diesen Chat!");
-              
-                if (payload.new.sender_id === userId) {
-                  console.log("⏭️ Eigene Nachricht, wird ignoriert");
+              if (!validTypes.includes(payload.new.message_type)) return;
+              // optional: eigene Inserts ignorieren
+              if (payload.new.sender_id === userId) return;
+
+              fetchMessageById(payload.new.id).then((full) => {
+                if (!full) return;
+                upsertMessageLocal(full);
+              });
+            }
+
+            if (payload.eventType === "UPDATE") {
+              if (!validTypes.includes(payload.new.message_type)) return;
+
+              // ✅ Wichtig: full reload (damit message_type + product join + sender etc. stimmen)
+              fetchMessageById(payload.new.id).then((full) => {
+                if (!full) {
+                  // fallback: minimal patch
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === payload.new.id ? { ...m, message_type: payload.new.message_type, read: payload.new.read } : m
+                    )
+                  );
                   return;
                 }
-
-                supabase
-                  .from("Messages")
-                  .select(`
-                    id,
-                    content,
-                    created_at,
-                    sender_id,
-                    receiver_id,
-                    read,
-                    message_type,
-                    product_id,
-                    sender:User!Messages_sender_id_fkey (
-                      id,
-                      name,
-                      surname,
-                      picture,
-                      trustlevel
-                    )
-                  `)
-                  .eq("id", payload.new.id)
-                  .single<Message>()
-                  .then(async ({ data: newMsg }) => {
-                    if (newMsg) {
-                      console.log("📨 Nachricht geladen:", newMsg);
-                      setMessages(prev => [...prev, newMsg]);
-                      
-                      // ✅ Update productOwnerId wenn es eine Request Message ist
-                      if (newMsg.message_type && 
-                          ["request", "request_accepted", "request_declined"].includes(newMsg.message_type) && 
-                          newMsg.product_id) {
-                        
-                        const { data: product } = await supabase
-                          .from("Product")
-                          .select("owner_id")
-                          .eq("id", newMsg.product_id)
-                          .single();
-
-                        if (product) {
-                          setProductOwnerId(product.owner_id);
-                          console.log("🏭 Product Owner ID updated (from Product table):", product.owner_id);
-                        }
-                      }
-                      
-                      if (newMsg.sender_id !== userId && !newMsg.read && document.hasFocus()) {
-                        console.log("👁️ Chat hat Fokus, markiere als gelesen nach 1 Sekunde");
-                        
-                        setTimeout(() => {
-                          supabase
-                            .from("Messages")
-                            .update({ read: true })
-                            .eq("id", newMsg.id)
-                            .then(() => {
-                              setMessages(prev => 
-                                prev.map(msg => 
-                                  msg.id === newMsg.id ? { ...msg, read: true } : msg
-                                )
-                              );
-                              console.log("✅ Nachricht als gelesen markiert");
-                            });
-                        }, 1000);
-                      }
-                    }
-                  });
-              } else {
-                console.log("⏭️ Event ist für anderen Chat oder Typ");
-              }
-            }
-            
-            if (payload.eventType === "UPDATE") {
-              console.log("🔄 UPDATE Event!");
-              
-              if (payload.new.chat_id === directChatId) {
-                console.log("🎯 Update für diesen Chat!");
-                
-                setMessages(prev =>
-                  prev.map(msg =>
-                    msg.id === payload.new.id
-                      ? { 
-                          ...msg, 
-                          message_type: payload.new.message_type,
-                          read: payload.new.read
-                        }
-                      : msg
-                  )
-                );
-                
-                console.log("✅ Message updated:", payload.new.message_type, "read:", payload.new.read);
-              }
+                upsertMessageLocal(full);
+              });
             }
           }
         )
-        .subscribe((status, err) => {
-          console.log("📡 Channel Status:", status);
-          if (err) {
-            console.error("❌ Subscribe Error:", err);
-          }
-        });
+        .subscribe();
 
       globalChatId = directChatId;
     } catch (err) {
@@ -337,11 +271,9 @@ export function useChat() {
 
   const handleSendMessage = async (e: Event) => {
     e.preventDefault();
-
     if (!newMessage().trim() || !currentUserId() || !chatId()) return;
 
     setSending(true);
-    console.log("📤 Sende Nachricht...");
 
     try {
       const partnerId = Number(params.partnerId);
@@ -355,38 +287,17 @@ export function useChat() {
           chat_id: chatId()!,
           message_type: "direct",
           read: false,
+          product_id: null,
+          stars: null,
           created_at: new Date().toISOString(),
         })
-        .select(`
-          id,
-          content,
-          created_at,
-          sender_id,
-          receiver_id,
-          read,
-          message_type,
-          product_id,
-          sender:User!Messages_sender_id_fkey (
-            id,
-            name,
-            surname,
-            picture,
-            trustlevel
-          )
-        `)
+        .select(messageSelect)
         .single<Message>();
 
       if (error) throw error;
 
       if (data) {
-        console.log("✅ Nachricht gesendet:", data.id);
-        console.log("🧩 Message Sender:", {
-          sender_id: data.sender_id,
-          sender_name: data.sender?.name,
-          trustlevel: data.sender?.trustlevel,
-        });
-
-        setMessages((prev) => [...prev, data]);
+        upsertMessageLocal(data);
         setNewMessage("");
         queueMicrotask(scrollToBottom);
       }
@@ -398,81 +309,79 @@ export function useChat() {
     }
   };
 
+  // ✅ 핵 Fix: lokal sofort auf request_qr_ready umschalten
   const handleAcceptRequest = async (messageId: number, senderId: number, productId: number) => {
     try {
-      console.log("✅ Akzeptiere Request:", messageId);
+      const ownerId = currentUserId();
+      const cId = chatId();
+      if (typeof ownerId !== "number") throw new Error("Owner nicht geladen (currentUserId fehlt)");
+      if (typeof cId !== "number") throw new Error("chatId fehlt");
 
-      const { error: updateError } = await supabase
+      // 1) Token
+      const { error: tokenError } = await supabase.from("ProductCommentTokens").insert({
+        product_id: productId,
+        tester_user_id: senderId,
+        owner_user_id: ownerId,
+      });
+
+      if (tokenError) throw tokenError;
+
+      // 2) Request-Status updaten
+      const { error: updErr } = await supabase
         .from("Messages")
-        .update({ 
-          message_type: "request_accepted",
-          read: true
-        })
+        .update({ message_type: "request_qr_ready", read: true })
         .eq("id", messageId);
 
-      if (updateError) throw updateError;
+      if (updErr) throw updErr;
 
-      const { error: permissionError } = await supabase
-        .from("ProductComments_User")
-        .insert({
-          user_id: senderId,
-          product_id: productId,
-        })
-        .select()
-        .single();
-
-      if (permissionError && permissionError.code !== "23505") {
-        console.error("Permission Error:", permissionError);
-      }
-
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === messageId 
-            ? { ...msg, message_type: "request_accepted", read: true }
-            : msg
-        )
+      // 3) ✅ UI sofort updaten (damit QR sofort rendert)
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, message_type: "request_qr_ready", read: true } : m))
       );
 
-      console.log("🎉 Request akzeptiert und als gelesen markiert!");
+      // 4) optional: full row nachladen (damit product join sicher vorhanden ist)
+      const full = await fetchMessageById(messageId);
+      if (full) upsertMessageLocal(full);
+
+      // 5) optional: direct info msg (wenn du willst)
+      // await supabase.from("Messages").insert({
+      //   content: "📦 QR-Code wurde erstellt. Bitte dem Paket beilegen.",
+      //   sender_id: ownerId,
+      //   receiver_id: senderId,
+      //   chat_id: cId,
+      //   message_type: "direct",
+      //   product_id: null,
+      //   stars: null,
+      //   read: false,
+      //   created_at: new Date().toISOString(),
+      // });
+
     } catch (err) {
-      console.error("Error accepting request:", err);
-      alert("Fehler beim Akzeptieren der Anfrage");
+      console.error("Error accepting request (QR flow):", err);
+      alert("Fehler beim Akzeptieren der Anfrage (QR-Code)");
     }
   };
 
   const handleDeclineRequest = async (messageId: number) => {
     try {
-      console.log("❌ Lehne Request ab:", messageId);
-
       const { error } = await supabase
         .from("Messages")
-        .update({ 
-          message_type: "request_declined",
-          read: true
-        })
+        .update({ message_type: "request_declined", read: true })
         .eq("id", messageId);
 
       if (error) throw error;
 
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === messageId 
-            ? { ...msg, message_type: "request_declined", read: true }
-            : msg
-        )
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, message_type: "request_declined", read: true } : m))
       );
 
-      console.log("❌ Request abgelehnt und als gelesen markiert!");
+      const full = await fetchMessageById(messageId);
+      if (full) upsertMessageLocal(full);
     } catch (err) {
       console.error("Error declining request:", err);
       alert("Fehler beim Ablehnen der Anfrage");
     }
   };
-
-  createEffect(() => {
-    const last = messages().at(-1);
-    if (last) console.log("last msg trustlevel:", last.sender?.trustlevel);
-  });
 
   return {
     messages,

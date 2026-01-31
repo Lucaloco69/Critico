@@ -1,13 +1,26 @@
-export interface ChatPreview {
-  chatId: number;
-  partnerId: number;
-  partnerName: string;
-  partnerSurname: string;
-  partnerPicture: string | null;
-  partnerTrustlevel?: number;
-  lastMessage: string;
-  lastMessageTime: string;
-  lastMessageType?: string;
-  unreadCount: number;
-  hasUnreadRequest?: boolean;
+export type MessageType =
+  | "direct"
+  | "request"
+  | "request_qr_ready"
+  | "request_accepted"
+  | "request_declined"
+  | "product";
+
+export interface MessageSender {
+  id: number;
+  name: string;
+  surname: string;
+  picture: string | null;
+  trustlevel?: number | null;
+}
+
+export interface Message {
+  id: number;
+  content: string;
+  created_at: string;
+  sender_id: number;
+  read: boolean;
+  message_type?: MessageType;
+  product_id?: number;
+  sender: MessageSender | null;
 }

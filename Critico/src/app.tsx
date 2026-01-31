@@ -26,6 +26,7 @@ function App() {
         <Route path="/requests" component={Requests} />
         <Route path="/chat/:partnerId" component={Chat} />
         <Route path="/messages" component={Messages} />
+
       </Suspense>
     </Router>
   );
