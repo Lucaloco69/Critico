@@ -1,21 +1,37 @@
 import { createSignal, createEffect } from "solid-js";
-import { useNavigate, A } from "@solidjs/router";
+import { useNavigate, A, useLocation } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
-import sessionStore, { setSession, isLoggedIn } from "../lib/sessionStore";
+import { setSession, isLoggedIn } from "../lib/sessionStore";
 
 export default function Login() {
   const navigate = useNavigate();
-
-  createEffect(() => {
-    if (isLoggedIn()) {
-      navigate("/home", { replace: true });
-    }
-  });
+  const location = useLocation();
 
   const [email, setEmail] = createSignal("");
   const [password, setPassword] = createSignal("");
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
+
+  const getRedirectTarget = () => {
+    const qs = new URLSearchParams(location.search);
+    const encoded = qs.get("redirectTo");
+    if (!encoded) return "/home";
+
+    try {
+      const decoded = decodeURIComponent(encoded);
+      // Sicherheitscheck: nur interne Pfade erlauben
+      if (decoded.startsWith("/")) return decoded;
+      return "/home";
+    } catch {
+      return "/home";
+    }
+  };
+
+  createEffect(() => {
+    if (isLoggedIn()) {
+      navigate(getRedirectTarget(), { replace: true });
+    }
+  });
 
   const handleLogin = async (e: Event) => {
     e.preventDefault();
@@ -23,33 +39,20 @@ export default function Login() {
     setError("");
 
     try {
-      console.log("🔐 Attempting login for:", email());
-
-      // 1. Supabase Auth Login
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: email(),
         password: password(),
       });
 
-      if (signInError) {
-        console.error("❌ Auth login failed:", signInError);
-        throw new Error("E-Mail oder Passwort falsch");
-      }
+      if (signInError) throw new Error("E-Mail oder Passwort falsch");
 
-      console.log("✅ Auth login successful");
-
-      // 3. Speichere Session (ohne User-Daten)
       setSession({
         session: data.session,
-        user: data.user
+        user: data.user,
       });
 
-      console.log("✅ Login complete!");
-
-      navigate("/home", { replace: true });
-
+      navigate(getRedirectTarget(), { replace: true });
     } catch (err: any) {
-      console.error("💥 Login error:", err);
       setError(err.message || "Login fehlgeschlagen");
     } finally {
       setLoading(false);
@@ -65,9 +68,7 @@ export default function Login() {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
             </svg>
           </div>
-          <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-            Willkommen zurück
-          </h1>
+          <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Willkommen zurück</h1>
           <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Melde dich in deinem Critico Konto an
           </p>
@@ -106,33 +107,21 @@ export default function Login() {
 
           {error() && (
             <div class="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
-              <p class="text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {error()}
-              </p>
+              <p class="text-sm text-red-700 dark:text-red-300">{error()}</p>
             </div>
           )}
 
           <button
             type="submit"
             disabled={loading()}
-            class="w-full py-3 px-4 bg-linear-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold disabled:cursor-not-allowed hover:scale-[1.02] disabled:hover:scale-100"
+            class="w-full py-3 px-4 bg-linear-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold disabled:cursor-not-allowed"
           >
-            {loading() ? (
-              <span class="flex items-center justify-center gap-2">
-                <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Wird angemeldet...
-              </span>
-            ) : (
-              'Anmelden'
-            )}
+            {loading() ? "Wird angemeldet..." : "Anmelden"}
           </button>
         </form>
 
         <p class="text-sm text-center text-gray-600 dark:text-gray-400">
-          Noch kein Konto?{' '}
+          Noch kein Konto?{" "}
           <A href="/signup" class="font-semibold text-sky-600 hover:text-sky-500 transition-colors">
             Jetzt registrieren
           </A>
