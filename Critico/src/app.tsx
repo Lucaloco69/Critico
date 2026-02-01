@@ -8,9 +8,9 @@ import CreateProduct from './routes/createProduct';
 import ProductDetails from './routes/ProductDetail';
 import Requests from './routes/requests';
 import Chat from './routes/chat';
-import Messages from './routes/messages'
+import Messages from './routes/messages';
 import PublicProfile from './routes/PublicProfile';
-
+import Activate from './routes/Activate';
 function App() {
   return (
     <Router>
@@ -26,7 +26,7 @@ function App() {
         <Route path="/requests" component={Requests} />
         <Route path="/chat/:partnerId" component={Chat} />
         <Route path="/messages" component={Messages} />
-
+        <Route path="/activate/:token" component={Activate} /> {/* <-- NEU */}
       </Suspense>
     </Router>
   );

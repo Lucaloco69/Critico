@@ -29,7 +29,17 @@ export default function Login() {
 
   createEffect(() => {
     if (isLoggedIn()) {
-      navigate(getRedirectTarget(), { replace: true });
+      const target = getRedirectTarget();
+      
+      // Prüfe ob ein Token auf Aktivierung wartet
+      const pendingToken = localStorage.getItem("pendingActivateToken");
+      
+      if (pendingToken) {
+        // Leite zur Aktivierung weiter
+        navigate(`/activate/${pendingToken}`, { replace: true });
+      } else {
+        navigate(target, { replace: true });
+      }
     }
   });
 
@@ -51,7 +61,16 @@ export default function Login() {
         user: data.user,
       });
 
-      navigate(getRedirectTarget(), { replace: true });
+      // Prüfe ob ein Token auf Aktivierung wartet
+      const pendingToken = localStorage.getItem("pendingActivateToken");
+      
+      if (pendingToken) {
+        // Leite zur Aktivierung weiter (replace: true ist wichtig!)
+        navigate(`/activate/${pendingToken}`, { replace: true });
+      } else {
+        const target = getRedirectTarget();
+        navigate(target, { replace: true });
+      }
     } catch (err: any) {
       setError(err.message || "Login fehlgeschlagen");
     } finally {
@@ -60,10 +79,10 @@ export default function Login() {
   };
 
   return (
-    <div class="flex items-center justify-center min-h-[90vh] bg-linear-to-br from-sky-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+    <div class="flex items-center justify-center min-h-[90vh] bg-gradient-to-br from-sky-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
       <div class="w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 rounded-2xl shadow-xl">
         <div class="text-center">
-          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-linear-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-lg">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-lg">
             <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
             </svg>
@@ -114,7 +133,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading()}
-            class="w-full py-3 px-4 bg-linear-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold disabled:cursor-not-allowed"
+            class="w-full py-3 px-4 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold disabled:cursor-not-allowed"
           >
             {loading() ? "Wird angemeldet..." : "Anmelden"}
           </button>
