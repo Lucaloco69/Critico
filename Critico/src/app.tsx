@@ -10,7 +10,9 @@ import Requests from './routes/requests';
 import Chat from './routes/chat';
 import Messages from './routes/messages';
 import PublicProfile from './routes/PublicProfile';
+
 import Activate from './routes/Activate';
+
 function App() {
   return (
     <Router>

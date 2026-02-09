@@ -11,6 +11,9 @@ interface RequestMessage {
   message_type: "request" | "request_qr_ready" | "request_accepted" | "request_declined";
   product_id?: number;
 
+  // ✅ NEU (optional): aus useChat (z.B. QRCode.toDataURL)
+  qr_data_url?: string | null;
+
   sender: {
     id: number;
     name: string;
@@ -39,6 +42,20 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
 
   const tl = () => props.message.sender?.trustlevel;
 
+  // ✅ NEU: Copy/Print (nur relevant bei QR-Link)
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(props.message.content);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const getStatusInfo = () => {
   const isPending = () => props.message.message_type === "request";
   const isQrReady = () => props.message.message_type === "request_qr_ready";
 
@@ -209,6 +226,11 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
     })();
   });
 
+  // ✅ NEU: Zustände wie im QR-Stand
+  const isAccepted = () => props.message.message_type === "request_accepted";
+  const isPending = () => props.message.message_type === "request";
+  const isQrLink = () => isAccepted() && (props.message.content ?? "").startsWith("http");
+
   return (
     <div class={`flex ${props.isOwn ? "justify-end" : "justify-start"}`}>
       <div class={`flex gap-2 max-w-[70%] ${props.isOwn ? "flex-row-reverse" : ""}`}>
@@ -229,6 +251,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
             />
           </Show>
 
+          {/* Trustlevel Badge */}
           <Show when={tl() != null}>
             <div
               class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full text-[9px] leading-[16px] text-center font-semibold bg-black/70 text-white"

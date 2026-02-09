@@ -2,6 +2,7 @@ import { createSignal, createEffect, onMount, onCleanup } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import sessionStore, { isLoggedIn } from "../lib/sessionStore";
+import QRCode from "qrcode";  //npm i --save-dev @types/qrcode
 
 export interface Message {
   id: number;
@@ -19,6 +20,8 @@ export interface Message {
     | "product";
   product_id?: number;
 
+  // ✅ NEU: QR für accepted-Link Messages
+  qr_data_url?: string | null;
   // embedded join
   product?: { id: number; owner_id: number } | null;
 
@@ -171,19 +174,13 @@ export function useChat() {
         .eq("auth_id", sessionStore.user.id)
         .single();
 
-      if (!userData) {
-        console.error("User nicht gefunden");
-        return;
-      }
+      if (!userData) return;
 
       const userId = userData.id;
       setCurrentUserId(userId);
 
       const partnerId = Number(params.partnerId);
-      if (!partnerId) {
-        console.error("Keine Partner ID");
-        return;
-      }
+      if (!partnerId) return;
 
       const { data: partnerData } = await supabase
         .from("User")
@@ -265,9 +262,7 @@ export function useChat() {
     }
   });
 
-  onCleanup(() => {
-    console.log("🧹 Cleanup aufgerufen - Component wird unmounted");
-  });
+  onCleanup(() => {});
 
   const handleSendMessage = async (e: Event) => {
     e.preventDefault();
@@ -379,7 +374,7 @@ export function useChat() {
       if (full) upsertMessageLocal(full);
     } catch (err) {
       console.error("Error declining request:", err);
-      alert("Fehler beim Ablehnen der Anfrage");
+      alert("Fehler beim Ablehnen der Anfrage.");
     }
   };
 
