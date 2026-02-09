@@ -2,7 +2,7 @@ import { createSignal, createEffect, onMount, onCleanup } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import sessionStore, { isLoggedIn } from "../lib/sessionStore";
-import QRCode from "qrcode";
+import QRCode from "qrcode";  //npm i --save-dev @types/qrcode
 
 export interface Message {
   id: number;
