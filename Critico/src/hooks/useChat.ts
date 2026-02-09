@@ -11,11 +11,19 @@ export interface Message {
   sender_id: number;
   receiver_id?: number;
   read: boolean;
-  message_type?: "direct" | "request" | "request_accepted" | "request_declined" | "product";
+  message_type?:
+    | "direct"
+    | "request"
+    | "request_qr_ready"
+    | "request_accepted"
+    | "request_declined"
+    | "product";
   product_id?: number;
 
   // ✅ NEU: QR für accepted-Link Messages
   qr_data_url?: string | null;
+  // embedded join
+  product?: { id: number; owner_id: number } | null;
 
   sender: {
     id: number;
@@ -48,6 +56,8 @@ export function useChat() {
   const [chatId, setChatId] = createSignal<number | null>(null);
   const [loading, setLoading] = createSignal(true);
   const [sending, setSending] = createSignal(false);
+
+  // optional (z.B. Header)
   const [productOwnerId, setProductOwnerId] = createSignal<number | null>(null);
 
   let mainContainerRef: HTMLElement | undefined;
@@ -59,9 +69,28 @@ export function useChat() {
     if (mainContainerRef) mainContainerRef.scrollTop = mainContainerRef.scrollHeight;
   };
 
+  const validTypes = ["direct", "request", "request_qr_ready", "request_accepted", "request_declined"];
+
+  const messageSelect = `
+    id,
+    content,
+    created_at,
+    sender_id,
+    receiver_id,
+    read,
+    message_type,
+    product_id,
+    product:Product ( id, owner_id ),
+    sender:User!Messages_sender_id_fkey (
+      id, name, surname, picture, trustlevel
+    )
+  `;
+
   createEffect(() => {
     const msgs = messages();
     const isLoading = loading();
+
+    console.log("🔄 createEffect triggered - Messages:", msgs.length, "Loading:", isLoading);
 
     if (!isLoading && msgs.length > 0) {
       setTimeout(() => scrollToBottom(), 0);
@@ -70,51 +99,45 @@ export function useChat() {
     }
   });
 
+  createEffect(() => {
+    const ids = Array.from(
+      new Set(messages().map((m) => m.product_id).filter((x): x is number => typeof x === "number"))
+    );
+    if (ids.length > 1) {
+      console.log("🧩 Chat enthält mehrere product_id (erlaubt):", { chatId: chatId(), productIds: ids });
+    }
+  });
+
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
   };
 
-  // ✅ NEU: QR generator
-  const makeQrDataUrl = async (value: string) => {
-    return QRCode.toDataURL(value, { errorCorrectionLevel: "M", margin: 2, width: 240 });
+  const upsertMessageLocal = (msg: Message) => {
+    setMessages((prev) => {
+      const idx = prev.findIndex((m) => m.id === msg.id);
+      if (idx === -1) return [...prev, msg];
+      const copy = prev.slice();
+      copy[idx] = msg;
+      return copy;
+    });
   };
 
-  // ✅ NEU: enrich helper
-  const enrichWithQrIfNeeded = async (m: Message): Promise<Message> => {
-    if (m.message_type === "request_accepted" && (m.content ?? "").startsWith("http")) {
-      try {
-        const qr = await makeQrDataUrl(m.content);
-        return { ...m, qr_data_url: qr };
-      } catch {
-        return { ...m, qr_data_url: null };
-      }
+  const fetchMessageById = async (id: number) => {
+    const { data, error } = await supabase.from("Messages").select(messageSelect).eq("id", id).single<Message>();
+    if (error) {
+      console.warn("⚠️ fetchMessageById failed:", { id, error });
+      return null;
     }
-    return { ...m, qr_data_url: null };
+    return data;
   };
 
   const loadMessages = async (directChatId: number, userId: number) => {
     const { data, error } = await supabase
       .from("Messages")
-      .select(`
-        id,
-        content,
-        created_at,
-        sender_id,
-        receiver_id,
-        read,
-        message_type,
-        product_id,
-        sender:User!Messages_sender_id_fkey (
-          id,
-          name,
-          surname,
-          picture,
-          trustlevel
-        )
-      `)
+      .select(messageSelect)
       .eq("chat_id", directChatId)
-      .in("message_type", ["direct", "request", "request_accepted", "request_declined"])
+      .in("message_type", validTypes)
       .order("created_at", { ascending: true })
       .returns<Message[]>();
 
@@ -123,28 +146,15 @@ export function useChat() {
       return;
     }
 
-    // ✅ NEU: QR enrich beim Laden
-    const enriched: Message[] = [];
-    for (const m of data ?? []) enriched.push(await enrichWithQrIfNeeded(m));
-    setMessages(enriched);
+    setMessages(data ?? []);
 
-    // Owner bestimmen (wie bei dir)
-    const requestMsg = (data || []).find(
-      (m) =>
-        m.message_type === "request" ||
-        m.message_type === "request_accepted" ||
-        m.message_type === "request_declined"
-    );
+    // optional owner for header (latest request-like with product join)
+    const req =
+      (data || []).find((m) => m.message_type === "request") ||
+      (data || []).find((m) => m.message_type === "request_qr_ready") ||
+      (data || []).find((m) => m.message_type === "request_accepted" || m.message_type === "request_declined");
 
-    if (requestMsg && requestMsg.product_id) {
-      const { data: product } = await supabase
-        .from("Product")
-        .select("owner_id")
-        .eq("id", requestMsg.product_id)
-        .single();
-
-      if (product) setProductOwnerId(product.owner_id);
-    }
+    setProductOwnerId(req?.product?.owner_id ?? null);
 
     queueMicrotask(scrollToBottom);
   };
@@ -200,70 +210,48 @@ export function useChat() {
       }
 
       globalChannel = supabase
-        .channel("any-messages-" + Date.now())
-        .on("postgres_changes", { event: "*", schema: "public", table: "Messages" }, (payload) => {
-          if (payload.eventType === "INSERT") {
-            const validTypes = ["direct", "request", "request_accepted", "request_declined"];
-            if (payload.new.chat_id === directChatId && validTypes.includes(payload.new.message_type)) {
+        .channel(`chat-messages-${directChatId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "Messages",
+            filter: `chat_id=eq.${directChatId}`,
+          },
+          (payload) => {
+            console.log("🔔 EVENT EMPFANGEN:", payload.eventType);
+
+            if (payload.eventType === "INSERT") {
+              if (!validTypes.includes(payload.new.message_type)) return;
+              // optional: eigene Inserts ignorieren
               if (payload.new.sender_id === userId) return;
 
-              supabase
-                .from("Messages")
-                .select(`
-                  id,
-                  content,
-                  created_at,
-                  sender_id,
-                  receiver_id,
-                  read,
-                  message_type,
-                  product_id,
-                  sender:User!Messages_sender_id_fkey (
-                    id,
-                    name,
-                    surname,
-                    picture,
-                    trustlevel
-                  )
-                `)
-                .eq("id", payload.new.id)
-                .single<Message>()
-                .then(async ({ data: newMsg }) => {
-                  if (!newMsg) return;
+              fetchMessageById(payload.new.id).then((full) => {
+                if (!full) return;
+                upsertMessageLocal(full);
+              });
+            }
 
-                  const enriched = await enrichWithQrIfNeeded(newMsg);
-                  setMessages((prev) => [...prev, enriched]);
+            if (payload.eventType === "UPDATE") {
+              if (!validTypes.includes(payload.new.message_type)) return;
 
-                  // productOwnerId updaten (wie bei dir)
-                  if (
-                    enriched.message_type &&
-                    ["request", "request_accepted", "request_declined"].includes(enriched.message_type) &&
-                    enriched.product_id
-                  ) {
-                    const { data: product } = await supabase
-                      .from("Product")
-                      .select("owner_id")
-                      .eq("id", enriched.product_id)
-                      .single();
-
-                    if (product) setProductOwnerId(product.owner_id);
-                  }
-                });
+              // ✅ Wichtig: full reload (damit message_type + product join + sender etc. stimmen)
+              fetchMessageById(payload.new.id).then((full) => {
+                if (!full) {
+                  // fallback: minimal patch
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === payload.new.id ? { ...m, message_type: payload.new.message_type, read: payload.new.read } : m
+                    )
+                  );
+                  return;
+                }
+                upsertMessageLocal(full);
+              });
             }
           }
-
-          if (payload.eventType === "UPDATE") {
-            if (payload.new.chat_id === directChatId) {
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === payload.new.id
-                    ? { ...msg, message_type: payload.new.message_type, read: payload.new.read }
-                    : msg
-                )
-              );
-            }
-          }
-        })
+        )
         .subscribe();
 
       globalChatId = directChatId;
@@ -294,31 +282,17 @@ export function useChat() {
           chat_id: chatId()!,
           message_type: "direct",
           read: false,
+          product_id: null,
+          stars: null,
           created_at: new Date().toISOString(),
         })
-        .select(`
-          id,
-          content,
-          created_at,
-          sender_id,
-          receiver_id,
-          read,
-          message_type,
-          product_id,
-          sender:User!Messages_sender_id_fkey (
-            id,
-            name,
-            surname,
-            picture,
-            trustlevel
-          )
-        `)
+        .select(messageSelect)
         .single<Message>();
 
       if (error) throw error;
 
       if (data) {
-        setMessages((prev) => [...prev, { ...data, qr_data_url: null }]);
+        upsertMessageLocal(data);
         setNewMessage("");
         queueMicrotask(scrollToBottom);
       }
@@ -330,94 +304,56 @@ export function useChat() {
     }
   };
 
-  // ✅ Angepasst: Accept erzeugt zusätzlich Owner-self QR-Link-Message
+  // ✅ 핵 Fix: lokal sofort auf request_qr_ready umschalten
   const handleAcceptRequest = async (messageId: number, senderId: number, productId: number) => {
-    const ownerId = currentUserId();
-    const activeChatId = chatId();
-    if (!ownerId || !activeChatId) return;
-
     try {
-      // 1) Status update (wie vorher)
-      const { error: updateError } = await supabase
-        .from("Messages")
-        .update({ message_type: "request_accepted", read: true })
-        .eq("id", messageId);
+      const ownerId = currentUserId();
+      const cId = chatId();
+      if (typeof ownerId !== "number") throw new Error("Owner nicht geladen (currentUserId fehlt)");
+      if (typeof cId !== "number") throw new Error("chatId fehlt");
 
-      if (updateError) throw updateError;
-
-      // 2) Permission setzen (wie vorher)
-      const { error: permissionError } = await supabase
-        .from("ProductComments_User")
-        .insert({ user_id: senderId, product_id: productId })
-        .select()
-        .single();
-
-      if (permissionError && permissionError.code !== "23505") {
-        console.error("Permission Error:", permissionError);
-      }
-
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === messageId ? { ...msg, message_type: "request_accepted", read: true } : msg
-        )
-      );
-
-      // 3) ✅ NEU: Token erzeugen + Owner-self Message für QR-Link
-      const { data, error } = await supabase.rpc("accept_test_request", {
-        p_message_id: messageId,
-        p_product_id: productId,
-        p_tester_user_id: senderId,
-        p_chat_id: activeChatId,
+      // 1) Token
+      const { error: tokenError } = await supabase.from("ProductCommentTokens").insert({
+        product_id: productId,
+        tester_user_id: senderId,
+        owner_user_id: ownerId,
       });
 
-      if (error) throw error;
+      if (tokenError) throw tokenError;
 
-      const token = Array.isArray(data)
-        ? String((data[0] as any)?.token ?? "")
-        : String((data as any)?.token ?? "");
-
-      const qrValue = token ? `${window.location.origin}/activate/${token}` : "";
-      if (!qrValue.startsWith("http")) throw new Error("QR-Link wurde nicht erzeugt");
-
-      const { data: qrMsg, error: qrInsertError } = await supabase
+      // 2) Request-Status updaten
+      const { error: updErr } = await supabase
         .from("Messages")
-        .insert({
-          content: qrValue,
-          sender_id: ownerId,
-          receiver_id: ownerId,
-          chat_id: activeChatId,
-          product_id: productId,
-          message_type: "request_accepted",
-          read: false,
-          created_at: new Date().toISOString(),
-        })
-        .select(`
-          id,
-          content,
-          created_at,
-          sender_id,
-          receiver_id,
-          read,
-          message_type,
-          product_id,
-          sender:User!Messages_sender_id_fkey (
-            id,
-            name,
-            surname,
-            picture,
-            trustlevel
-          )
-        `)
-        .single<Message>();
+        .update({ message_type: "request_qr_ready", read: true })
+        .eq("id", messageId);
 
-      if (qrInsertError) throw qrInsertError;
+      if (updErr) throw updErr;
 
-      const qrEnriched = await enrichWithQrIfNeeded(qrMsg);
-      setMessages((prev) => [...prev, qrEnriched]);
-      queueMicrotask(scrollToBottom);
-    } catch (err: any) {
-      console.error("Error accepting request:", err);
-      alert(`Fehler beim Akzeptieren der Anfrage: ${err?.message ?? "Unbekannt"}`);
+      // 3) ✅ UI sofort updaten (damit QR sofort rendert)
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, message_type: "request_qr_ready", read: true } : m))
+      );
+
+      // 4) optional: full row nachladen (damit product join sicher vorhanden ist)
+      const full = await fetchMessageById(messageId);
+      if (full) upsertMessageLocal(full);
+
+      // 5) optional: direct info msg (wenn du willst)
+      // await supabase.from("Messages").insert({
+      //   content: "📦 QR-Code wurde erstellt. Bitte dem Paket beilegen.",
+      //   sender_id: ownerId,
+      //   receiver_id: senderId,
+      //   chat_id: cId,
+      //   message_type: "direct",
+      //   product_id: null,
+      //   stars: null,
+      //   read: false,
+      //   created_at: new Date().toISOString(),
+      // });
+
+    } catch (err) {
+      console.error("Error accepting request (QR flow):", err);
+      alert("Fehler beim Akzeptieren der Anfrage (QR-Code)");
     }
   };
 
@@ -431,8 +367,11 @@ export function useChat() {
       if (error) throw error;
 
       setMessages((prev) =>
-        prev.map((msg) => (msg.id === messageId ? { ...msg, message_type: "request_declined", read: true } : msg))
+        prev.map((m) => (m.id === messageId ? { ...m, message_type: "request_declined", read: true } : m))
       );
+
+      const full = await fetchMessageById(messageId);
+      if (full) upsertMessageLocal(full);
     } catch (err) {
       console.error("Error declining request:", err);
       alert("Fehler beim Ablehnen der Anfrage.");

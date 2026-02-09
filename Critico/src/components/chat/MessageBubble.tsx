@@ -1,66 +1,60 @@
-import { Show } from "solid-js";
+import { Show, createMemo, createEffect } from "solid-js";
 import { RequestMessageBubble } from "./RequestMessageBubble";
-
-interface Message {
-  id: number;
-  content: string;
-  created_at: string;
-  sender_id: number;
-  read: boolean;
-  message_type?: "direct" | "request" | "request_accepted" | "request_declined" | "product";
-  product_id?: number;
-  sender: {
-    id: number;
-    name: string;
-    surname: string;
-    picture: string | null;
-    trustlevel?: number | null;
-  } | null;
-}
+import type { Message } from "../../hooks/useChat";
 
 interface MessageBubbleProps {
-  message: Message;
+  message: Message & {
+    product?: { id: number; owner_id: number } | null;
+  };
   isOwn: boolean;
   formatTime: (dateString: string) => string;
+
+  // Owner pro Message (aus message.product?.owner_id)
   productOwnerId?: number | null;
   currentUserId?: number | null;
+
   onAcceptRequest?: (messageId: number, senderId: number, productId: number) => Promise<void>;
   onDeclineRequest?: (messageId: number) => Promise<void>;
 }
 
 export function MessageBubble(props: MessageBubbleProps) {
-  const isRequestMessage = () => {
-    const type = props.message.message_type;
-    return type === "request" || type === "request_accepted" || type === "request_declined";
-  };
+  const isRequestLike = createMemo(() => {
+    const t = props.message.message_type;
+    return t === "request" || t === "request_qr_ready" || t === "request_accepted" || t === "request_declined";
+  });
 
-  const isOwner = () => {
-    const result = props.productOwnerId != null && props.currentUserId != null
-      ? props.productOwnerId === props.currentUserId 
-      : false;
-    
-    console.log("🔍 MessageBubble isOwner Check:", {
-      productOwnerId: props.productOwnerId,
-      currentUserId: props.currentUserId,
-      isOwner: !result,
+  const isOwner = createMemo(() => {
+    if (props.productOwnerId == null || props.currentUserId == null) return false;
+    return Number(props.productOwnerId) === Number(props.currentUserId);
+  });
+
+  const shouldShowOwnerButtons = createMemo(() => {
+    // Buttons nur für originale Request + Owner des Produkts + nicht eigene Nachricht
+    return props.message.message_type === "request" && isOwner() && !props.isOwn;
+  });
+
+  createEffect(() => {
+    console.log("🔍 MessageBubble owner/debug:", {
+      messageId: props.message.id,
       messageType: props.message.message_type,
+      messageProductId: props.message.product_id ?? null,
+      productOwnerId: props.productOwnerId ?? null,
+      currentUserId: props.currentUserId ?? null,
+      isOwner: isOwner(),
       isOwn: props.isOwn,
       senderId: props.message.sender_id,
-      "SHOULD_SHOW_BUTTONS": result && !props.isOwn && props.message.message_type === "request"
+      SHOULD_SHOW_BUTTONS: shouldShowOwnerButtons(),
     });
-    
-    return !result;
-  };
+  });
 
   const tl = () => props.message.sender?.trustlevel;
 
   return (
     <Show
-      when={isRequestMessage()}
+      when={isRequestLike()}
       fallback={
         <div class={`flex ${props.isOwn ? "justify-end" : "justify-start"}`}>
           <div class={`flex gap-2 max-w-[70%] ${props.isOwn ? "flex-row-reverse" : ""}`}>
-            {/* Avatar mit Profilbild + Trustlevel Badge */}
             <div class="relative w-8 h-8 flex-shrink-0">
               <Show
                 when={props.message.sender?.picture}

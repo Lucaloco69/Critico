@@ -1,6 +1,6 @@
 import { A } from "@solidjs/router";
 import { Show } from "solid-js";
-import { ChatPreview } from "~/types/messages";
+import { ChatPreview } from "~/types/chat";
 
 interface ChatPreviewItemProps {
   chat: ChatPreview;
