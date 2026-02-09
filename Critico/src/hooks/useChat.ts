@@ -2,7 +2,7 @@ import { createSignal, createEffect, onMount, onCleanup } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import sessionStore, { isLoggedIn } from "../lib/sessionStore";
-import QRCode from "qrcode";  //npm i --save-dev @types/qrcode
+import { messagesStore } from "../lib/messagesStore";
 
 export interface Message {
   id: number;
@@ -19,10 +19,7 @@ export interface Message {
     | "request_declined"
     | "product";
   product_id?: number;
-
-  // ✅ NEU: QR für accepted-Link Messages
   qr_data_url?: string | null;
-  // embedded join
   product?: { id: number; owner_id: number } | null;
 
   sender: {
@@ -56,8 +53,6 @@ export function useChat() {
   const [chatId, setChatId] = createSignal<number | null>(null);
   const [loading, setLoading] = createSignal(true);
   const [sending, setSending] = createSignal(false);
-
-  // optional (z.B. Header)
   const [productOwnerId, setProductOwnerId] = createSignal<number | null>(null);
 
   let mainContainerRef: HTMLElement | undefined;
@@ -66,7 +61,9 @@ export function useChat() {
   };
 
   const scrollToBottom = () => {
-    if (mainContainerRef) mainContainerRef.scrollTop = mainContainerRef.scrollHeight;
+    if (mainContainerRef) {
+      mainContainerRef.scrollTop = mainContainerRef.scrollHeight;
+    }
   };
 
   const validTypes = ["direct", "request", "request_qr_ready", "request_accepted", "request_declined"];
@@ -114,13 +111,19 @@ export function useChat() {
   };
 
   const upsertMessageLocal = (msg: Message) => {
+    console.log("🔧 upsertMessageLocal:", msg.id, msg.content.substring(0, 30));
     setMessages((prev) => {
       const idx = prev.findIndex((m) => m.id === msg.id);
-      if (idx === -1) return [...prev, msg];
+      if (idx === -1) {
+        console.log("✅ Neue Message hinzugefügt");
+        return [...prev, msg];
+      }
+      console.log("🔄 Existierende Message aktualisiert");
       const copy = prev.slice();
       copy[idx] = msg;
       return copy;
     });
+    setTimeout(scrollToBottom, 100);
   };
 
   const fetchMessageById = async (id: number) => {
@@ -148,7 +151,6 @@ export function useChat() {
 
     setMessages(data ?? []);
 
-    // optional owner for header (latest request-like with product join)
     const req =
       (data || []).find((m) => m.message_type === "request") ||
       (data || []).find((m) => m.message_type === "request_qr_ready") ||
@@ -202,6 +204,9 @@ export function useChat() {
 
       await loadMessages(directChatId, userId);
 
+      // ✅ NEU: Markiere Chat als gelesen via messagesStore
+      await messagesStore.markChatAsRead(directChatId, userId);
+
       if (globalChannel && globalChatId === directChatId) return;
 
       if (globalChannel) {
@@ -220,26 +225,59 @@ export function useChat() {
             filter: `chat_id=eq.${directChatId}`,
           },
           (payload) => {
-            console.log("🔔 EVENT EMPFANGEN:", payload.eventType);
+            console.log("🔔 EVENT EMPFANGEN:", payload.eventType, payload);
 
             if (payload.eventType === "INSERT") {
-              if (!validTypes.includes(payload.new.message_type)) return;
-              // optional: eigene Inserts ignorieren
-              if (payload.new.sender_id === userId) return;
+              if (!validTypes.includes(payload.new.message_type)) {
+                console.log("⏭️ Ungültiger message_type:", payload.new.message_type);
+                return;
+              }
 
+              if (payload.new.sender_id === userId && payload.new.message_type === "direct") {
+                console.log("⏭️ Eigene Direct Message, skip (bereits lokal)");
+                return;
+              }
+
+              console.log("📥 Neue Message empfangen, lade vollständig...");
               fetchMessageById(payload.new.id).then((full) => {
-                if (!full) return;
+                if (!full) {
+                  console.warn("⚠️ Konnte Message nicht laden");
+                  return;
+                }
+                console.log("✅ Message geladen, füge hinzu");
                 upsertMessageLocal(full);
+
+                  const currentChatId = chatId(); // Hole aus Signal
+
+
+                // ✅ NEU: Sofort als gelesen markieren wenn Chat offen ist
+                // ✅ NEU: Sofort als gelesen markieren wenn Chat offen ist
+if (full.receiver_id === userId) {
+  const currentChatId = chatId(); // Hole aus Signal
+  if (currentChatId) {
+    supabase
+      .from("Messages")
+      .update({ read: true })
+      .eq("id", full.id)
+      .then(() => {
+        console.log("✅ Neue Message sofort als gelesen markiert");
+        messagesStore.clearUnreadCount(currentChatId);
+      });
+  }
+}
+
               });
             }
 
             if (payload.eventType === "UPDATE") {
-              if (!validTypes.includes(payload.new.message_type)) return;
+              if (!validTypes.includes(payload.new.message_type)) {
+                console.log("⏭️ Ungültiger message_type bei UPDATE:", payload.new.message_type);
+                return;
+              }
 
-              // ✅ Wichtig: full reload (damit message_type + product join + sender etc. stimmen)
+              console.log("🔄 Message UPDATE empfangen");
               fetchMessageById(payload.new.id).then((full) => {
                 if (!full) {
-                  // fallback: minimal patch
                   setMessages((prev) =>
                     prev.map((m) =>
                       m.id === payload.new.id ? { ...m, message_type: payload.new.message_type, read: payload.new.read } : m
@@ -252,7 +290,9 @@ export function useChat() {
             }
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log("📡 Chat Channel Status:", status);
+        });
 
       globalChatId = directChatId;
     } catch (err) {
@@ -262,7 +302,13 @@ export function useChat() {
     }
   });
 
-  onCleanup(() => {});
+  onCleanup(() => {
+    console.log("🧹 Chat Cleanup");
+    if (globalChannel) {
+      supabase.removeChannel(globalChannel);
+      globalChannel = null;
+    }
+  });
 
   const handleSendMessage = async (e: Event) => {
     e.preventDefault();
@@ -304,7 +350,6 @@ export function useChat() {
     }
   };
 
-  // ✅ 핵 Fix: lokal sofort auf request_qr_ready umschalten
   const handleAcceptRequest = async (messageId: number, senderId: number, productId: number) => {
     try {
       const ownerId = currentUserId();
@@ -312,7 +357,6 @@ export function useChat() {
       if (typeof ownerId !== "number") throw new Error("Owner nicht geladen (currentUserId fehlt)");
       if (typeof cId !== "number") throw new Error("chatId fehlt");
 
-      // 1) Token
       const { error: tokenError } = await supabase.from("ProductCommentTokens").insert({
         product_id: productId,
         tester_user_id: senderId,
@@ -321,7 +365,6 @@ export function useChat() {
 
       if (tokenError) throw tokenError;
 
-      // 2) Request-Status updaten
       const { error: updErr } = await supabase
         .from("Messages")
         .update({ message_type: "request_qr_ready", read: true })
@@ -329,28 +372,12 @@ export function useChat() {
 
       if (updErr) throw updErr;
 
-      // 3) ✅ UI sofort updaten (damit QR sofort rendert)
       setMessages((prev) =>
         prev.map((m) => (m.id === messageId ? { ...m, message_type: "request_qr_ready", read: true } : m))
       );
 
-      // 4) optional: full row nachladen (damit product join sicher vorhanden ist)
       const full = await fetchMessageById(messageId);
       if (full) upsertMessageLocal(full);
-
-      // 5) optional: direct info msg (wenn du willst)
-      // await supabase.from("Messages").insert({
-      //   content: "📦 QR-Code wurde erstellt. Bitte dem Paket beilegen.",
-      //   sender_id: ownerId,
-      //   receiver_id: senderId,
-      //   chat_id: cId,
-      //   message_type: "direct",
-      //   product_id: null,
-      //   stars: null,
-      //   read: false,
-      //   created_at: new Date().toISOString(),
-      // });
-
     } catch (err) {
       console.error("Error accepting request (QR flow):", err);
       alert("Fehler beim Akzeptieren der Anfrage (QR-Code)");

@@ -1,9 +1,7 @@
 import { Show, Accessor, createEffect } from "solid-js";
 import { ChatsListContent } from "./ChatsListContent";
 import { EmptyChatsState } from "./EmptyChatsState";
-import { ChatPreview } from "~/types/messages";
-
-
+import { ChatPreview } from "~/types/chat";
 
 export interface ChatsListProps {
   chats: Accessor<ChatPreview[]>;
@@ -12,13 +10,11 @@ export interface ChatsListProps {
   formatTime: (dateString: string) => string;
 }
 
-
 export function ChatsList(props: ChatsListProps) {
   createEffect(() => {
     const chats = props.chats();
     console.log("🎨 ChatsList: Chats:", chats.length);
   });
-
 
   return (
     <>
@@ -27,7 +23,6 @@ export function ChatsList(props: ChatsListProps) {
           <div class="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
         </div>
       </Show>
-
 
       <Show when={!props.loading()}>
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">

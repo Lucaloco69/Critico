@@ -127,6 +127,122 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     return valid.reduce((sum, s) => sum + s, 0) / valid.length;
   };
 
+  // ✅ Separate Load-Funktionen
+  const loadProduct = async (pid: number) => {
+    try {
+      console.log("🔄 PRODUCT DETAIL: Loading product", pid);
+      
+      const { data: productData, error: productError } = await supabase
+        .from("Product")
+        .select(
+          `
+            id,
+            name,
+            beschreibung,
+            price,
+            owner_id,
+            stars,
+            User!Product_owner_id_fkey (
+              id,
+              name,
+              surname,
+              email,
+              picture,
+              trustlevel
+            ),
+            Product_Tags (
+              Tags ( id, name )
+            ),
+            product_images ( id, image_url, order_index )
+          `,
+        )
+        .eq("id", pid)
+        .single<ProductDB>();
+
+      if (productError || !productData) throw productError;
+      
+      const transformed = transformProduct(productData);
+      console.log("✅ PRODUCT DETAIL: Product loaded, stars:", transformed.stars);
+      
+      // ✅ Erstelle komplett neues Product Objekt
+      setProduct(transformed);
+    } catch (err) {
+      console.error("Error loading product:", err);
+    }
+  };
+
+  const loadComments = async (pid: number) => {
+    try {
+      console.log("🔄 PRODUCT DETAIL: Loading comments for product", pid);
+      
+      const { data: messagesData } = await supabase
+        .from("Messages")
+        .select(
+          `
+            id,
+            content,
+            stars,
+            created_at,
+            sender_id,
+            message_type,
+            sender:User!Messages_sender_id_fkey (
+              id,
+              name,
+              surname,
+              picture,
+              trustlevel
+            )
+          `,
+        )
+        .eq("product_id", pid)
+        .eq("message_type", "product")
+        .order("created_at", { ascending: true });
+
+      const list = ((messagesData as MessageRow[] | null) ?? []).map(toComment);
+      console.log("✅ PRODUCT DETAIL: Comments loaded:", list.length);
+      
+      setComments(list);
+
+      const avg = computeAvgStars(list);
+      console.log("📊 PRODUCT DETAIL: Computed average stars:", avg);
+      
+      if (avg != null) {
+        // Update DB
+        await supabase.from("Product").update({ stars: avg }).eq("id", pid);
+        
+        // ✅ Update lokales Product Signal - WICHTIG: Neues Objekt erstellen!
+        setProduct((prev) => {
+          if (!prev) return null;
+          console.log("🌟 PRODUCT DETAIL: Updating product stars:", prev.stars, "→", avg);
+          // Erstelle komplett neues Objekt für Reaktivität
+          return { 
+            ...prev, 
+            stars: avg
+          };
+        });
+      }
+    } catch (err) {
+      console.error("Error loading comments:", err);
+    }
+  };
+
+  // ✅ Wrapper für Realtime
+  const reloadProduct = () => {
+    const pid = productId();
+    if (pid && !Number.isNaN(pid)) {
+      console.log("🔄 PRODUCT DETAIL: Reloading product...");
+      loadProduct(pid);
+    }
+  };
+
+  const reloadComments = () => {
+    const pid = productId();
+    if (pid && !Number.isNaN(pid)) {
+      console.log("🔄 PRODUCT DETAIL: Reloading comments...");
+      loadComments(pid);
+    }
+  };
+
   // Permission effect
   createEffect(() => {
     const uid = currentUserId();
@@ -147,7 +263,7 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     })();
   });
 
-  // Load product + comments
+  // Load product + comments (initial)
   createEffect(() => {
     const pid = productId();
     if (!pid || Number.isNaN(pid)) return;
@@ -155,73 +271,9 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     setLoading(true);
 
     (async () => {
-      try {
-        const { data: productData, error: productError } = await supabase
-          .from("Product")
-          .select(
-            `
-              id,
-              name,
-              beschreibung,
-              price,
-              owner_id,
-              stars,
-              User!Product_owner_id_fkey (
-                id,
-                name,
-                surname,
-                email,
-                picture,
-                trustlevel
-              ),
-              Product_Tags (
-                Tags ( id, name )
-              ),
-              product_images ( id, image_url, order_index )
-            `,
-          )
-          .eq("id", pid)
-          .single<ProductDB>();
-
-        if (productError || !productData) throw productError;
-        setProduct(transformProduct(productData));
-
-        const { data: messagesData } = await supabase
-          .from("Messages")
-          .select(
-            `
-              id,
-              content,
-              stars,
-              created_at,
-              sender_id,
-              message_type,
-              sender:User!Messages_sender_id_fkey (
-                id,
-                name,
-                surname,
-                picture,
-                trustlevel
-              )
-            `,
-          )
-          .eq("product_id", pid)
-          .eq("message_type", "product")
-          .order("created_at", { ascending: true });
-
-        const list = ((messagesData as MessageRow[] | null) ?? []).map(toComment);
-        setComments(list);
-
-        const avg = computeAvgStars(list);
-        if (avg != null) {
-          await supabase.from("Product").update({ stars: avg }).eq("id", pid);
-          setProduct((prev) => (prev ? { ...prev, stars: avg } : null));
-        }
-      } catch (err) {
-        console.error("Error loading product:", err);
-      } finally {
-        setLoading(false);
-      }
+      await loadProduct(pid);
+      await loadComments(pid);
+      setLoading(false);
     })();
   });
 
@@ -237,6 +289,8 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
         { event: "INSERT", schema: "public", table: "Messages", filter: `product_id=eq.${pid}` },
         (payload: any) => {
           if (payload.new?.message_type !== "product") return;
+
+          console.log("🔔 PRODUCT DETAIL: New comment received");
 
           (async () => {
             const { data: row, error } = await supabase
@@ -271,7 +325,13 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
               const avg = computeAvgStars(next);
               if (avg != null) {
                 const rounded = Math.round(avg * 2) / 2;
-                setProduct((p) => (p ? { ...p, stars: rounded } : null));
+                console.log("🌟 PRODUCT DETAIL: Realtime - Updating stars to", rounded);
+                
+                // ✅ Update Product Signal mit neuem Objekt
+                setProduct((p) => {
+                  if (!p) return null;
+                  return { ...p, stars: rounded };
+                });
               }
               return next;
             });
@@ -416,6 +476,8 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
         }
         throw error;
       }
+
+      console.log("✅ Comment submitted successfully");
     } catch (err: any) {
       console.error("Error submitting comment:", err);
       showModal("error", "Fehler beim Kommentieren", err.message || "Unbekannter Fehler");
@@ -441,5 +503,9 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     handleRequestTest,
     handleContact,
     handleSubmitComment,
+    
+    // reload functions
+    reloadProduct,
+    reloadComments,
   };
 }

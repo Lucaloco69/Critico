@@ -1,5 +1,5 @@
 import { A } from "@solidjs/router";
-import { Show, For } from "solid-js";
+import { Show, For, createEffect } from "solid-js";
 import StarRating from "./StarRating";
 
 interface Product {
@@ -9,7 +9,7 @@ interface Product {
   picture: string | null;
   owner_id: number;
   stars: number;
-  price: number | null; // ✅ NEU
+  price: number | null;
   tags?: { id: number; name: string }[];
 }
 
@@ -18,6 +18,11 @@ interface ProductCardProps {
 }
 
 export function ProductCard(props: ProductCardProps) {
+  // ✅ Debug: Track wenn stars sich ändern
+  createEffect(() => {
+    console.log("🃏 ProductCard ID:", props.product.id, "Stars:", props.product.stars);
+  });
+
   return (
     <A
       href={`/product/${props.product.id}`}
@@ -61,11 +66,14 @@ export function ProductCard(props: ProductCardProps) {
           </Show>
         </div>
 
+        {/* ✅ Prüfe auf > 0 statt nur truthy */}
         <Show
           when={props.product.stars > 0}
           fallback={
             <div class="flex items-center gap-2 h-5">
-              <span class="text-xs text-gray-400 dark:text-gray-500 italic">Noch keine Bewertung</span>
+              <span class="text-xs text-gray-400 dark:text-gray-500 italic">
+                Noch keine Bewertung
+              </span>
             </div>
           }
         >

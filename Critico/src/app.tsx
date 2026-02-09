@@ -11,7 +11,7 @@ import Chat from './routes/chat';
 import Messages from './routes/messages';
 import PublicProfile from './routes/PublicProfile';
 
-import Activate from './routes/Activate';
+import Activate from './routes/activate';
 
 function App() {
   return (

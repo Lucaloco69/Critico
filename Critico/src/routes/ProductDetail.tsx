@@ -6,6 +6,7 @@ import CommentSection from "../components/CommentSection";
 import Modal from "../components/Modal";
 import { isLoggedIn } from "../lib/sessionStore";
 import { useProductDetail } from "../hooks/useProductDetail";
+import { useRealtimeProductDetail } from "../hooks/useRealtimeProductDetail";
 
 export default function ProductDetail() {
   const params = useParams();
@@ -26,7 +27,16 @@ export default function ProductDetail() {
     handleRequestTest,
     handleContact,
     handleSubmitComment,
+    reloadProduct, // ✅ NEU: Expose reload function
+    reloadComments, // ✅ NEU: Expose reload function
   } = useProductDetail(productId, navigate);
+
+  // ✅ NEU: Realtime Updates für Product + Comments
+  useRealtimeProductDetail(productId, () => {
+    console.log("🔄 PRODUCT DETAIL: Realtime triggered, reloading...");
+    reloadProduct();
+    reloadComments();
+  });
 
   return (
     <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
