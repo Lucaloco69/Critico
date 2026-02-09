@@ -19,7 +19,6 @@ export default function Login() {
 
     try {
       const decoded = decodeURIComponent(encoded);
-      // Sicherheitscheck: nur interne Pfade erlauben
       if (decoded.startsWith("/")) return decoded;
       return "/home";
     } catch {
@@ -31,11 +30,9 @@ export default function Login() {
     if (isLoggedIn()) {
       const target = getRedirectTarget();
       
-      // Prüfe ob ein Token auf Aktivierung wartet
       const pendingToken = localStorage.getItem("pendingActivateToken");
       
       if (pendingToken) {
-        // Leite zur Aktivierung weiter
         navigate(`/activate/${pendingToken}`, { replace: true });
       } else {
         navigate(target, { replace: true });
@@ -49,29 +46,37 @@ export default function Login() {
     setError("");
 
     try {
+      console.log("🔐 Attempting login for:", email());
+      
+      // ✅ Supabase speichert JWT automatisch in localStorage
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: email(),
         password: password(),
       });
 
-      if (signInError) throw new Error("E-Mail oder Passwort falsch");
+      if (signInError) {
+        console.error("❌ Login error:", signInError);
+        throw new Error("E-Mail oder Passwort falsch");
+      }
 
+      console.log("✅ Login successful:", data.user.email);
+
+      // ✅ Session Store updaten (JWT ist bereits in localStorage!)
       setSession({
         session: data.session,
         user: data.user,
       });
 
-      // Prüfe ob ein Token auf Aktivierung wartet
       const pendingToken = localStorage.getItem("pendingActivateToken");
       
       if (pendingToken) {
-        // Leite zur Aktivierung weiter (replace: true ist wichtig!)
         navigate(`/activate/${pendingToken}`, { replace: true });
       } else {
         const target = getRedirectTarget();
         navigate(target, { replace: true });
       }
     } catch (err: any) {
+      console.error("❌ Login failed:", err);
       setError(err.message || "Login fehlgeschlagen");
     } finally {
       setLoading(false);

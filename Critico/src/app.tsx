@@ -1,5 +1,5 @@
 import { Router, Route } from '@solidjs/router';
-import { Suspense } from 'solid-js';
+import { Suspense, onMount } from 'solid-js';
 import { Home } from './routes/home';
 import Login from './routes/login';
 import Signup from './routes/signup';
@@ -10,13 +10,23 @@ import Requests from './routes/requests';
 import Chat from './routes/chat';
 import Messages from './routes/messages';
 import PublicProfile from './routes/PublicProfile';
-
 import Activate from './routes/activate';
+import { initAuthListener } from './lib/sessionStore';
 
 function App() {
+  // ✅ Initialize auth listener on app mount
+  onMount(async () => {
+    console.log("🚀 App mounted, initializing auth...");
+    await initAuthListener();
+  });
+
   return (
     <Router>
-      <Suspense fallback={<div>Lädt...</div>}>
+      <Suspense fallback={
+        <div class="flex items-center justify-center min-h-screen">
+          <div class="w-16 h-16 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      }>
         <Route path="/" component={Login} />
         <Route path="/login" component={Login} />
         <Route path="/signup" component={Signup} />
@@ -28,7 +38,7 @@ function App() {
         <Route path="/requests" component={Requests} />
         <Route path="/chat/:partnerId" component={Chat} />
         <Route path="/messages" component={Messages} />
-        <Route path="/activate/:token" component={Activate} /> {/* <-- NEU */}
+        <Route path="/activate/:token" component={Activate} />
       </Suspense>
     </Router>
   );
