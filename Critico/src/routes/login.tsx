@@ -1,4 +1,4 @@
-import { createSignal, createEffect } from "solid-js";
+import { createSignal, createEffect, onMount } from "solid-js";
 import { useNavigate, A, useLocation } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import { setSession, isLoggedIn } from "../lib/sessionStore";
@@ -11,30 +11,43 @@ export default function Login() {
   const [password, setPassword] = createSignal("");
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
+  
+  // ✅ Speichere redirectTo beim Mount (bevor es durch Navigation verloren geht)
+  const [savedRedirectTo, setSavedRedirectTo] = createSignal<string>("/home");
 
-  const getRedirectTarget = () => {
+  onMount(() => {
     const qs = new URLSearchParams(location.search);
     const encoded = qs.get("redirectTo");
-    if (!encoded) return "/home";
-
-    try {
-      const decoded = decodeURIComponent(encoded);
-      if (decoded.startsWith("/")) return decoded;
-      return "/home";
-    } catch {
-      return "/home";
+    
+    console.log("🎬 LOGIN MOUNT: Raw redirectTo:", encoded);
+    
+    if (encoded) {
+      try {
+        const decoded = decodeURIComponent(encoded);
+        if (decoded.startsWith("/")) {
+          console.log("✅ LOGIN MOUNT: Saved redirectTo:", decoded);
+          setSavedRedirectTo(decoded);
+        }
+      } catch (err) {
+        console.error("❌ LOGIN MOUNT: Error decoding redirectTo:", err);
+      }
     }
-  };
+  });
 
+  // ✅ Falls User schon eingeloggt ist
   createEffect(() => {
-    if (isLoggedIn()) {
-      const target = getRedirectTarget();
-      
+    const loggedIn = isLoggedIn();
+    console.log("🔐 LOGIN: isLoggedIn() =", loggedIn);
+    
+    if (loggedIn) {
+      const target = savedRedirectTo();
       const pendingToken = localStorage.getItem("pendingActivateToken");
       
       if (pendingToken) {
+        console.log("🎫 LOGIN: Pending activate token found, redirecting to activate");
         navigate(`/activate/${pendingToken}`, { replace: true });
       } else {
+        console.log("🚀 LOGIN: Already logged in, redirecting to:", target);
         navigate(target, { replace: true });
       }
     }
@@ -45,38 +58,37 @@ export default function Login() {
     setLoading(true);
     setError("");
 
+    console.log("═══════════════════════════════════════");
+    console.log("🔐 LOGIN: Starting login process...");
+    console.log("📧 LOGIN: Email:", email());
+    console.log("🎯 LOGIN: Target after login:", savedRedirectTo());
+
     try {
-      console.log("🔐 Attempting login for:", email());
-      
-      // ✅ Supabase speichert JWT automatisch in localStorage
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: email(),
         password: password(),
       });
 
       if (signInError) {
-        console.error("❌ Login error:", signInError);
+        console.error("❌ LOGIN: Supabase error:", signInError);
         throw new Error("E-Mail oder Passwort falsch");
       }
 
-      console.log("✅ Login successful:", data.user.email);
+      console.log("✅ LOGIN: Supabase login successful");
+      console.log("👤 LOGIN: User:", data.user.email);
 
-      // ✅ Session Store updaten (JWT ist bereits in localStorage!)
+      // ✅ Session Store updaten
+      console.log("💾 LOGIN: Updating session store...");
       setSession({
         session: data.session,
         user: data.user,
       });
 
-      const pendingToken = localStorage.getItem("pendingActivateToken");
-      
-      if (pendingToken) {
-        navigate(`/activate/${pendingToken}`, { replace: true });
-      } else {
-        const target = getRedirectTarget();
-        navigate(target, { replace: true });
-      }
+      // ✅ Navigation passiert automatisch durch createEffect wenn isLoggedIn() true wird
+      console.log("⏳ LOGIN: Waiting for auth state change to trigger redirect...");
+      console.log("═══════════════════════════════════════");
     } catch (err: any) {
-      console.error("❌ Login failed:", err);
+      console.error("❌ LOGIN: Login failed:", err);
       setError(err.message || "Login fehlgeschlagen");
     } finally {
       setLoading(false);

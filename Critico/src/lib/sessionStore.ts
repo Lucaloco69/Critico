@@ -51,15 +51,22 @@ const setBaseSession = (session: Session | null, user?: User | null) => {
   });
 };
 
-const loadDbUser = async (authId: string) => {
+const loadDbUser = async (authId: string, timeoutMs = 5000) => {
   try {
     console.log("🔍 Loading DB user for auth_id:", authId);
     
-    const { data, error } = await supabase
+    // ✅ Timeout wrapper für DB queries
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('DB query timeout')), timeoutMs)
+    );
+    
+    const queryPromise = supabase
       .from("User")
       .select("id")
       .eq("auth_id", authId)
       .maybeSingle();
+
+    const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
 
     console.log("🧩 loadDbUser result:", { authId, data, error });
 
@@ -101,12 +108,18 @@ export const clearSession = async () => {
   await supabase.auth.signOut();
 };
 
-export const checkSession = async () => {
+export const checkSession = async (timeoutMs = 5000) => {
   try {
     console.log("🔍 Checking session...");
     
-    // ✅ Supabase verwaltet JWT automatisch via localStorage
-    const { data, error } = await supabase.auth.getSession();
+    // ✅ Timeout für getSession
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Session check timeout')), timeoutMs)
+    );
+    
+    const sessionPromise = supabase.auth.getSession();
+    
+    const { data, error } = await Promise.race([sessionPromise, timeoutPromise]);
 
     if (error) {
       console.error("❌ Error getting session:", error);
@@ -117,6 +130,15 @@ export const checkSession = async () => {
     if (!data.session) {
       console.log("ℹ️ No session found");
       clearAll();
+      return false;
+    }
+
+    // ✅ Check if token is expired
+    const expiresAt = data.session.expires_at;
+    if (expiresAt && expiresAt * 1000 < Date.now()) {
+      console.warn("⚠️ Session expired, clearing...");
+      clearAll();
+      await supabase.auth.signOut();
       return false;
     }
 
@@ -133,6 +155,8 @@ export const checkSession = async () => {
   } catch (err) {
     console.error("❌ Error in checkSession:", err);
     clearAll();
+    // ✅ Bei Timeout: Session löschen
+    await supabase.auth.signOut().catch(() => {});
     return false;
   }
 };
@@ -141,7 +165,7 @@ export const checkSession = async () => {
 export const initAuthListener = async () => {
   console.log("🚀 Initializing auth listener...");
   
-  // ✅ Initial session check
+  // ✅ Initial session check mit Timeout
   await checkSession();
 
   // ✅ Listen for auth state changes
@@ -150,8 +174,19 @@ export const initAuthListener = async () => {
   } = supabase.auth.onAuthStateChange(async (event, session) => {
     console.log("🔔 Auth state changed:", event);
 
-    if (!session) {
+    // ✅ Handle token refresh errors
+    if (event === 'TOKEN_REFRESHED') {
+      console.log("🔄 Token refreshed successfully");
+    }
+
+    if (event === 'SIGNED_OUT') {
       console.log("🚪 User signed out");
+      clearAll();
+      return;
+    }
+
+    if (!session) {
+      console.log("ℹ️ No session in auth state change");
       clearAll();
       return;
     }
@@ -169,9 +204,43 @@ export const initAuthListener = async () => {
   return subscription;
 };
 
+// ✅ Optional: Session health check (für lange offene Tabs)
+export const startSessionHealthCheck = () => {
+  const CHECK_INTERVAL = 60000; // 1 Minute
+
+  const intervalId = setInterval(async () => {
+    const sess = sessionStore.session;
+    
+    if (!sess) return;
+
+    // Check if token will expire soon (innerhalb 5 Minuten)
+    const expiresAt = sess.expires_at;
+    if (expiresAt && expiresAt * 1000 - Date.now() < 300000) {
+      console.log("⚠️ Token expires soon, refreshing...");
+      
+      try {
+        const { data, error } = await supabase.auth.refreshSession();
+        
+        if (error || !data.session) {
+          console.error("❌ Failed to refresh session:", error);
+          clearAll();
+          await supabase.auth.signOut();
+        } else {
+          console.log("✅ Session refreshed successfully");
+          setBaseSession(data.session, data.session.user);
+        }
+      } catch (err) {
+        console.error("❌ Error refreshing session:", err);
+        clearAll();
+      }
+    }
+  }, CHECK_INTERVAL);
+
+  return () => clearInterval(intervalId);
+};
+
 // ✅ Nicht mehr nötig - JWT wird automatisch von Supabase verwaltet
 export const setupSessionSync = () => {
-  // Optional: Nur für zusätzliche custom data
   createEffect(() => {
     if (sessionStore.userId) {
       console.log("💾 Session synced, userId:", sessionStore.userId);
