@@ -8,23 +8,31 @@ interface ProductGridProps {
 }
 
 export default function ProductGrid(props: ProductGridProps) {
+  const hasProducts = () => props.products().length > 0;
+
   return (
-    <main class="max-w-7xl mx-auto px-4 py-8">
+    <main class="pt-6 sm:pt-8 pb-10 sm:pb-12 lg:pb-16 min-h-[40vh]">
       <Show when={props.loading()}>
-        <div class="flex justify-center items-center py-20">
-          <div class="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+        <div class="flex justify-center items-center py-16 sm:py-20">
+          <div class="w-10 h-10 sm:w-12 sm:h-12 border-4 border-sky-500 border-t-transparent rounded-full motion-safe:animate-spin motion-reduce:animate-none" />
         </div>
       </Show>
 
-      <Show when={!props.loading() && props.products().length === 0}>
-        <div class="text-center py-20">
-          <p class="text-gray-500 dark:text-gray-400 text-lg">Keine Produkte gefunden.</p>
+      <Show when={!props.loading() && !hasProducts()}>
+        <div class="text-center py-16 sm:py-20">
+          <p class="text-gray-500 dark:text-gray-400 text-base sm:text-lg">
+            Keine Produkte gefunden.
+          </p>
         </div>
       </Show>
 
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-        <For each={props.products()}>{(product) => <ProductCard product={product} />}</For>
-      </div>
+      <Show when={hasProducts()}>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
+          <For each={props.products()}>
+            {(product) => <ProductCard product={product} />}
+          </For>
+        </div>
+      </Show>
     </main>
   );
 }

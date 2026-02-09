@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabaseClient";
 
 import Header from "../components/public_profile/Header";
 import StatsGrid from "../components/public_profile/StatsGrid";
-import ProductsSection from "../components/public_profile/productsSection";
+import ProductsSection from "../components/public_profile/ProductsSection";
 
 import {
   EXP_PER_REVIEW,
