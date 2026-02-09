@@ -1,7 +1,7 @@
 import { Show, Accessor, createEffect } from "solid-js";
 import { ChatsListContent } from "./ChatsListContent";
 import { EmptyChatsState } from "./EmptyChatsState";
-import { ChatPreview } from "~/types/messages";
+import { ChatPreview } from "~/types/chat";
 
 
 

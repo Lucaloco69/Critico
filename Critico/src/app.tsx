@@ -2,8 +2,8 @@ import { Router, Route } from "@solidjs/router";
 import { Suspense } from "solid-js";
 
 import { Home } from "./routes/home";
-import Login from "./routes/Login";
-import Signup from "./routes/Signup";
+import Login from "./routes/login";
+import Signup from "./routes/signup";
 import Profile from "./routes/profile";
 import PublicProfile from "./routes/PublicProfile";
 import CreateProduct from "./routes/createProduct";
