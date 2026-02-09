@@ -1,3 +1,4 @@
+// src/components/chat/RequestMessageBubble.tsx
 import { Show, createSignal, createEffect, createMemo } from "solid-js";
 import QRCode from "qrcode";
 import { supabase } from "../../lib/supabaseClient";
@@ -6,12 +7,12 @@ interface RequestMessage {
   id: number;
   content: string;
   created_at: string;
-  sender_id: number; // bei request: Tester; bei qr_ready (optional): Owner
-  receiver_id: number; // bei request: Owner; bei qr_ready (optional): Tester
+  sender_id: number; // request: Tester; qr_ready (optional): Owner
+  receiver_id: number; // request: Owner; qr_ready (optional): Tester
   message_type: "request" | "request_qr_ready" | "request_accepted" | "request_declined";
   product_id?: number;
 
-  // ✅ NEU (optional): aus useChat (z.B. QRCode.toDataURL)
+  // optional: from useChat (not required here)
   qr_data_url?: string | null;
 
   sender: {
@@ -26,7 +27,7 @@ interface RequestMessage {
 interface RequestMessageBubbleProps {
   message: RequestMessage;
   isOwn: boolean;
-  isOwner: boolean; // kommt aus MessageBubble (currentUserId === productOwnerId der Message)
+  isOwner: boolean; // currentUserId === productOwnerId
   formatTime: (dateString: string) => string;
   onAccept?: (messageId: number, senderId: number, productId: number) => Promise<void>;
   onDecline?: (messageId: number) => Promise<void>;
@@ -40,24 +41,13 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
   const [qrDataUrl, setQrDataUrl] = createSignal<string | null>(null);
   const [qrError, setQrError] = createSignal<string | null>(null);
 
-  const tl = () => props.message.sender?.trustlevel;
+  const tl = () => props.message.sender?.trustlevel ?? null;
 
-  // ✅ NEU: Copy/Print (nur relevant bei QR-Link)
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(props.message.content);
-    } catch {
-      // ignore
-    }
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const getStatusInfo = () => {
+  // Status flags (define ONCE)
   const isPending = () => props.message.message_type === "request";
   const isQrReady = () => props.message.message_type === "request_qr_ready";
+  const isAccepted = () => props.message.message_type === "request_accepted";
+  const isQrLink = () => isAccepted() && (props.message.content ?? "").startsWith("http");
 
   const statusInfo = createMemo(() => {
     switch (props.message.message_type) {
@@ -92,17 +82,12 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
     }
   });
 
-  // ✅ Robust: owner/tester aus Nachricht ableiten (funktioniert sofort nach Statuswechsel)
-  // Annahme (wie in deinem System): "request" ist Tester -> Owner.
-  // Für "request_qr_ready" kann es Owner -> Tester sein ODER unverändert bleiben,
-  // deshalb mappen wir explizit nach Typ.
+  // Derive owner/tester (robust-ish after status changes)
   const derived = createMemo(() => {
     const productId = props.message.product_id ?? null;
     const type = props.message.message_type;
 
-    if (productId == null) {
-      return { productId: null, ownerId: null, testerId: null };
-    }
+    if (productId == null) return { productId: null as number | null, ownerId: null as number | null, testerId: null as number | null };
 
     // request: sender=tester, receiver=owner
     if (type === "request") {
@@ -110,24 +95,19 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
         productId,
         ownerId: props.message.receiver_id,
         testerId: props.message.sender_id,
+        fallbackOwnerId: null,
+        fallbackTesterId: null,
       };
     }
 
-    // qr_ready/accepted/declined: in deinem UI sollen diese Zustände "owner-side" sein;
-    // oft ist sender=owner, receiver=tester. Wenn du beim Update die IDs NICHT getauscht hast,
-    // wäre sender weiterhin tester. Damit es in beiden Fällen klappt, nehmen wir:
-    // - ownerId = (props.isOwner ? current user) ist hier nicht verfügbar,
-    //   daher nutzen wir die ursprüngliche Konvention: receiver war owner im request.
-    // => Wir wählen bei nicht-request: owner=sender, tester=receiver ALS Default,
-    //    aber wenn das keinen Token findet, könnte es trotzdem falsch sein.
-    // Wir lösen das pragmatisch: wir versuchen erst (sender=owner), falls kein Token, fallback.
+    // non-request: default sender=owner, receiver=tester; fallback swapped
     return {
       productId,
       ownerId: props.message.sender_id,
       testerId: props.message.receiver_id,
       fallbackOwnerId: props.message.receiver_id,
       fallbackTesterId: props.message.sender_id,
-    } as any;
+    };
   });
 
   const shouldShowQr = createMemo(() => props.isOwner && isQrReady() && derived().productId != null);
@@ -136,9 +116,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
     if (!props.onAccept || !props.message.product_id) return;
     setProcessing(true);
     try {
-      // sender_id ist bei "request" der Tester (Requester)
       await props.onAccept(props.message.id, props.message.sender_id, props.message.product_id);
-      // kein manual reload nötig, wenn useChat lokal updated; QR effect reagiert auf message_type
     } finally {
       setProcessing(false);
     }
@@ -156,8 +134,15 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
 
   const handleCopyLink = async () => {
     try {
-      if (!redeemUrl()) return;
-      await navigator.clipboard.writeText(redeemUrl()!);
+      // If we have a generated redeemUrl, prefer that.
+      if (redeemUrl()) {
+        await navigator.clipboard.writeText(redeemUrl()!);
+        return;
+      }
+      // Otherwise, copy message content if it looks like a link.
+      if ((props.message.content ?? "").startsWith("http")) {
+        await navigator.clipboard.writeText(props.message.content);
+      }
     } catch {
       // ignore
     }
@@ -165,16 +150,15 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
 
   const handlePrint = () => window.print();
 
-  // ✅ Owner-only: Token laden & QR generieren, sobald message_type == request_qr_ready
+  // Owner-only: Token laden & QR generieren, sobald request_qr_ready
   createEffect(() => {
-    // Track dependencies explicitly (wichtig, damit es sofort nach Update feuert)
     const show = shouldShowQr();
-    const d: any = derived();
+    const d = derived();
     const productId = d.productId;
     const primaryOwnerId = d.ownerId;
     const primaryTesterId = d.testerId;
-    const fallbackOwnerId = d.fallbackOwnerId;
-    const fallbackTesterId = d.fallbackTesterId;
+    const fallbackOwnerId = (d as any).fallbackOwnerId as number | null;
+    const fallbackTesterId = (d as any).fallbackTesterId as number | null;
 
     setQrError(null);
     setRedeemUrl(null);
@@ -183,7 +167,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
     if (!show || productId == null || primaryOwnerId == null || primaryTesterId == null) return;
 
     (async () => {
-      // 1) Erstversuch: (owner=sender, tester=receiver)
       const tryFetch = async (ownerId: number, testerId: number) => {
         return supabase
           .from("ProductCommentTokens")
@@ -193,13 +176,12 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
           .eq("tester_user_id", testerId)
           .order("created_at", { ascending: false })
           .limit(1)
-          .maybeSingle();
+          .maybeSingle(); // returns 0 or 1 row [web:43]
       };
 
       let res = await tryFetch(primaryOwnerId, primaryTesterId);
 
-      // 2) Fallback: falls du beim Update sender/receiver NICHT getauscht hast
-      if (!res.error && (!res.data?.token) && typeof fallbackOwnerId === "number" && typeof fallbackTesterId === "number") {
+      if (!res.error && !res.data?.token && typeof fallbackOwnerId === "number" && typeof fallbackTesterId === "number") {
         res = await tryFetch(fallbackOwnerId, fallbackTesterId);
       }
 
@@ -213,7 +195,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
         return;
       }
 
-      // ✅ Passe Route an dein Routing an
       const url = `${window.location.origin}/activate/${res.data.token}`;
       setRedeemUrl(url);
 
@@ -225,11 +206,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
       }
     })();
   });
-
-  // ✅ NEU: Zustände wie im QR-Stand
-  const isAccepted = () => props.message.message_type === "request_accepted";
-  const isPending = () => props.message.message_type === "request";
-  const isQrLink = () => isAccepted() && (props.message.content ?? "").startsWith("http");
 
   return (
     <div class={`flex ${props.isOwn ? "justify-end" : "justify-start"}`}>
@@ -257,7 +233,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
               class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full text-[9px] leading-[16px] text-center font-semibold bg-black/70 text-white"
               title={`Trustlevel ${tl()}`}
             >
-              {tl()}
+              {tl() as number}
             </div>
           </Show>
         </div>
@@ -280,6 +256,19 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
               }
             >
               <p class={`text-sm ${statusInfo().textColor} opacity-80 break-all`}>{props.message.content}</p>
+            </Show>
+
+            {/* Wenn accepted + Link => Copy Button anzeigen (optional) */}
+            <Show when={isQrLink()}>
+              <div class="mt-3 pt-3 border-t border-green-200 dark:border-green-800">
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  class="w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Link kopieren
+                </button>
+              </div>
             </Show>
 
             {/* QR + Copy/Print nur für Owner bei request_qr_ready */}
