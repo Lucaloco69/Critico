@@ -36,8 +36,11 @@ export function useRealtimeProducts(
                 table: "Product",
               },
               (payload) => {
-                console.log("🔔 HOME: Neues Produkt");
-                setTimeout(() => onProductsChange(), 200);
+                console.log("🔔 HOME: Neues Produkt", payload.new.id);
+                setTimeout(() => {
+                  console.log("🔄 HOME: Triggering products reload (new product)...");
+                  onProductsChange();
+                }, 200);
               }
             )
             .on(
@@ -50,11 +53,15 @@ export function useRealtimeProducts(
               (payload) => {
                 console.log("🔔 HOME: Produkt UPDATE", {
                   id: payload.new.id,
-                  oldStars: payload.old.stars,
-                  newStars: payload.new.stars
+                  name: payload.new.name,
+                  oldStars: payload.old?.stars,
+                  newStars: payload.new?.stars
                 });
                 // ✅ Reload bei Rating-Änderungen
-                setTimeout(() => onProductsChange(), 200);
+                setTimeout(() => {
+                  console.log("🔄 HOME: Triggering products reload (stars update)...");
+                  onProductsChange();
+                }, 200);
               }
             )
             .on(
@@ -65,21 +72,56 @@ export function useRealtimeProducts(
                 table: "Product",
               },
               (payload) => {
-                console.log("🔔 HOME: Produkt gelöscht");
-                setTimeout(() => onProductsChange(), 200);
+                console.log("🔔 HOME: Produkt gelöscht", payload.old.id);
+                setTimeout(() => {
+                  console.log("🔄 HOME: Triggering products reload (delete)...");
+                  onProductsChange();
+                }, 200);
               }
             )
             .on(
               "postgres_changes",
               {
-                event: "*",
+                event: "INSERT",
                 schema: "public",
-                table: "ProductComments",
+                table: "Messages",
               },
               (payload) => {
-                console.log("🔔 HOME: ProductComment Event (neue Bewertung)");
-                // ✅ Reload Products wenn neue Bewertung kommt
-                setTimeout(() => onProductsChange(), 300);
+                // ✅ Nur bei product-type Messages mit stars
+                if (payload.new.message_type === "product" && payload.new.stars != null) {
+                  console.log("🔔 HOME: Neue Bewertung (Message)", {
+                    productId: payload.new.product_id,
+                    stars: payload.new.stars
+                  });
+                  // ✅ Reload Products wenn neue Bewertung kommt
+                  setTimeout(() => {
+                    console.log("🔄 HOME: Triggering products reload (new rating)...");
+                    onProductsChange();
+                  }, 500); // Etwas länger warten damit Trigger zuerst läuft
+                }
+              }
+            )
+            .on(
+              "postgres_changes",
+              {
+                event: "UPDATE",
+                schema: "public",
+                table: "Messages",
+              },
+              (payload) => {
+                // ✅ Falls Bewertungen editiert werden können
+                if (payload.new.message_type === "product" && 
+                    payload.old.stars !== payload.new.stars) {
+                  console.log("🔔 HOME: Bewertung geändert", {
+                    productId: payload.new.product_id,
+                    oldStars: payload.old.stars,
+                    newStars: payload.new.stars
+                  });
+                  setTimeout(() => {
+                    console.log("🔄 HOME: Triggering products reload (rating update)...");
+                    onProductsChange();
+                  }, 500);
+                }
               }
             )
             .subscribe((status, err) => {
