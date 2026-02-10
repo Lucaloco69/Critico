@@ -14,18 +14,18 @@ export function useRealtimeMessages(userId: Accessor<number | null>) {
       const { data, error } = await supabase
         .from("Messages")
         .select("id, sender_id, receiver_id, read, message_type")
-        .in("message_type", ["direct", "request"])
+        .in("message_type", ["direct", "request", "request_qr_ready", "request_accepted", "request_declined"])
         .eq("receiver_id", uid)
-        .eq("read", false)
-        .neq("sender_id", uid);
+        .eq("read", false);
 
       if (error) {
         console.error("❌ HOME: Fehler beim Laden:", error);
         throw error;
       }
 
-      console.log("📬 HOME: Ungelesene Nachrichten gefunden:", (data || []).length);
-      setDirectMessageCount((data || []).length);
+      const count = (data || []).length;
+      console.log("📬 HOME: Ungelesene Nachrichten gefunden:", count);
+      setDirectMessageCount(count);
     } catch (err) {
       console.error("Error loading direct message count:", err);
     }
@@ -44,8 +44,19 @@ export function useRealtimeMessages(userId: Accessor<number | null>) {
 
         if (!globalHomeMessagesChannel) {
           console.log("🔌 HOME: Creating Messages Channel");
+          
+          // ✅ FIX: User-specific channel name + remove old channel first
+          const channelName = `home-messages-user-${uid}`;
+          
+          // Remove any existing channel with same name
+          const existingChannel = supabase.getChannels().find(ch => ch.topic === channelName);
+          if (existingChannel) {
+            console.log("🗑️ HOME: Removing existing channel");
+            supabase.removeChannel(existingChannel);
+          }
+
           globalHomeMessagesChannel = supabase
-            .channel("home_messages_changes")
+            .channel(channelName)
             .on(
               "postgres_changes",
               {
@@ -55,15 +66,38 @@ export function useRealtimeMessages(userId: Accessor<number | null>) {
                 filter: `receiver_id=eq.${uid}`,
               },
               (payload) => {
-                console.log("🔔 HOME: Messages Event empfangen:", payload.eventType);
+                console.log("🔔 HOME: Messages INSERT Event:", payload.new.message_type);
 
-                if (payload.new.message_type === "direct" || payload.new.message_type === "request") {
-                  loadDirectMessageCount(uid);
+                if (["direct", "request", "request_qr_ready", "request_accepted", "request_declined"].includes(payload.new.message_type)) {
+                  console.log("✅ HOME: Relevante Message, reload count!");
+                  setTimeout(() => loadDirectMessageCount(uid), 200); // ✅ Debounce
                 }
               }
             )
-            .subscribe((status) => {
+            .on(
+              "postgres_changes",
+              {
+                event: "UPDATE",
+                schema: "public",
+                table: "Messages",
+                filter: `receiver_id=eq.${uid}`,
+              },
+              (payload) => {
+                console.log("🔔 HOME: Messages UPDATE Event");
+
+                if (payload.old.read !== payload.new.read) {
+                  console.log("✅ HOME: Read-Status geändert, reload count!");
+                  setTimeout(() => loadDirectMessageCount(uid), 200); // ✅ Debounce
+                }
+              }
+            )
+            .subscribe((status, err) => {
               console.log("📡 HOME Messages Channel Status:", status);
+              if (err) console.error("❌ HOME Messages Channel Error:", err);
+              
+              if (status === "SUBSCRIBED") {
+                console.log("✅ HOME: Messages Channel erfolgreich verbunden!");
+              }
             });
         }
       }

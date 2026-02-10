@@ -53,8 +53,10 @@ export function MessageBubble(props: MessageBubbleProps) {
     <Show
       when={isRequestLike()}
       fallback={
-        <div class={`flex ${props.isOwn ? "justify-end" : "justify-start"}`}>
-          <div class={`flex gap-2 max-w-[70%] ${props.isOwn ? "flex-row-reverse" : ""}`}>
+        <div class={`flex ${props.isOwn ? "justify-end" : "justify-start"} w-full`}>
+          {/* ✅ max-w-[60%] für die gesamte Message-Gruppe */}
+          <div class={`flex gap-2 max-w-[60%] ${props.isOwn ? "flex-row-reverse" : ""}`}>
+            {/* Avatar */}
             <div class="relative w-8 h-8 flex-shrink-0">
               <Show
                 when={props.message.sender?.picture}
@@ -81,18 +83,34 @@ export function MessageBubble(props: MessageBubbleProps) {
               </Show>
             </div>
 
-            <div>
+            {/* Message Content Container */}
+            <div class="flex flex-col min-w-0 flex-1">
+              {/* ✅ Message Bubble mit overflow-wrap */}
               <div
-                class={`px-4 py-2 rounded-2xl shadow-md ${
-                  props.isOwn
+                class={`
+                  px-4 py-2 rounded-2xl shadow-md
+                  min-w-[80px]
+                  max-w-full
+                  ${props.isOwn
                     ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white"
                     : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                }`}
+                  }
+                `}
               >
-                <p class="break-words">{props.message.content}</p>
+                {/* ✅ Text mit korrektem Word Breaking */}
+                <p class="
+                  break-words
+                  overflow-wrap-anywhere
+                  whitespace-pre-wrap
+                  max-w-full
+                  text-sm
+                ">
+                  {props.message.content}
+                </p>
               </div>
 
-              <p class={`text-xs text-gray-500 dark:text-gray-400 mt-1 ${props.isOwn ? "text-right" : ""}`}>
+              {/* Timestamp */}
+              <p class={`text-xs text-gray-500 dark:text-gray-400 mt-1 px-1 ${props.isOwn ? "text-right" : ""}`}>
                 {props.formatTime(props.message.created_at)}
               </p>
             </div>

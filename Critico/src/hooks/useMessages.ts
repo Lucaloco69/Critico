@@ -3,20 +3,15 @@ import { useNavigate, useLocation } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import sessionStore, { isLoggedIn } from "../lib/sessionStore";
 import { badgeStore } from "../lib/badgeStore";
+import { messagesStore } from "../lib/messagesStore";
 import { ChatPreview } from "~/types/chat";
-
-
-
-
 
 let globalMessagesChannel: any = null;
 let reloadTimeout: any = null;
 
-
 export function useMessages() {
   const navigate = useNavigate();
   const location = useLocation();
-
 
   const [chats, setChats] = createSignal<ChatPreview[]>([]);
   const [filteredChats, setFilteredChats] = createSignal<ChatPreview[]>([]);
@@ -24,9 +19,7 @@ export function useMessages() {
   const [loading, setLoading] = createSignal(true);
   const [currentUserId, setCurrentUserId] = createSignal<number | null>(null);
 
-
   const { setDirectMessageCount } = badgeStore;
-
 
   onMount(async () => {
     if (!isLoggedIn() || !sessionStore.user) {
@@ -34,14 +27,12 @@ export function useMessages() {
       return;
     }
 
-
     try {
       const { data: userData } = await supabase
         .from("User")
         .select("id")
         .eq("auth_id", sessionStore.user.id)
         .single();
-
 
       if (userData) {
         setCurrentUserId(userData.id);
@@ -58,7 +49,6 @@ export function useMessages() {
     }
   });
 
-
   createEffect(() => {
     const path = location.pathname;
     const userId = currentUserId();
@@ -69,48 +59,59 @@ export function useMessages() {
     }
   });
 
-
-  createEffect(() => {
-    try {
-      const count = badgeStore.directMessageCount();
-      const userId = currentUserId();
-      const path = location.pathname;
-      
-      if (path === "/messages" && userId && count > 0) {
-        console.log("🔄 BADGE CHANGED! Reloading chats... Count:", count);
-        loadChats(userId);
-      }
-    } catch (err) {
-      console.error("❌ Badge Effect Error:", err);
-    }
-  });
-
-
-
   onCleanup(() => {
     console.log("🧹 Messages: Cleanup aufgerufen");
     if (reloadTimeout) clearTimeout(reloadTimeout);
+    if (globalMessagesChannel) {
+      supabase.removeChannel(globalMessagesChannel);
+      globalMessagesChannel = null;
+    }
   });
 
-
   const setupRealtime = (userId: number) => {
-    console.log("🔌 Messages: Setting up Realtime subscription");
+    console.log("🔌 MESSAGES: Setting up Realtime for user:", userId);
     
     globalMessagesChannel = supabase
-      .channel('all-direct-messages')
+      .channel(`messages-list-user-${userId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "Messages",
+          filter: `receiver_id=eq.${userId}`,
         },
         (payload) => {
-          console.log("🔔 Messages: INSERT Event - Neue Nachricht", payload);
+          console.log("🔔 MESSAGES: INSERT Event (received)", payload);
           
-          // Nur reload wenn es direct oder request ist
-          if (["direct", "request", "request_accepted", "request_declined"].includes(payload.new.message_type)) {
-            loadChats(userId);
+          if (["direct", "request", "request_qr_ready", "request_accepted", "request_declined"].includes(payload.new.message_type)) {
+            console.log("✅ MESSAGES: Relevante Message, reload!");
+            
+            if (reloadTimeout) clearTimeout(reloadTimeout);
+            reloadTimeout = setTimeout(() => {
+              loadChats(userId);
+            }, 300);
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "Messages",
+          filter: `sender_id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log("🔔 MESSAGES: INSERT Event (sent)", payload);
+          
+          if (["direct", "request", "request_qr_ready", "request_accepted", "request_declined"].includes(payload.new.message_type)) {
+            console.log("✅ MESSAGES: Eigene Message gesendet, reload!");
+            
+            if (reloadTimeout) clearTimeout(reloadTimeout);
+            reloadTimeout = setTimeout(() => {
+              loadChats(userId);
+            }, 300);
           }
         }
       )
@@ -122,22 +123,25 @@ export function useMessages() {
           table: "Messages",
         },
         (payload) => {
-          console.log("🔔 Messages: UPDATE Event", payload);
+          console.log("🔔 MESSAGES: UPDATE Event", payload);
           
-          if (["direct", "request", "request_accepted", "request_declined"].includes(payload.new.message_type)) {
+          if (
+            (payload.new.sender_id === userId || payload.new.receiver_id === userId) &&
+            ["direct", "request", "request_qr_ready", "request_accepted", "request_declined"].includes(payload.new.message_type)
+          ) {
+            console.log("✅ MESSAGES: Relevantes UPDATE, reload!");
+            
             if (reloadTimeout) clearTimeout(reloadTimeout);
             reloadTimeout = setTimeout(() => {
-              console.log("🔄 Reloading chats nach UPDATE...");
               loadChats(userId);
-            }, 500);
+            }, 300);
           }
         }
       )
       .subscribe((status) => {
-        console.log("📡 Messages Channel Status:", status);
+        console.log("📡 MESSAGES Channel Status:", status);
       });
   };
-
 
   const loadChats = async (userId: number) => {
     try {
@@ -148,9 +152,7 @@ export function useMessages() {
         .select("chat_id")
         .eq("user_id", userId);
 
-
       if (chatsError) throw chatsError;
-
 
       if (!userChats || userChats.length === 0) {
         console.log("⚠️ MESSAGES: Keine Chats gefunden");
@@ -162,20 +164,16 @@ export function useMessages() {
         return;
       }
 
-
       const chatIds = userChats.map(c => c.chat_id);
       console.log("📋 MESSAGES: Chat IDs:", chatIds);
-
 
       const { data: allChatDetails } = await supabase
         .from("Chats")
         .select("id, product_id")
         .in("id", chatIds);
 
-
       const chatDetails = (allChatDetails || []).filter(c => c.product_id === null);
       console.log("💬 MESSAGES: Direct Chats:", chatDetails.length);
-
 
       if (chatDetails.length === 0) {
         batch(() => {
@@ -186,11 +184,9 @@ export function useMessages() {
         return;
       }
 
-
       const directChatIds = chatDetails.map(c => c.id);
       const chatPreviews: ChatPreview[] = [];
       let totalUnreadCount = 0;
-
 
       for (const chatId of directChatIds) {
         console.log(`🔍 MESSAGES: Verarbeite Chat ${chatId}`);
@@ -203,59 +199,53 @@ export function useMessages() {
               id,
               name,
               surname,
-              picture
+              picture,
+              trustlevel
             )
           `)
           .eq("chat_id", chatId)
           .neq("user_id", userId);
-
 
         if (!participants || participants.length === 0) {
           console.log(`⚠️ MESSAGES: Keine Partner für Chat ${chatId}`);
           continue;
         }
 
-
         const partner = participants[0].User as any;
         console.log(`👥 MESSAGES: Chat ${chatId} Partner:`, partner.name);
 
-
-        // ✅ GEÄNDERT: message_type hinzugefügt + filter auf alle types
         const { data: lastMsg, error: lastMsgError } = await supabase
           .from("Messages")
           .select("content, created_at, message_type")
           .eq("chat_id", chatId)
-          .in("message_type", ["direct", "request", "request_accepted", "request_declined"])
+          .in("message_type", ["direct", "request", "request_qr_ready", "request_accepted", "request_declined"])
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-
 
         if (lastMsgError) {
           console.error(`❌ MESSAGES: Fehler beim Laden der letzten Nachricht für Chat ${chatId}:`, lastMsgError);
         }
 
-
         console.log(`💬 MESSAGES: Chat ${chatId} Letzte Nachricht:`, lastMsg?.content || "Keine");
 
-
-        // ✅ GEÄNDERT: message_type hinzugefügt + filter auf alle types
         const { data: unreadMessages, error: unreadError } = await supabase
           .from("Messages")
           .select("id, sender_id, receiver_id, read, content, message_type")
           .eq("chat_id", chatId)
-          .in("message_type", ["direct", "request", "request_accepted", "request_declined"])
+          .in("message_type", ["direct", "request", "request_qr_ready", "request_accepted", "request_declined"])
           .eq("receiver_id", userId)
           .eq("read", false);
-
 
         if (unreadError) {
           console.error(`❌ MESSAGES: Fehler beim Laden ungelesener Nachrichten für Chat ${chatId}:`, unreadError);
         }
 
-
         const unreadCount = (unreadMessages || []).length;
         totalUnreadCount += unreadCount;
+        
+        // ✅ NEU: Speichere im messagesStore
+        messagesStore.setUnreadCount(chatId, unreadCount);
         
         console.log(`📬 MESSAGES: Chat ${chatId} - Ungelesene Nachrichten:`, unreadCount);
         
@@ -263,12 +253,9 @@ export function useMessages() {
           console.log("📋 MESSAGES: Ungelesene Details:", unreadMessages);
         }
 
-
-        // ✅ NEU: Prüfe ob ungelesene Request dabei ist
         const hasUnreadRequest = (unreadMessages || []).some(
           m => m.message_type === 'request' && !m.read
         );
-
 
         chatPreviews.push({
           chatId,
@@ -278,31 +265,24 @@ export function useMessages() {
           partnerPicture: partner.picture,
           lastMessage: lastMsg?.content || "Noch keine Nachrichten",
           lastMessageTime: lastMsg?.created_at || new Date().toISOString(),
-          lastMessageType: lastMsg?.message_type, // ✅ NEU
+          lastMessageType: lastMsg?.message_type,
           unreadCount: unreadCount,
-          hasUnreadRequest: hasUnreadRequest, // ✅ NEU
+          hasUnreadRequest: hasUnreadRequest,
           partnerTrustlevel: partner.trustlevel,
-
         });
-
 
         console.log(`✅ MESSAGES: Chat ${chatId} Preview erstellt - Unread Count:`, unreadCount);
       }
-
 
       chatPreviews.sort((a, b) => 
         new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
       );
 
-
       console.log("📊 MESSAGES: Insgesamt", chatPreviews.length, "Chats geladen");
       console.log("📬 MESSAGES: Total ungelesene Nachrichten:", totalUnreadCount);
-      console.log("📋 MESSAGES: Chat Previews:", chatPreviews);
-
 
       const currentSearch = searchQuery();
       console.log("🔍 MESSAGES: Aktueller Suchbegriff:", currentSearch);
-
 
       let filtered: ChatPreview[];
       if (!currentSearch || currentSearch.trim() === "") {
@@ -316,12 +296,7 @@ export function useMessages() {
         console.log("✅ MESSAGES: Filter angewendet:", filtered.length, "von", chatPreviews.length);
       }
 
-
       console.log("🔄 MESSAGES: Setze alle States...");
-      console.log("🎯 MESSAGES: NEUE chatPreviews:", JSON.stringify(chatPreviews));
-      console.log("🎯 MESSAGES: NEUE filtered:", JSON.stringify(filtered));
-      console.log("🎯 MESSAGES: ALTE chats() VOR batch:", JSON.stringify(chats()));
-      console.log("🎯 MESSAGES: ALTE filteredChats() VOR batch:", JSON.stringify(filteredChats()));
       
       batch(() => {
         setChats([...chatPreviews]);
@@ -329,17 +304,11 @@ export function useMessages() {
         setDirectMessageCount(totalUnreadCount);
       });
 
-
-      console.log("🎯 MESSAGES: NEUE chats() NACH batch:", JSON.stringify(chats()));
-      console.log("🎯 MESSAGES: NEUE filteredChats() NACH batch:", JSON.stringify(filteredChats()));
-      console.log("🔢 MESSAGES: Badge Count gesetzt auf:", totalUnreadCount);
-      console.log("👁️ MESSAGES: Sichtbare Chats:", filtered.length);
       console.log("✅ MESSAGES: Alle States aktualisiert!");
     } catch (err) {
       console.error("Error loading chats:", err);
     }
   };
-
 
   const handleSearchChange = (value: string | ((prev: string) => string)) => {
     const query = typeof value === 'function' ? value(searchQuery()) : value;
@@ -362,13 +331,11 @@ export function useMessages() {
     }
   };
 
-
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
 
     if (diffDays === 0) {
       return date.toLocaleTimeString("de-DE", {
@@ -386,7 +353,6 @@ export function useMessages() {
       });
     }
   };
-
 
   return {
     filteredChats,

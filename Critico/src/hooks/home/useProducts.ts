@@ -83,14 +83,22 @@ export function useProducts(trustlevel: Accessor<number>) {
           price: p.price ?? null,
           picture: allImages[0] || null,
           owner_id: p.owner_id,
-          stars: p.stars || 0,
+          stars: Number(p.stars) || 0, // ✅ Konvertiere zu Number
           tags: p.Product_Tags?.map((pt: any) => pt.Tags).filter(Boolean) || [],
         };
       });
 
-      setProducts(transformedProducts);
+      console.log("✅ HOME: Products loaded:", transformedProducts.length);
+      if (transformedProducts.length > 0) {
+        console.log("📊 HOME: Sample products with stars:", 
+          transformedProducts.slice(0, 3).map(p => ({ id: p.id, name: p.name, stars: p.stars }))
+        );
+      }
+
+      // ✅ WICHTIG: Neues Array erstellen für Reaktivität
+      setProducts([...transformedProducts]);
     } catch (err) {
-      console.error("Fehler beim Laden der Produkte:", err);
+      console.error("❌ HOME: Fehler beim Laden der Produkte:", err);
     } finally {
       setLoading(false);
     }

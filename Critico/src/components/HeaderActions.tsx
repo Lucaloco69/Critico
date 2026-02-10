@@ -1,17 +1,18 @@
 import { A } from "@solidjs/router";
-import { Show } from "solid-js";
+import { Show, createEffect } from "solid-js";
 import { isLoggedIn } from "../lib/sessionStore";
 import { badgeStore } from "../lib/badgeStore";
-
 
 interface HeaderActionsProps {
   onCreateProduct: () => void;
 }
 
-
 export function HeaderActions(props: HeaderActionsProps) {
-  const { directMessageCount } = badgeStore; // ✅ Nur noch directMessageCount
-
+  // ✅ Debug: Track Badge Changes
+  createEffect(() => {
+    const count = badgeStore.directMessageCount();
+    console.log("🔔 HeaderActions: Badge Count:", count);
+  });
 
   return (
     <div class="flex items-center gap-3">
@@ -24,13 +25,14 @@ export function HeaderActions(props: HeaderActionsProps) {
         <svg class="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
-        <Show when={directMessageCount() > 0}>
+        
+        {/* ✅ Badge wird direkt im JSX aufgerufen */}
+        <Show when={badgeStore.directMessageCount() > 0}>
           <span class="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
-            {directMessageCount()}
+            {badgeStore.directMessageCount()}
           </span>
         </Show>
       </A>
-
 
       {/* Gespeichert */}
       <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
@@ -39,14 +41,12 @@ export function HeaderActions(props: HeaderActionsProps) {
         </svg>
       </button>
 
-
       {/* Profil */}
       <A href={isLoggedIn() ? "/profile" : "/login"} class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
         <svg class="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
       </A>
-
 
       {/* Artikel einstellen Button */}
       <button
