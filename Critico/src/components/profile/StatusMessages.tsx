@@ -10,22 +10,32 @@ export default function StatusMessages(props: StatusMessagesProps) {
   return (
     <>
       <Show when={props.error()}>
-        <div class="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-          <p class="text-sm text-red-200">{props.error()}</p>
+        <div class="rounded-2xl bg-red-500/10 border border-red-500/30 backdrop-blur-md p-4">
+          <div class="flex items-start gap-3">
+            <svg class="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+            </svg>
+            <p class="text-sm text-red-200 font-medium">{props.error()}</p>
+          </div>
         </div>
       </Show>
 
       <Show when={props.success()}>
-        <div class="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-          <p class="text-sm text-green-200">{props.success()}</p>
+        <div class="rounded-2xl bg-green-500/10 border border-green-500/30 backdrop-blur-md p-4">
+          <div class="flex items-start gap-3">
+            <svg class="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+            <p class="text-sm text-green-200 font-medium">{props.success()}</p>
+          </div>
         </div>
       </Show>
 
       <Show when={props.uploading()}>
-        <div class="mb-4 p-3 bg-sky-500/10 border border-sky-500/30 rounded-lg">
-          <div class="text-sm text-sky-200 flex items-center gap-2">
-            <div class="w-4 h-4 border-2 border-sky-200 border-t-transparent rounded-full animate-spin"></div>
-            Wird hochgeladen...
+        <div class="rounded-2xl bg-sky-500/10 border border-sky-500/30 backdrop-blur-md p-4">
+          <div class="flex items-start gap-3">
+            <div class="w-5 h-5 border-2 border-sky-400 border-t-transparent rounded-full animate-spin flex-shrink-0 mt-0.5" />
+            <p class="text-sm text-sky-200 font-medium">Wird hochgeladen...</p>
           </div>
         </div>
       </Show>

@@ -30,8 +30,8 @@ export default function CreateProduct() {
     setPreviewUrls,
     setCurrentImageIndex,
     setSelectedTags,
-    setLoading,      // Wird für useProductSubmit gebraucht
-    setUploading,    // Wird für useProductSubmit gebraucht
+    setLoading,
+    setUploading,
     setError,
     setSuccess,
   } = useCreateProduct();
@@ -51,8 +51,8 @@ export default function CreateProduct() {
     price,
     selectedFiles,
     selectedTags,
-    setLoading,      // Hier wird es übergeben
-    setUploading,    // Hier wird es übergeben
+    setLoading,
+    setUploading,
     setError,
     setSuccess
   );
@@ -60,16 +60,18 @@ export default function CreateProduct() {
   const { toggleTag } = useTags(selectedTags, setSelectedTags);
 
   return (
-    <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div class="min-h-screen bg-gray-50 dark:bg-gradient-to-br dark:from-gray-900 dark:via-slate-900 dark:to-gray-950">
       <Header />
 
-      <main class="max-w-4xl mx-auto px-4 py-8">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
-          <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">
+      {/* Page container */}
+      <main class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
+        {/* Card */}
+        <div class="bg-white/90 dark:bg-gray-900/60 backdrop-blur-md border border-black/5 dark:border-white/10 rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-5 sm:mb-6">
             Artikel einstellen
           </h1>
 
-          <form onSubmit={handleSubmit} class="space-y-6">
+          <form onSubmit={handleSubmit} class="space-y-5 sm:space-y-6">
             <ImageUpload
               previewUrls={previewUrls}
               currentImageIndex={currentImageIndex}
@@ -97,7 +99,9 @@ export default function CreateProduct() {
 
             <StatusMessages error={error} success={success} />
 
-            <SubmitButton loading={loading} uploading={uploading} />
+            <div class="pt-1">
+              <SubmitButton loading={loading} uploading={uploading} />
+            </div>
           </form>
         </div>
       </main>

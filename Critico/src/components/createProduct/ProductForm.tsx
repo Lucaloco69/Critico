@@ -10,58 +10,57 @@ interface ProductFormProps {
 }
 
 export default function ProductForm(props: ProductFormProps) {
+  const inputBase =
+    "w-full rounded-xl border border-gray-300 dark:border-white/10 bg-white dark:bg-gray-900/40 " +
+    "text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/40 " +
+    "shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500/70 focus:border-sky-500";
+
+  const labelBase = "block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2";
+
   return (
     <>
-      {/* Titel */}
-      <div>
-        <label
-          for="name"
-          class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-        >
-          Titel
-        </label>
-        <input
-          id="name"
-          type="text"
-          value={props.name()}
-          onInput={(e) => props.setName(e.currentTarget.value)}
-          placeholder="z.B. SmartGrow Mini - Intelligenter Indoor-Kräutergarten"
-          required
-          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
-        />
-      </div>
-
-      {/* Preis */}
-      <div>
-        <label
-          for="price"
-          class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-        >
-          Preis
-        </label>
-        <div class="relative">
-          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 font-semibold">
-            €
-          </span>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="name" class={labelBase}>
+            Titel
+          </label>
           <input
-            id="price"
-            type="number"
-            step="0.01"
-            min="0"
-            value={props.price()}
-            onInput={(e) => props.setPrice(e.currentTarget.value)}
-            placeholder="0.00"
-            class="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+            id="name"
+            type="text"
+            value={props.name()}
+            onInput={(e) => props.setName(e.currentTarget.value)}
+            placeholder="z.B. SmartGrow Mini - Intelligenter Indoor-Kräutergarten"
+            required
+            class={`${inputBase} h-11 px-4 text-sm sm:text-base`}
           />
+        </div>
+
+        <div>
+          <label for="price" class={labelBase}>
+            Preis
+          </label>
+          <div class="relative">
+            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/50 font-semibold select-none">
+              €
+            </span>
+
+            <input
+              id="price"
+              type="number"
+              step="0.01"
+              min="0"
+              value={props.price()}
+              onInput={(e) => props.setPrice(e.currentTarget.value)}
+              placeholder="0.00"
+              inputmode="decimal"
+              class={`${inputBase} h-11 pl-10 pr-4 text-sm sm:text-base`}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Beschreibung */}
       <div>
-        <label
-          for="beschreibung"
-          class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-        >
+        <label for="beschreibung" class={labelBase}>
           Beschreibe deinen Artikel
         </label>
         <textarea
@@ -69,9 +68,9 @@ export default function ProductForm(props: ProductFormProps) {
           value={props.beschreibung()}
           onInput={(e) => props.setBeschreibung(e.currentTarget.value)}
           placeholder="z.B. Das System überwacht selbstständig Wasserbedarf..."
-          rows="6"
+          rows={4}
           required
-          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
+          class={`${inputBase} px-4 py-3 text-sm sm:text-base resize-y min-h-36`}
         />
       </div>
     </>

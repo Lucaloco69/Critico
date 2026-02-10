@@ -10,13 +10,13 @@ interface ProfilePictureProps {
 
 export default function ProfilePicture(props: ProfilePictureProps) {
   return (
-    <div class="relative -mt-16 mb-6">
+    <div class="relative -mt-16 mb-6 flex flex-col items-center text-center sm:items-start sm:text-left">
       <div class="relative inline-block">
         <Show
           when={props.user()?.picture}
           fallback={
             <div class="w-32 h-32 rounded-full bg-white/10 flex items-center justify-center border-4 border-white/10">
-              <svg class="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -35,7 +35,7 @@ export default function ProfilePicture(props: ProfilePictureProps) {
         </Show>
 
         <label class="absolute bottom-0 right-0 p-2 bg-sky-500 hover:bg-sky-600 rounded-full cursor-pointer shadow-lg transition-colors">
-          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -44,15 +44,22 @@ export default function ProfilePicture(props: ProfilePictureProps) {
             />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
-          <input type="file" accept="image/*" onChange={props.onFileUpload} disabled={props.uploading()} class="hidden" />
+          <input
+            type="file"
+            accept="image/*"
+            onChange={props.onFileUpload}
+            disabled={props.uploading()}
+            class="hidden"
+          />
         </label>
       </div>
 
       <Show when={props.user()?.picture}>
         <button
+          type="button"
           onClick={props.onDelete}
           disabled={props.uploading()}
-          class="ml-4 px-3 py-1 bg-red-500 hover:bg-red-600 disabled:bg-gray-500 text-white text-sm rounded-lg transition-colors"
+          class="mt-3 px-3 py-1 bg-red-500 hover:bg-red-600 disabled:bg-gray-500 text-white text-sm rounded-lg transition-colors"
         >
           Bild löschen
         </button>
