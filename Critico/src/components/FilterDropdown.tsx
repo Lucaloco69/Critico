@@ -72,7 +72,6 @@ export function FilterDropdown(props: FilterDropdownProps) {
 
       <Show when={props.showDropdown()}>
         <div class="absolute top-full mt-2 left-0 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-4 max-h-96 overflow-y-auto z-50">
-          <p class="text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">Tags filtern</p>
 
           <For each={props.tags()}>
             {(tag) => (
