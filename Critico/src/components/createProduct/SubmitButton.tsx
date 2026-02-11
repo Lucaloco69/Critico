@@ -1,4 +1,5 @@
 import { Show, Accessor } from "solid-js";
+import { t } from "../../lib/i18n";
 
 interface SubmitButtonProps {
   loading: Accessor<boolean>;
@@ -28,12 +29,14 @@ export default function SubmitButton(props: SubmitButtonProps) {
         when={!props.loading() && !props.uploading()}
         fallback={
           <span class="flex items-center justify-center gap-2">
-            <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full motion-safe:animate-spin motion-reduce:animate-none"></div>
-            {props.uploading() ? "Bilder werden hochgeladen..." : "Wird erstellt..."}
+            <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full motion-safe:animate-spin motion-reduce:animate-none" />
+            {props.uploading()
+              ? t("createProductSubmitButton.uploadingImages")
+              : t("createProductSubmitButton.creating")}
           </span>
         }
       >
-        Artikel einstellen
+        {t("createProductSubmitButton.submit")}
       </Show>
     </button>
   );

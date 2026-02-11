@@ -1,5 +1,6 @@
 import { Show, Accessor } from "solid-js";
 import { UserProfileComputed } from "../../hooks/profile/useProfile";
+import { t } from "../../lib/i18n";
 
 interface ProfilePictureProps {
   user: Accessor<UserProfileComputed | null>;
@@ -29,7 +30,7 @@ export default function ProfilePicture(props: ProfilePictureProps) {
         >
           <img
             src={props.user()!.picture!}
-            alt="Profilbild"
+            alt={t("profilePicture.profilePictureAlt")}
             class="w-32 h-32 rounded-full object-cover border-4 border-white/10 shadow-lg"
           />
         </Show>
@@ -61,7 +62,7 @@ export default function ProfilePicture(props: ProfilePictureProps) {
           disabled={props.uploading()}
           class="mt-3 px-3 py-1 bg-red-500 hover:bg-red-600 disabled:bg-gray-500 text-white text-sm rounded-lg transition-colors"
         >
-          Bild löschen
+          {t("profilePicture.deletePicture")}
         </button>
       </Show>
     </div>

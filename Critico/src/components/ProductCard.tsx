@@ -1,7 +1,7 @@
 import { A } from "@solidjs/router";
 import { Show, For, createEffect } from "solid-js";
 import StarRating from "./StarRating";
-import { t } from "../lib/i18n"; // Pfad ggf. anpassen
+import { t } from "../lib/i18n";
 
 interface Product {
   id: number;
@@ -24,6 +24,17 @@ export function ProductCard(props: ProductCardProps) {
   });
 
   const imgAlt = () => props.product.name?.trim() || t("productCard.imageAltFallback");
+
+  // Helper: Tag-Name übersetzen
+  const getTranslatedTagName = (tagName: string): string => {
+    const key = tagName.toLowerCase().trim();
+    
+    try {
+      return t(`tags.${key}` as any);
+    } catch {
+      return tagName;
+    }
+  };
 
   return (
     <A
@@ -95,7 +106,7 @@ export function ProductCard(props: ProductCardProps) {
             <For each={props.product.tags?.slice(0, 2)}>
               {(tag) => (
                 <span class="px-2.5 py-1 bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 text-xs rounded-full font-medium">
-                  {tag.name}
+                  {getTranslatedTagName(tag.name)}
                 </span>
               )}
             </For>

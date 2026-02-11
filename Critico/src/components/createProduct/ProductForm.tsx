@@ -1,4 +1,5 @@
 import { Accessor, Setter } from "solid-js";
+import { t } from "../../lib/i18n";
 
 interface ProductFormProps {
   name: Accessor<string>;
@@ -22,14 +23,14 @@ export default function ProductForm(props: ProductFormProps) {
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label for="name" class={labelBase}>
-            Titel
+            {t("createProductForm.titleLabel")}
           </label>
           <input
             id="name"
             type="text"
             value={props.name()}
             onInput={(e) => props.setName(e.currentTarget.value)}
-            placeholder="z.B. SmartGrow Mini - Intelligenter Indoor-Kräutergarten"
+            placeholder={t("createProductForm.titlePlaceholder")}
             required
             class={`${inputBase} h-11 px-4 text-sm sm:text-base`}
           />
@@ -37,7 +38,7 @@ export default function ProductForm(props: ProductFormProps) {
 
         <div>
           <label for="price" class={labelBase}>
-            Preis
+            {t("createProductForm.priceLabel")}
           </label>
           <div class="relative">
             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/50 font-semibold select-none">
@@ -61,13 +62,13 @@ export default function ProductForm(props: ProductFormProps) {
 
       <div>
         <label for="beschreibung" class={labelBase}>
-          Beschreibe deinen Artikel
+          {t("createProductForm.descriptionLabel")}
         </label>
         <textarea
           id="beschreibung"
           value={props.beschreibung()}
           onInput={(e) => props.setBeschreibung(e.currentTarget.value)}
-          placeholder="z.B. Das System überwacht selbstständig Wasserbedarf..."
+          placeholder={t("createProductForm.descriptionPlaceholder")}
           rows={4}
           required
           class={`${inputBase} px-4 py-3 text-sm sm:text-base resize-y min-h-36`}

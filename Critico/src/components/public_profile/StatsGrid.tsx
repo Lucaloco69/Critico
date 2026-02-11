@@ -1,11 +1,11 @@
 import type { UserProfileComputed } from "../../routes/PublicProfile";
+import { t } from "../../lib/i18n";
 
 export default function StatsGrid(props: { user: UserProfileComputed; productsCount: number }) {
   const u = () => props.user;
 
   return (
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {/* Bewertungen */}
       <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
         <div class="flex items-center gap-3">
           <div class="h-11 w-11 rounded-xl bg-yellow-500/15 border border-yellow-400/20 grid place-items-center">
@@ -14,13 +14,12 @@ export default function StatsGrid(props: { user: UserProfileComputed; productsCo
             </svg>
           </div>
           <div>
-            <p class="text-sm text-white/70">Bewertungen</p>
+            <p class="text-sm text-white/70">{t("publicProfileStatsGrid.reviewsLabel")}</p>
             <p class="text-2xl font-bold text-white">{u().reviewCount}</p>
           </div>
         </div>
       </div>
 
-      {/* Produkte */}
       <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
         <div class="flex items-center gap-3">
           <div class="h-11 w-11 rounded-xl bg-sky-500/15 border border-sky-400/20 grid place-items-center">
@@ -29,7 +28,7 @@ export default function StatsGrid(props: { user: UserProfileComputed; productsCo
             </svg>
           </div>
           <div>
-            <p class="text-sm text-white/70">Produkte</p>
+            <p class="text-sm text-white/70">{t("publicProfileStatsGrid.productsLabel")}</p>
             <p class="text-2xl font-bold text-white">{props.productsCount}</p>
           </div>
         </div>

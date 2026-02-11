@@ -8,6 +8,7 @@ import ProductForm from "../components/createProduct/ProductForm";
 import TagSelector from "../components/createProduct/TagSelector";
 import StatusMessages from "../components/createProduct/StatusMessages";
 import SubmitButton from "../components/createProduct/SubmitButton";
+import { t } from "../lib/i18n";
 
 export default function CreateProduct() {
   const {
@@ -68,7 +69,7 @@ export default function CreateProduct() {
         {/* Card */}
         <div class="bg-white/90 dark:bg-gray-900/60 backdrop-blur-md border border-black/5 dark:border-white/10 rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
           <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-5 sm:mb-6">
-            Artikel einstellen
+            {t("createProduct.title")}
           </h1>
 
           <form onSubmit={handleSubmit} class="space-y-5 sm:space-y-6">

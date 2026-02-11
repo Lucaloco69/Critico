@@ -1,6 +1,7 @@
 import type { ParentProps, Accessor } from "solid-js";
 import { Show } from "solid-js";
 import type { UserProfileComputed } from "../../hooks/profile/useProfile";
+import { t } from "../../lib/i18n";
 
 type Props = ParentProps<{
   user: Accessor<UserProfileComputed | null>;
@@ -18,7 +19,6 @@ export default function Header(props: Props) {
 
       <div class="px-6 sm:px-8 pb-8 pt-6">
         <div class="flex flex-col sm:flex-row sm:items-start gap-5 sm:gap-6">
-          {/* Avatar + upload */}
           <div class="relative -mt-16 self-center sm:self-start">
             <div class="relative inline-block">
               <Show
@@ -38,7 +38,7 @@ export default function Header(props: Props) {
               >
                 <img
                   src={u()!.picture!}
-                  alt="Profilbild"
+                  alt={t("profileHeader.profilePictureAlt")}
                   class="w-32 h-32 rounded-2xl object-cover border border-white/10 shadow-xl"
                 />
               </Show>
@@ -70,12 +70,11 @@ export default function Header(props: Props) {
                 disabled={props.uploading()}
                 class="mt-3 w-full sm:w-auto px-3 py-1.5 bg-red-500/90 hover:bg-red-600 disabled:bg-gray-500/60 text-white text-sm rounded-lg transition-colors"
               >
-                Bild löschen
+                {t("profileHeader.deletePicture")}
               </button>
             </Show>
           </div>
 
-          {/* Name/email + trustlevel */}
           <div class="flex-1 min-w-0 text-center sm:text-left">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div class="min-w-0">
@@ -90,7 +89,9 @@ export default function Header(props: Props) {
                   <svg class="h-5 w-5 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   </svg>
-                  <span class="font-semibold">Trustlevel {u()!.trustlevel}</span>
+                  <span class="font-semibold">
+                    {t("profileHeader.trustlevel", { level: u()!.trustlevel })}
+                  </span>
                 </div>
               </Show>
             </div>

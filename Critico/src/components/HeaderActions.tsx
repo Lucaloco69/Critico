@@ -2,7 +2,7 @@ import { A } from "@solidjs/router";
 import { Show, createEffect } from "solid-js";
 import { isLoggedIn } from "../lib/sessionStore";
 import { badgeStore } from "../lib/badgeStore";
-import { locale, setLocale } from "../lib/i18n"; // neu
+import { locale, setLocale, t } from "../lib/i18n";
 
 interface HeaderActionsProps {
   onCreateProduct: () => void;
@@ -20,10 +20,15 @@ export function HeaderActions(props: HeaderActionsProps) {
       <A
         href="/messages"
         class="relative p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-        title="Nachrichten & Anfragen"
+        title={t("headerActions.messagesTitle")}
       >
         <svg class="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+          />
         </svg>
 
         <Show when={badgeStore.directMessageCount() > 0}>
@@ -38,7 +43,7 @@ export function HeaderActions(props: HeaderActionsProps) {
         class="p-2 bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-700 dark:text-gray-300"
         value={locale()}
         onChange={(e) => setLocale(e.currentTarget.value as "de" | "en")}
-        title="Sprache"
+        title={t("headerActions.languageTitle")}
       >
         <option value="de">DE</option>
         <option value="en">EN</option>
@@ -48,7 +53,7 @@ export function HeaderActions(props: HeaderActionsProps) {
       <A
         href={isLoggedIn() ? "/profile" : "/login"}
         class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-        title="Profil"
+        title={t("headerActions.profileTitle")}
       >
         <svg class="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -59,8 +64,9 @@ export function HeaderActions(props: HeaderActionsProps) {
       <button
         onClick={props.onCreateProduct}
         class="px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105"
+        type="button"
       >
-        Artikel einstellen
+        {t("headerActions.createProduct")}
       </button>
     </div>
   );

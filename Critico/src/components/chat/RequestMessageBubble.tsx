@@ -2,6 +2,7 @@
 import { Show, createSignal, createEffect, createMemo } from "solid-js";
 import QRCode from "qrcode";
 import { supabase } from "../../lib/supabaseClient";
+import { t } from "../../lib/i18n";
 
 interface RequestMessage {
   id: number;
@@ -43,7 +44,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
 
   const tl = () => props.message.sender?.trustlevel ?? null;
 
-  // Status flags (define ONCE)
+  // Status flags
   const isPending = () => props.message.message_type === "request";
   const isQrReady = () => props.message.message_type === "request_qr_ready";
   const isAccepted = () => props.message.message_type === "request_accepted";
@@ -54,28 +55,28 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
       case "request":
         return {
           icon: "🔔",
-          text: "Möchte dieses Produkt testen",
+          text: t("chatRequestMessageBubble.statusRequest"),
           bgColor: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800",
           textColor: "text-amber-900 dark:text-amber-100",
         };
       case "request_qr_ready":
         return {
           icon: "📦",
-          text: "QR-Code wurde erstellt (Aktivierung nötig)",
+          text: t("chatRequestMessageBubble.statusQrReady"),
           bgColor: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800",
           textColor: "text-amber-900 dark:text-amber-100",
         };
       case "request_accepted":
         return {
           icon: "✅",
-          text: "Aktiviert (Scan erfolgt)",
+          text: t("chatRequestMessageBubble.statusAccepted"),
           bgColor: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800",
           textColor: "text-green-900 dark:text-green-100",
         };
       case "request_declined":
         return {
           icon: "❌",
-          text: "Anfrage wurde abgelehnt",
+          text: t("chatRequestMessageBubble.statusDeclined"),
           bgColor: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800",
           textColor: "text-red-900 dark:text-red-100",
         };
@@ -87,7 +88,15 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
     const productId = props.message.product_id ?? null;
     const type = props.message.message_type;
 
-    if (productId == null) return { productId: null as number | null, ownerId: null as number | null, testerId: null as number | null };
+    if (productId == null) {
+      return {
+        productId: null as number | null,
+        ownerId: null as number | null,
+        testerId: null as number | null,
+        fallbackOwnerId: null as number | null,
+        fallbackTesterId: null as number | null,
+      };
+    }
 
     // request: sender=tester, receiver=owner
     if (type === "request") {
@@ -134,12 +143,10 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
 
   const handleCopyLink = async () => {
     try {
-      // If we have a generated redeemUrl, prefer that.
       if (redeemUrl()) {
         await navigator.clipboard.writeText(redeemUrl()!);
         return;
       }
-      // Otherwise, copy message content if it looks like a link.
       if ((props.message.content ?? "").startsWith("http")) {
         await navigator.clipboard.writeText(props.message.content);
       }
@@ -157,8 +164,8 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
     const productId = d.productId;
     const primaryOwnerId = d.ownerId;
     const primaryTesterId = d.testerId;
-    const fallbackOwnerId = (d as any).fallbackOwnerId as number | null;
-    const fallbackTesterId = (d as any).fallbackTesterId as number | null;
+    const fallbackOwnerId = d.fallbackOwnerId;
+    const fallbackTesterId = d.fallbackTesterId;
 
     setQrError(null);
     setRedeemUrl(null);
@@ -176,7 +183,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
           .eq("tester_user_id", testerId)
           .order("created_at", { ascending: false })
           .limit(1)
-          .maybeSingle(); // returns 0 or 1 row [web:43]
+          .maybeSingle();
       };
 
       let res = await tryFetch(primaryOwnerId, primaryTesterId);
@@ -191,7 +198,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
       }
 
       if (!res.data?.token) {
-        setQrError("Kein Token gefunden.");
+        setQrError(t("chatRequestMessageBubble.noTokenFound"));
         return;
       }
 
@@ -202,7 +209,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
         const img = await QRCode.toDataURL(url);
         setQrDataUrl(img);
       } catch (e: any) {
-        setQrError(e?.message ?? "QR konnte nicht erzeugt werden.");
+        setQrError(e?.message ?? t("chatRequestMessageBubble.qrGenerateFailed"));
       }
     })();
   });
@@ -231,7 +238,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
           <Show when={tl() != null}>
             <div
               class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full text-[9px] leading-[16px] text-center font-semibold bg-black/70 text-white"
-              title={`Trustlevel ${tl()}`}
+              title={t("chatRequestMessageBubble.trustlevelTitle", { level: tl() as number })}
             >
               {tl() as number}
             </div>
@@ -251,7 +258,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
               when={!(isQrReady() && !props.isOwner)}
               fallback={
                 <p class={`text-sm ${statusInfo().textColor} opacity-80`}>
-                  QR-Code wurde erstellt und liegt dem Paket bei. Du kannst nach dem Scan kommentieren.
+                  {t("chatRequestMessageBubble.testerQrReadyHint")}
                 </p>
               }
             >
@@ -266,7 +273,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
                   onClick={handleCopyLink}
                   class="w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
                 >
-                  Link kopieren
+                  {t("chatRequestMessageBubble.copyLink")}
                 </button>
               </div>
             </Show>
@@ -276,11 +283,11 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
               <div class="mt-3 pt-3 border-t border-amber-200 dark:border-amber-800">
                 <div class="print-area">
                   <Show when={!qrError()} fallback={<p class="text-sm text-red-600">{qrError()}</p>}>
-                    <Show when={qrDataUrl()} fallback={<p class="text-sm text-gray-500">QR wird geladen…</p>}>
+                    <Show when={qrDataUrl()} fallback={<p class="text-sm text-gray-500">{t("chatRequestMessageBubble.qrLoading")}</p>}>
                       <div class="flex items-center justify-center">
                         <img
                           src={qrDataUrl()!}
-                          alt="QR Code"
+                          alt={t("chatRequestMessageBubble.qrAlt")}
                           class="bg-white rounded-lg p-2"
                           width={240}
                           height={240}
@@ -290,7 +297,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
                       <p class="mt-3 text-xs text-amber-900/70 dark:text-amber-100/70 break-all">{redeemUrl()}</p>
 
                       <p class="mt-2 text-xs text-amber-900/70 dark:text-amber-100/70">
-                        Drucke diesen QR-Code aus und lege ihn dem Produkt bei. Freischaltung erfolgt nach Scan.
+                        {t("chatRequestMessageBubble.printHint")}
                       </p>
                     </Show>
                   </Show>
@@ -302,7 +309,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
                     onClick={handleCopyLink}
                     class="flex-1 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors"
                   >
-                    Link kopieren
+                    {t("chatRequestMessageBubble.copyLink")}
                   </button>
 
                   <button
@@ -310,7 +317,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
                     onClick={handlePrint}
                     class="flex-1 px-3 py-2 bg-gray-800 hover:bg-black text-white rounded-lg text-sm font-medium transition-colors"
                   >
-                    Drucken
+                    {t("chatRequestMessageBubble.print")}
                   </button>
                 </div>
               </div>
@@ -324,14 +331,14 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
                   disabled={processing()}
                   class="flex-1 px-3 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed"
                 >
-                  {processing() ? "..." : "✅ Akzeptieren"}
+                  {processing() ? t("chatRequestMessageBubble.processingDots") : t("chatRequestMessageBubble.accept")}
                 </button>
                 <button
                   onClick={handleDecline}
                   disabled={processing()}
                   class="flex-1 px-3 py-2 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed"
                 >
-                  {processing() ? "..." : "❌ Ablehnen"}
+                  {processing() ? t("chatRequestMessageBubble.processingDots") : t("chatRequestMessageBubble.decline")}
                 </button>
               </div>
             </Show>

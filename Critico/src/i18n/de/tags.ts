@@ -1,0 +1,18 @@
+export const dict = {
+  auto: "Auto",
+  baby: "Baby",
+  beauty: "Beauty",
+  bildung: "Bildung",
+  diy: "DIY",
+  ernährung: "Ernährung",
+  fitness: "Fitness",
+  gaming: "Gaming",
+  garten: "Garten",
+  haustiere: "Haustiere",
+  küche: "Küche",
+  lifestyle: "Lifestyle",
+  musik: "Musik",
+  sicherheit: "Sicherheit",
+  "smart home": "Smart Home",
+  technik: "Technik",
+} as const;

@@ -2,7 +2,7 @@ import { Show, For, createMemo } from "solid-js";
 import { A } from "@solidjs/router";
 import type { Product } from "../types/product";
 import StarRating from "./StarRating";
-import { t } from "../lib/i18n"; // Pfad ggf. anpassen
+import { t } from "../lib/i18n";
 
 interface ProductInfoProps {
   product: Product;
@@ -29,6 +29,17 @@ export default function ProductInfo(props: ProductInfoProps) {
     props.commentsCount === 1
       ? t("productInfo.review_singular")
       : t("productInfo.review_plural");
+
+  // Helper: Tag-Name übersetzen
+  const getTranslatedTagName = (tagName: string): string => {
+    const key = tagName.toLowerCase().trim();
+    
+    try {
+      return t(`tags.${key}` as any);
+    } catch {
+      return tagName;
+    }
+  };
 
   return (
     <div class="flex flex-col h-full">
@@ -107,7 +118,7 @@ export default function ProductInfo(props: ProductInfoProps) {
             <For each={props.product.tags}>
               {(tag) => (
                 <span class="px-3 py-1 bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 rounded-full text-sm font-medium">
-                  {tag.name}
+                  {getTranslatedTagName(tag.name)}
                 </span>
               )}
             </For>
@@ -137,7 +148,7 @@ export default function ProductInfo(props: ProductInfoProps) {
           onClick={props.onContact}
           class={`${contactBtnWidthClass()} px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2`}
         >
-          <svg class="w-5 h--5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"

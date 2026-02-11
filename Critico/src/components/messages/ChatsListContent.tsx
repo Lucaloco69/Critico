@@ -1,6 +1,6 @@
 import { For, Accessor } from "solid-js";
 import { ChatPreviewItem } from "./ChatPreviewItem";
-import { ChatPreview } from "~/types/messages";
+import type { ChatPreview } from "~/types/chat";
 
 
 interface ChatsListContentProps {

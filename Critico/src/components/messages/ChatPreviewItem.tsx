@@ -1,6 +1,7 @@
 import { A } from "@solidjs/router";
 import { Show } from "solid-js";
 import { ChatPreview } from "~/types/chat";
+import { t } from "../../lib/i18n";
 
 interface ChatPreviewItemProps {
   chat: ChatPreview;
@@ -19,36 +20,22 @@ const trustBadgeClass = (tl: number) => {
 export function ChatPreviewItem(props: ChatPreviewItemProps) {
   const getPreviewText = () => {
     const type = props.chat.lastMessageType;
-    
-    if (type === 'request') {
-      return '🔔 Möchte Produkt testen';
-    }
-    if (type === 'request_accepted') {
-      return '✅ Anfrage akzeptiert';
-    }
-    if (type === 'request_declined') {
-      return '❌ Anfrage abgelehnt';
-    }
-    
+
+    if (type === "request") return t("messagesChatPreviewItem.previewRequest");
+    if (type === "request_accepted") return t("messagesChatPreviewItem.previewAccepted");
+    if (type === "request_declined") return t("messagesChatPreviewItem.previewDeclined");
+
     return props.chat.lastMessage;
   };
 
   const getPreviewStyle = () => {
     const type = props.chat.lastMessageType;
-    
-    if (type === 'request') {
-      return "text-amber-600 dark:text-amber-400 font-semibold";
-    }
-    if (type === 'request_accepted') {
-      return "text-green-600 dark:text-green-400 font-semibold";
-    }
-    if (type === 'request_declined') {
-      return "text-red-600 dark:text-red-400 font-semibold";
-    }
-    
-    return props.chat.unreadCount > 0
-      ? "text-gray-900 dark:text-white font-medium"
-      : "text-gray-600 dark:text-gray-400";
+
+    if (type === "request") return "text-amber-600 dark:text-amber-400 font-semibold";
+    if (type === "request_accepted") return "text-green-600 dark:text-green-400 font-semibold";
+    if (type === "request_declined") return "text-red-600 dark:text-red-400 font-semibold";
+
+    return props.chat.unreadCount > 0 ? "text-gray-900 dark:text-white font-medium" : "text-gray-600 dark:text-gray-400";
   };
 
   const tl = () => props.chat.partnerTrustlevel;
@@ -58,7 +45,6 @@ export function ChatPreviewItem(props: ChatPreviewItemProps) {
       href={`/chat/${props.chat.partnerId}`}
       class="flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
     >
-      {/* Avatar mit Profilbild */}
       <div class="relative flex-shrink-0">
         <Show
           when={props.chat.partnerPicture}
@@ -76,19 +62,17 @@ export function ChatPreviewItem(props: ChatPreviewItemProps) {
           />
         </Show>
 
-        {/* TL Badge */}
         <Show when={tl() != null}>
           <div
             class={`absolute -bottom-1 -right-1 px-2 py-0.5 rounded-full text-[10px] font-bold shadow border border-white dark:border-gray-900 ${trustBadgeClass(
-              tl() as number
+              tl() as number,
             )}`}
-            title={`Trustlevel ${tl()}`}
+            title={t("messagesChatPreviewItem.trustlevelTitle", { level: tl() as number })}
           >
             TL{tl()}
           </div>
         </Show>
 
-        {/* Unread Badge */}
         <Show when={props.chat.unreadCount > 0}>
           <div class="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg">
             {props.chat.unreadCount}
@@ -96,7 +80,6 @@ export function ChatPreviewItem(props: ChatPreviewItemProps) {
         </Show>
       </div>
 
-      {/* Chat Info */}
       <div class="flex-1 min-w-0">
         <div class="flex items-baseline justify-between mb-1">
           <h3 class="font-semibold text-gray-900 dark:text-white truncate">
@@ -108,21 +91,16 @@ export function ChatPreviewItem(props: ChatPreviewItemProps) {
         </div>
 
         <div class="flex items-center gap-2">
-          {/* Request Badge */}
           <Show when={props.chat.hasUnreadRequest}>
             <span class="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-semibold rounded-full border border-amber-200 dark:border-amber-800">
-              🔔 Request
+              {t("messagesChatPreviewItem.requestBadge")}
             </span>
           </Show>
 
-          {/* Last Message Preview */}
-          <p class={`text-sm truncate ${getPreviewStyle()}`}>
-            {getPreviewText()}
-          </p>
+          <p class={`text-sm truncate ${getPreviewStyle()}`}>{getPreviewText()}</p>
         </div>
       </div>
 
-      {/* Chevron */}
       <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
       </svg>

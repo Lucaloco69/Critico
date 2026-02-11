@@ -1,5 +1,6 @@
 import { Accessor } from "solid-js";
 import { UserProfileComputed } from "../../hooks/profile/useProfile";
+import { t } from "../../lib/i18n";
 
 interface StatsCardsProps {
   user: Accessor<UserProfileComputed | null>;
@@ -8,38 +9,37 @@ interface StatsCardsProps {
 export default function StatsCards(props: StatsCardsProps) {
   const u = props.user();
   if (!u) return null;
-  
+
   return (
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-     
-      {/* Experience Points Card */}
       <div class="relative overflow-hidden rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md p-6 hover:border-white/20 transition-colors">
         <div class="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl" />
-        
+
         <div class="relative">
           <div class="flex items-center justify-center w-14 h-14 rounded-xl bg-purple-500/20 border border-purple-500/30 mb-4">
             <svg class="w-7 h-7 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          
-          <h3 class="text-sm font-medium text-gray-400 mb-1">Erfahrungspunkte</h3>
+
+          <h3 class="text-sm font-medium text-gray-400 mb-1">{t("profileStatsCards.expTitle")}</h3>
+
           <p class="text-3xl font-bold text-white mb-1">
             {u.trustlevel >= 5 ? `${u.exp}` : `${u.exp} / ${u.expNext}`}
-            <span class="text-lg text-gray-400 ml-1">EXP</span>
+            <span class="text-lg text-gray-400 ml-1">{t("profileStatsCards.expUnit")}</span>
           </p>
+
           <p class="text-xs text-gray-500">
             {u.trustlevel >= 5
-              ? `${u.reviewCount} Bewertungen`
-              : `${u.reviewCount} / ${u.reviewsNext} Bewertungen`}
+              ? t("profileStatsCards.reviewsOnly", { count: u.reviewCount })
+              : t("profileStatsCards.reviewsProgress", { count: u.reviewCount, total: u.reviewsNext })}
           </p>
         </div>
       </div>
 
-      {/* Reviews Card */}
       <div class="relative overflow-hidden rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md p-6 hover:border-white/20 transition-colors">
         <div class="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 rounded-full blur-3xl" />
-        
+
         <div class="relative">
           <div class="flex items-center justify-center w-14 h-14 rounded-xl bg-sky-500/20 border border-sky-500/30 mb-4">
             <svg class="w-7 h-7 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -51,8 +51,8 @@ export default function StatsCards(props: StatsCardsProps) {
               />
             </svg>
           </div>
-          
-          <h3 class="text-sm font-medium text-gray-400 mb-1">Geschriebene Bewertungen</h3>
+
+          <h3 class="text-sm font-medium text-gray-400 mb-1">{t("profileStatsCards.writtenReviewsTitle")}</h3>
           <p class="text-4xl font-bold text-white">{u.reviewCount}</p>
         </div>
       </div>

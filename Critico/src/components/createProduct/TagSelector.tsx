@@ -1,4 +1,5 @@
 import { For, Show, Accessor, createMemo } from "solid-js";
+import { t } from "../../lib/i18n";
 
 interface Tag {
   id: number;
@@ -14,14 +15,14 @@ interface TagSelectorProps {
 export default function TagSelector(props: TagSelectorProps) {
   const tagById = createMemo(() => {
     const map = new Map<number, Tag>();
-    for (const t of props.availableTags()) map.set(t.id, t);
+    for (const t0 of props.availableTags()) map.set(t0.id, t0);
     return map;
   });
 
   return (
     <div>
       <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-        Tags auswählen (optional)
+        {t("createProductTagSelector.label")}
       </label>
 
       <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-3 max-h-64 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
@@ -34,9 +35,7 @@ export default function TagSelector(props: TagSelectorProps) {
                 onChange={() => props.onToggleTag(tag.id)}
                 class="w-4 h-4 rounded accent-sky-600 focus-visible:ring-2 focus-visible:ring-sky-500"
               />
-              <span class="text-sm text-gray-700 dark:text-gray-300 break-words">
-                {tag.name}
-              </span>
+              <span class="text-sm text-gray-700 dark:text-gray-300 break-words">{tag.name}</span>
             </label>
           )}
         </For>
@@ -47,12 +46,12 @@ export default function TagSelector(props: TagSelectorProps) {
           <For each={props.selectedTags()}>
             {(tagId) => (
               <span class="px-3 py-1 bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 text-sm rounded-full flex items-center gap-2">
-                {tagById().get(tagId)?.name ?? `Tag #${tagId}`}
+                {tagById().get(tagId)?.name ?? t("createProductTagSelector.unknownTag", { id: tagId })}
                 <button
                   type="button"
                   onClick={() => props.onToggleTag(tagId)}
                   class="hover:text-sky-900 dark:hover:text-sky-100"
-                  aria-label="Tag entfernen"
+                  aria-label={t("createProductTagSelector.removeTagAria")}
                 >
                   ×
                 </button>
