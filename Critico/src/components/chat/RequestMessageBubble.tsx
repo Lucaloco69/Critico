@@ -8,12 +8,10 @@ interface RequestMessage {
   id: number;
   content: string;
   created_at: string;
-  sender_id: number; // request: Tester; qr_ready (optional): Owner
-  receiver_id: number; // request: Owner; qr_ready (optional): Tester
+  sender_id: number;
+  receiver_id: number;
   message_type: "request" | "request_qr_ready" | "request_accepted" | "request_declined";
   product_id?: number;
-
-  // optional: from useChat (not required here)
   qr_data_url?: string | null;
 
   sender: {
@@ -28,7 +26,7 @@ interface RequestMessage {
 interface RequestMessageBubbleProps {
   message: RequestMessage;
   isOwn: boolean;
-  isOwner: boolean; // currentUserId === productOwnerId
+  isOwner: boolean;
   formatTime: (dateString: string) => string;
   onAccept?: (messageId: number, senderId: number, productId: number) => Promise<void>;
   onDecline?: (messageId: number) => Promise<void>;
@@ -42,16 +40,41 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
   const [qrDataUrl, setQrDataUrl] = createSignal<string | null>(null);
   const [qrError, setQrError] = createSignal<string | null>(null);
 
+  // ✅ DEBUG: Log bei Message-Änderungen
+  createEffect(() => {
+    console.log("🔄 RequestMessageBubble: Message Update:", {
+      messageId: props.message.id,
+      messageType: props.message.message_type,
+      content: props.message.content?.substring(0, 30),
+      isOwner: props.isOwner,
+      isOwn: props.isOwn,
+      productId: props.message.product_id,
+      senderId: props.message.sender_id,
+      receiverId: props.message.receiver_id
+    });
+  });
+
   const tl = () => props.message.sender?.trustlevel ?? null;
 
-  // Status flags
-  const isPending = () => props.message.message_type === "request";
-  const isQrReady = () => props.message.message_type === "request_qr_ready";
-  const isAccepted = () => props.message.message_type === "request_accepted";
+  // ✅ WICHTIG: Mache message_type reaktiv
+  const messageType = createMemo(() => {
+    const type = props.message.message_type;
+    console.log("📊 RequestMessageBubble: messageType memo:", type);
+    return type;
+  });
+
+  // Status flags - nutze das Memo
+  const isPending = () => messageType() === "request";
+  const isQrReady = () => messageType() === "request_qr_ready";
+  const isAccepted = () => messageType() === "request_accepted";
+  const isDeclined = () => messageType() === "request_declined";
   const isQrLink = () => isAccepted() && (props.message.content ?? "").startsWith("http");
 
   const statusInfo = createMemo(() => {
-    switch (props.message.message_type) {
+    const type = messageType();
+    console.log("🎨 RequestMessageBubble: statusInfo für type:", type);
+    
+    switch (type) {
       case "request":
         return {
           icon: "🔔",
@@ -80,13 +103,19 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
           bgColor: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800",
           textColor: "text-red-900 dark:text-red-100",
         };
+      default:
+        return {
+          icon: "❓",
+          text: "Unknown",
+          bgColor: "bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800",
+          textColor: "text-gray-900 dark:text-gray-100",
+        };
     }
   });
 
-  // Derive owner/tester (robust-ish after status changes)
   const derived = createMemo(() => {
     const productId = props.message.product_id ?? null;
-    const type = props.message.message_type;
+    const type = messageType();
 
     if (productId == null) {
       return {
@@ -98,7 +127,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
       };
     }
 
-    // request: sender=tester, receiver=owner
     if (type === "request") {
       return {
         productId,
@@ -109,7 +137,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
       };
     }
 
-    // non-request: default sender=owner, receiver=tester; fallback swapped
     return {
       productId,
       ownerId: props.message.sender_id,
@@ -119,23 +146,49 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
     };
   });
 
-  const shouldShowQr = createMemo(() => props.isOwner && isQrReady() && derived().productId != null);
+  const shouldShowQr = createMemo(() => {
+    const d = derived();
+    const show = props.isOwner && isQrReady() && d.productId != null;
+    
+    console.log("🔍 RequestMessageBubble: shouldShowQr:", show, {
+      isOwner: props.isOwner,
+      isQrReady: isQrReady(),
+      messageType: messageType(),
+      productId: d.productId,
+      ownerId: d.ownerId,
+      testerId: d.testerId,
+      failReason: !props.isOwner ? "❌ NOT OWNER" : 
+                  !isQrReady() ? "❌ NOT QR_READY" : 
+                  !d.productId ? "❌ NO PRODUCT_ID" : 
+                  "✅ ALL OK"
+    });
+    
+    return show;
+  });
 
   const handleAccept = async () => {
+    console.log("✅ RequestMessageBubble: handleAccept START");
     if (!props.onAccept || !props.message.product_id) return;
     setProcessing(true);
     try {
       await props.onAccept(props.message.id, props.message.sender_id, props.message.product_id);
+      console.log("✅ RequestMessageBubble: handleAccept SUCCESS");
+    } catch (err) {
+      console.error("❌ RequestMessageBubble: handleAccept ERROR:", err);
     } finally {
       setProcessing(false);
     }
   };
 
   const handleDecline = async () => {
+    console.log("❌ RequestMessageBubble: handleDecline START");
     if (!props.onDecline) return;
     setProcessing(true);
     try {
       await props.onDecline(props.message.id);
+      console.log("✅ RequestMessageBubble: handleDecline SUCCESS");
+    } catch (err) {
+      console.error("❌ RequestMessageBubble: handleDecline ERROR:", err);
     } finally {
       setProcessing(false);
     }
@@ -157,7 +210,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
 
   const handlePrint = () => window.print();
 
-  // Owner-only: Token laden & QR generieren, sobald request_qr_ready
+  // Owner-only: Token laden & QR generieren
   createEffect(() => {
     const show = shouldShowQr();
     const d = derived();
@@ -167,14 +220,41 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
     const fallbackOwnerId = d.fallbackOwnerId;
     const fallbackTesterId = d.fallbackTesterId;
 
+    console.log("🔄 RequestMessageBubble: QR Effect triggered:", {
+      show,
+      isOwner: props.isOwner,
+      isQrReady: isQrReady(),
+      messageType: messageType(),
+      productId,
+      primaryOwnerId,
+      primaryTesterId,
+      reason: !show ? (
+        !props.isOwner ? "not owner" :
+        !isQrReady() ? "not qr_ready" :
+        !d.productId ? "no product_id" :
+        "unknown"
+      ) : "should show"
+    });
+
     setQrError(null);
     setRedeemUrl(null);
     setQrDataUrl(null);
 
-    if (!show || productId == null || primaryOwnerId == null || primaryTesterId == null) return;
+    if (!show || productId == null || primaryOwnerId == null || primaryTesterId == null) {
+      console.log("⏭️ RequestMessageBubble: QR Effect skipped - Conditions:", {
+        show,
+        hasProductId: productId != null,
+        hasOwnerId: primaryOwnerId != null,
+        hasTesterId: primaryTesterId != null
+      });
+      return;
+    }
+
+    console.log("🔍 RequestMessageBubble: Lade Token für QR...");
 
     (async () => {
       const tryFetch = async (ownerId: number, testerId: number) => {
+        console.log("🔍 RequestMessageBubble: tryFetch Token:", { ownerId, testerId, productId });
         return supabase
           .from("ProductCommentTokens")
           .select("token, redeemed_at, created_at")
@@ -189,18 +269,23 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
       let res = await tryFetch(primaryOwnerId, primaryTesterId);
 
       if (!res.error && !res.data?.token && typeof fallbackOwnerId === "number" && typeof fallbackTesterId === "number") {
+        console.log("🔄 RequestMessageBubble: Trying fallback IDs");
         res = await tryFetch(fallbackOwnerId, fallbackTesterId);
       }
 
       if (res.error) {
+        console.error("❌ RequestMessageBubble: Token fetch error:", res.error);
         setQrError(res.error.message);
         return;
       }
 
       if (!res.data?.token) {
+        console.warn("⚠️ RequestMessageBubble: No token found");
         setQrError(t("chatRequestMessageBubble.noTokenFound"));
         return;
       }
+
+      console.log("✅ RequestMessageBubble: Token gefunden:", res.data.token);
 
       const url = `${window.location.origin}/activate/${res.data.token}`;
       setRedeemUrl(url);
@@ -208,7 +293,9 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
       try {
         const img = await QRCode.toDataURL(url);
         setQrDataUrl(img);
+        console.log("✅ RequestMessageBubble: QR Code generiert");
       } catch (e: any) {
+        console.error("❌ RequestMessageBubble: QR generation error:", e);
         setQrError(e?.message ?? t("chatRequestMessageBubble.qrGenerateFailed"));
       }
     })();
@@ -265,7 +352,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
               <p class={`text-sm ${statusInfo().textColor} opacity-80 break-all`}>{props.message.content}</p>
             </Show>
 
-            {/* Wenn accepted + Link => Copy Button anzeigen (optional) */}
+            {/* Wenn accepted + Link => Copy Button anzeigen */}
             <Show when={isQrLink()}>
               <div class="mt-3 pt-3 border-t border-green-200 dark:border-green-800">
                 <button

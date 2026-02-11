@@ -21,8 +21,13 @@ export function useMessages() {
 
   const { setDirectMessageCount } = badgeStore;
 
+  console.log("🏗️ useMessages: Hook wird initialisiert");
+
   onMount(async () => {
+    console.log("🚀 useMessages.onMount START");
+    
     if (!isLoggedIn() || !sessionStore.user) {
+      console.log("❌ useMessages.onMount: Nicht eingeloggt, redirect zu /login");
       navigate("/login");
       return;
     }
@@ -35,6 +40,7 @@ export function useMessages() {
         .single();
 
       if (userData) {
+        console.log("✅ useMessages.onMount: User gefunden:", userData.id);
         setCurrentUserId(userData.id);
         await loadChats(userData.id);
         
@@ -43,9 +49,10 @@ export function useMessages() {
         }
       }
     } catch (err) {
-      console.error("Error loading user:", err);
+      console.error("❌ useMessages.onMount ERROR:", err);
     } finally {
       setLoading(false);
+      console.log("✅ useMessages.onMount COMPLETE");
     }
   });
 
@@ -53,14 +60,48 @@ export function useMessages() {
     const path = location.pathname;
     const userId = currentUserId();
     
+    console.log("🔄 useMessages.createEffect (pathname):", { path, userId });
+    
     if (path === "/messages" && userId) {
-      console.log("🔄 MESSAGES: Zurück zur Messages-Seite, lade Chats neu");
+      console.log("🔄 useMessages: Zurück zur Messages-Seite, lade Chats neu");
       loadChats(userId);
     }
   });
 
+  // ✅ WICHTIG: Store-Update Listener
+  createEffect(() => {
+    console.log("👂 useMessages.createEffect (Store-Listener) TRIGGERED");
+    
+    const chatUpdate = messagesStore.getLastChatUpdate();
+    const userId = currentUserId();
+    
+    console.log("👂 useMessages.createEffect (Store-Listener) - Daten:", {
+      chatUpdate,
+      userId,
+      hasUpdate: !!chatUpdate,
+      timestamp: chatUpdate?.timestamp || 0
+    });
+    
+    if (userId && chatUpdate && chatUpdate.timestamp > 0) {
+      console.log("✅✅✅ useMessages: Store-Update erkannt für Chat:", chatUpdate.chatId);
+      console.log("⏰ useMessages: Update Timestamp:", new Date(chatUpdate.timestamp).toISOString());
+      
+      if (reloadTimeout) {
+        console.log("⏳ useMessages: Clearing existing reload timeout");
+        clearTimeout(reloadTimeout);
+      }
+      
+      reloadTimeout = setTimeout(() => {
+        console.log("🔄🔄🔄 useMessages: LOADING CHATS nach Store-Update...");
+        loadChats(userId);
+      }, 300);
+    } else {
+      console.log("⏭️ useMessages: Kein Store-Update oder User nicht geladen");
+    }
+  });
+
   onCleanup(() => {
-    console.log("🧹 Messages: Cleanup aufgerufen");
+    console.log("🧹 useMessages.onCleanup");
     if (reloadTimeout) clearTimeout(reloadTimeout);
     if (globalMessagesChannel) {
       supabase.removeChannel(globalMessagesChannel);
@@ -69,7 +110,7 @@ export function useMessages() {
   });
 
   const setupRealtime = (userId: number) => {
-    console.log("🔌 MESSAGES: Setting up Realtime for user:", userId);
+    console.log("🔌 useMessages.setupRealtime START for user:", userId);
     
     globalMessagesChannel = supabase
       .channel(`messages-list-user-${userId}`)
@@ -82,10 +123,10 @@ export function useMessages() {
           filter: `receiver_id=eq.${userId}`,
         },
         (payload) => {
-          console.log("🔔 MESSAGES: INSERT Event (received)", payload);
+          console.log("🔔 useMessages: INSERT Event (received)", payload);
           
           if (["direct", "request", "request_qr_ready", "request_accepted", "request_declined"].includes(payload.new.message_type)) {
-            console.log("✅ MESSAGES: Relevante Message, reload!");
+            console.log("✅ useMessages: Relevante Message, reload!");
             
             if (reloadTimeout) clearTimeout(reloadTimeout);
             reloadTimeout = setTimeout(() => {
@@ -103,10 +144,10 @@ export function useMessages() {
           filter: `sender_id=eq.${userId}`,
         },
         (payload) => {
-          console.log("🔔 MESSAGES: INSERT Event (sent)", payload);
+          console.log("🔔 useMessages: INSERT Event (sent)", payload);
           
           if (["direct", "request", "request_qr_ready", "request_accepted", "request_declined"].includes(payload.new.message_type)) {
-            console.log("✅ MESSAGES: Eigene Message gesendet, reload!");
+            console.log("✅ useMessages: Eigene Message gesendet, reload!");
             
             if (reloadTimeout) clearTimeout(reloadTimeout);
             reloadTimeout = setTimeout(() => {
@@ -123,13 +164,13 @@ export function useMessages() {
           table: "Messages",
         },
         (payload) => {
-          console.log("🔔 MESSAGES: UPDATE Event", payload);
+          console.log("🔔 useMessages: UPDATE Event", payload);
           
           if (
             (payload.new.sender_id === userId || payload.new.receiver_id === userId) &&
             ["direct", "request", "request_qr_ready", "request_accepted", "request_declined"].includes(payload.new.message_type)
           ) {
-            console.log("✅ MESSAGES: Relevantes UPDATE, reload!");
+            console.log("✅ useMessages: Relevantes UPDATE, reload!");
             
             if (reloadTimeout) clearTimeout(reloadTimeout);
             reloadTimeout = setTimeout(() => {
@@ -139,14 +180,17 @@ export function useMessages() {
         }
       )
       .subscribe((status) => {
-        console.log("📡 MESSAGES Channel Status:", status);
+        console.log("📡 useMessages Channel Status:", status);
       });
+    
+    console.log("✅ useMessages.setupRealtime COMPLETE");
   };
 
   const loadChats = async (userId: number) => {
+    console.log("📥📥📥 useMessages.loadChats START for user:", userId);
+    const startTime = Date.now();
+    
     try {
-      console.log("📥 MESSAGES: Loading chats for user:", userId);
-      
       const { data: userChats, error: chatsError } = await supabase
         .from("Chat_Participants")
         .select("chat_id")
@@ -155,7 +199,7 @@ export function useMessages() {
       if (chatsError) throw chatsError;
 
       if (!userChats || userChats.length === 0) {
-        console.log("⚠️ MESSAGES: Keine Chats gefunden");
+        console.log("⚠️ useMessages.loadChats: Keine Chats gefunden");
         batch(() => {
           setChats([]);
           setFilteredChats([]);
@@ -165,7 +209,7 @@ export function useMessages() {
       }
 
       const chatIds = userChats.map(c => c.chat_id);
-      console.log("📋 MESSAGES: Chat IDs:", chatIds);
+      console.log("📋 useMessages.loadChats: Chat IDs:", chatIds);
 
       const { data: allChatDetails } = await supabase
         .from("Chats")
@@ -173,7 +217,7 @@ export function useMessages() {
         .in("id", chatIds);
 
       const chatDetails = (allChatDetails || []).filter(c => c.product_id === null);
-      console.log("💬 MESSAGES: Direct Chats:", chatDetails.length);
+      console.log("💬 useMessages.loadChats: Direct Chats:", chatDetails.length);
 
       if (chatDetails.length === 0) {
         batch(() => {
@@ -189,7 +233,7 @@ export function useMessages() {
       let totalUnreadCount = 0;
 
       for (const chatId of directChatIds) {
-        console.log(`🔍 MESSAGES: Verarbeite Chat ${chatId}`);
+        console.log(`🔍 useMessages.loadChats: Verarbeite Chat ${chatId}`);
         
         const { data: participants } = await supabase
           .from("Chat_Participants")
@@ -207,12 +251,12 @@ export function useMessages() {
           .neq("user_id", userId);
 
         if (!participants || participants.length === 0) {
-          console.log(`⚠️ MESSAGES: Keine Partner für Chat ${chatId}`);
+          console.log(`⚠️ useMessages.loadChats: Keine Partner für Chat ${chatId}`);
           continue;
         }
 
         const partner = participants[0].User as any;
-        console.log(`👥 MESSAGES: Chat ${chatId} Partner:`, partner.name);
+        console.log(`👥 useMessages.loadChats: Chat ${chatId} Partner:`, partner.name);
 
         const { data: lastMsg, error: lastMsgError } = await supabase
           .from("Messages")
@@ -224,10 +268,10 @@ export function useMessages() {
           .maybeSingle();
 
         if (lastMsgError) {
-          console.error(`❌ MESSAGES: Fehler beim Laden der letzten Nachricht für Chat ${chatId}:`, lastMsgError);
+          console.error(`❌ useMessages.loadChats: Fehler bei Chat ${chatId}:`, lastMsgError);
         }
 
-        console.log(`💬 MESSAGES: Chat ${chatId} Letzte Nachricht:`, lastMsg?.content || "Keine");
+        console.log(`💬 useMessages.loadChats: Chat ${chatId} Letzte Nachricht:`, lastMsg?.content || "Keine");
 
         const { data: unreadMessages, error: unreadError } = await supabase
           .from("Messages")
@@ -238,20 +282,15 @@ export function useMessages() {
           .eq("read", false);
 
         if (unreadError) {
-          console.error(`❌ MESSAGES: Fehler beim Laden ungelesener Nachrichten für Chat ${chatId}:`, unreadError);
+          console.error(`❌ useMessages.loadChats: Fehler unread für Chat ${chatId}:`, unreadError);
         }
 
         const unreadCount = (unreadMessages || []).length;
         totalUnreadCount += unreadCount;
         
-        // ✅ NEU: Speichere im messagesStore
         messagesStore.setUnreadCount(chatId, unreadCount);
         
-        console.log(`📬 MESSAGES: Chat ${chatId} - Ungelesene Nachrichten:`, unreadCount);
-        
-        if (unreadMessages && unreadMessages.length > 0) {
-          console.log("📋 MESSAGES: Ungelesene Details:", unreadMessages);
-        }
+        console.log(`📬 useMessages.loadChats: Chat ${chatId} - Unread:`, unreadCount);
 
         const hasUnreadRequest = (unreadMessages || []).some(
           m => m.message_type === 'request' && !m.read
@@ -270,33 +309,28 @@ export function useMessages() {
           hasUnreadRequest: hasUnreadRequest,
           partnerTrustlevel: partner.trustlevel,
         });
-
-        console.log(`✅ MESSAGES: Chat ${chatId} Preview erstellt - Unread Count:`, unreadCount);
       }
 
       chatPreviews.sort((a, b) => 
         new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
       );
 
-      console.log("📊 MESSAGES: Insgesamt", chatPreviews.length, "Chats geladen");
-      console.log("📬 MESSAGES: Total ungelesene Nachrichten:", totalUnreadCount);
+      console.log("📊 useMessages.loadChats: Insgesamt", chatPreviews.length, "Chats");
+      console.log("📬 useMessages.loadChats: Total Unread:", totalUnreadCount);
 
       const currentSearch = searchQuery();
-      console.log("🔍 MESSAGES: Aktueller Suchbegriff:", currentSearch);
 
       let filtered: ChatPreview[];
       if (!currentSearch || currentSearch.trim() === "") {
         filtered = chatPreviews;
-        console.log("✅ MESSAGES: Kein Filter aktiv");
       } else {
         filtered = chatPreviews.filter((chat) =>
           `${chat.partnerName} ${chat.partnerSurname}`.toLowerCase().includes(currentSearch.toLowerCase()) ||
           chat.lastMessage.toLowerCase().includes(currentSearch.toLowerCase())
         );
-        console.log("✅ MESSAGES: Filter angewendet:", filtered.length, "von", chatPreviews.length);
       }
 
-      console.log("🔄 MESSAGES: Setze alle States...");
+      console.log("🔄 useMessages.loadChats: Setze States...");
       
       batch(() => {
         setChats([...chatPreviews]);
@@ -304,9 +338,10 @@ export function useMessages() {
         setDirectMessageCount(totalUnreadCount);
       });
 
-      console.log("✅ MESSAGES: Alle States aktualisiert!");
+      const duration = Date.now() - startTime;
+      console.log(`✅✅✅ useMessages.loadChats COMPLETE in ${duration}ms`);
     } catch (err) {
-      console.error("Error loading chats:", err);
+      console.error("❌ useMessages.loadChats ERROR:", err);
     }
   };
 
@@ -314,20 +349,18 @@ export function useMessages() {
     const query = typeof value === 'function' ? value(searchQuery()) : value;
     setSearchQuery(query);
     
-    console.log("🔍 SEARCH: Query changed:", query);
+    console.log("🔍 useMessages.handleSearchChange:", query);
     
     const currentChats = chats();
     
     if (!query || query.trim() === "") {
       setFilteredChats([...currentChats]);
-      console.log("✅ SEARCH: Kein Filter, zeige alle", currentChats.length, "Chats");
     } else {
       const filtered = currentChats.filter((chat) =>
         `${chat.partnerName} ${chat.partnerSurname}`.toLowerCase().includes(query.toLowerCase()) ||
         chat.lastMessage.toLowerCase().includes(query.toLowerCase())
       );
       setFilteredChats([...filtered]);
-      console.log("✅ SEARCH: Filter angewendet:", filtered.length, "von", currentChats.length);
     }
   };
 
