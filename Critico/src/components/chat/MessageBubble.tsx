@@ -92,8 +92,8 @@ export function MessageBubble(props: MessageBubbleProps) {
                   min-w-[80px]
                   max-w-full
                   ${props.isOwn
-                    ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white"
-                    : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-br-md"
+                    : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-bl-md"
                   }
                 `}
               >

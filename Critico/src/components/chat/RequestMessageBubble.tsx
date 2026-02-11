@@ -7,12 +7,10 @@ interface RequestMessage {
   id: number;
   content: string;
   created_at: string;
-  sender_id: number; // request: Tester; qr_ready (optional): Owner
-  receiver_id: number; // request: Owner; qr_ready (optional): Tester
+  sender_id: number;
+  receiver_id: number;
   message_type: "request" | "request_qr_ready" | "request_accepted" | "request_declined";
   product_id?: number;
-
-  // optional: from useChat (not required here)
   qr_data_url?: string | null;
 
   sender: {
@@ -27,7 +25,7 @@ interface RequestMessage {
 interface RequestMessageBubbleProps {
   message: RequestMessage;
   isOwn: boolean;
-  isOwner: boolean; // currentUserId === productOwnerId
+  isOwner: boolean;
   formatTime: (dateString: string) => string;
   onAccept?: (messageId: number, senderId: number, productId: number) => Promise<void>;
   onDecline?: (messageId: number) => Promise<void>;
@@ -43,7 +41,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
 
   const tl = () => props.message.sender?.trustlevel ?? null;
 
-  // Status flags (define ONCE)
   const isPending = () => props.message.message_type === "request";
   const isQrReady = () => props.message.message_type === "request_qr_ready";
   const isAccepted = () => props.message.message_type === "request_accepted";
@@ -82,14 +79,12 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
     }
   });
 
-  // Derive owner/tester (robust-ish after status changes)
   const derived = createMemo(() => {
     const productId = props.message.product_id ?? null;
     const type = props.message.message_type;
 
     if (productId == null) return { productId: null as number | null, ownerId: null as number | null, testerId: null as number | null };
 
-    // request: sender=tester, receiver=owner
     if (type === "request") {
       return {
         productId,
@@ -100,7 +95,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
       };
     }
 
-    // non-request: default sender=owner, receiver=tester; fallback swapped
     return {
       productId,
       ownerId: props.message.sender_id,
@@ -134,12 +128,10 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
 
   const handleCopyLink = async () => {
     try {
-      // If we have a generated redeemUrl, prefer that.
       if (redeemUrl()) {
         await navigator.clipboard.writeText(redeemUrl()!);
         return;
       }
-      // Otherwise, copy message content if it looks like a link.
       if ((props.message.content ?? "").startsWith("http")) {
         await navigator.clipboard.writeText(props.message.content);
       }
@@ -150,7 +142,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
 
   const handlePrint = () => window.print();
 
-  // Owner-only: Token laden & QR generieren, sobald request_qr_ready
   createEffect(() => {
     const show = shouldShowQr();
     const d = derived();
@@ -176,7 +167,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
           .eq("tester_user_id", testerId)
           .order("created_at", { ascending: false })
           .limit(1)
-          .maybeSingle(); // returns 0 or 1 row [web:43]
+          .maybeSingle();
       };
 
       let res = await tryFetch(primaryOwnerId, primaryTesterId);
@@ -215,7 +206,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
           <Show
             when={props.message.sender?.picture}
             fallback={
-              <div class="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
+              <div class="w-8 h-8 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
                 {props.message.sender?.name?.charAt(0) ?? "?"}
               </div>
             }
@@ -227,7 +218,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
             />
           </Show>
 
-          {/* Trustlevel Badge */}
           <Show when={tl() != null}>
             <div
               class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full text-[9px] leading-[16px] text-center font-semibold bg-black/70 text-white"
@@ -240,13 +230,12 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
 
         {/* Content */}
         <div>
-          <div class={`px-4 py-3 rounded-2xl shadow-md border-2 ${statusInfo().bgColor}`}>
+          <div class={`px-4 py-3 rounded-2xl shadow-md border-2 ${statusInfo().bgColor} ${props.isOwn ? "rounded-br-md" : "rounded-bl-md"}`}>
             <div class="flex items-center gap-2 mb-2">
               <span class="text-xl">{statusInfo().icon}</span>
               <span class={`font-semibold ${statusInfo().textColor}`}>{statusInfo().text}</span>
             </div>
 
-            {/* Grundtext: Tester sieht bei QR-Ready NICHT den Link */}
             <Show
               when={!(isQrReady() && !props.isOwner)}
               fallback={
@@ -258,7 +247,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
               <p class={`text-sm ${statusInfo().textColor} opacity-80 break-all`}>{props.message.content}</p>
             </Show>
 
-            {/* Wenn accepted + Link => Copy Button anzeigen (optional) */}
             <Show when={isQrLink()}>
               <div class="mt-3 pt-3 border-t border-green-200 dark:border-green-800">
                 <button
@@ -271,7 +259,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
               </div>
             </Show>
 
-            {/* QR + Copy/Print nur für Owner bei request_qr_ready */}
             <Show when={shouldShowQr()}>
               <div class="mt-3 pt-3 border-t border-amber-200 dark:border-amber-800">
                 <div class="print-area">
@@ -316,7 +303,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
               </div>
             </Show>
 
-            {/* Accept/Decline nur für Owner bei pending */}
             <Show when={isPending() && props.isOwner}>
               <div class="flex gap-2 mt-3 pt-3 border-t border-amber-200 dark:border-amber-800">
                 <button
