@@ -13,6 +13,9 @@ interface SessionData {
 // ✅ In-Memory Cache für schnelle Lookups
 let userIdCache: { [authId: string]: number } = {};
 
+// ✅ NEU: Track ob je eine gültige Session existierte
+let hadValidSession = false;
+
 // Lade Cache beim Start aus localStorage
 try {
   const cachedData = localStorage.getItem('user_id_cache');
@@ -34,6 +37,7 @@ const [sessionStore, setSessionStore] = createStore<SessionData>({
 export const isLoggedIn = createMemo(() => !!sessionStore.session);
 export const currentUserId = createMemo(() => sessionStore.userId);
 export const currentUsername = createMemo(() => sessionStore.username);
+export const hadValidSessionBefore = () => hadValidSession; // ✅ NEU: Export
 
 export const getSession = () => ({
   session: sessionStore.session,
@@ -56,6 +60,9 @@ const setBaseSession = (session: Session | null, user?: User | null) => {
     clearAll();
     return;
   }
+  
+  hadValidSession = true; // ✅ NEU: Merke dass wir eine Session hatten
+  
   setSessionStore({
     session,
     user: user ?? session.user ?? null,
@@ -169,6 +176,8 @@ export const setSession = (data: Partial<SessionData>) => {
 export const clearSession = async () => {
   console.log("🚪 Clearing session and signing out...");
   clearAll();
+  
+  hadValidSession = false; // ✅ NEU: Reset bei explizitem Logout
   
   // ✅ Alle Caches löschen
   localStorage.removeItem("pendingActivateToken");
@@ -304,6 +313,7 @@ export const initAuthListener = async () => {
     if (event === 'SIGNED_OUT') {
       console.log("🚪 User signed out");
       clearAll();
+      hadValidSession = false; // ✅ NEU: Reset auch hier
       userIdCache = {};
       localStorage.removeItem("pendingActivateToken");
       

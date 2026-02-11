@@ -1,5 +1,6 @@
 import { Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
+import { supabase } from "../lib/supabaseClient"; // ggf. Pfad anpassen
 import { useProfile } from "../hooks/profile/useProfile";
 import { useProfilePicture } from "../hooks/profile/useProfilePicture";
 import { useUserProducts } from "../hooks/profile/useUserProduct";
@@ -12,7 +13,7 @@ import ProgressBar from "../components/profile/ProgressBar";
 import ProductGrid from "../components/profile/ProductGrid";
 
 export default function Profile() {
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // navigate(-1) = zurück [web:1009]
   const { user, setUser, loading, error: profileError } = useProfile();
 
   const {
@@ -89,7 +90,6 @@ export default function Profile() {
 
         <Show when={!loading() && user()}>
           <div class="space-y-6">
-            {/* Profile Header Card */}
             <ProfileHeader
               user={user}
               uploading={uploading}
@@ -97,20 +97,14 @@ export default function Profile() {
               onDelete={handleDeletePicture}
             />
 
-            {/* Status Messages */}
             <StatusMessages
               error={() => pictureError() || profileError()}
               success={success}
               uploading={uploading}
             />
 
-            {/* Stats Cards */}
             <StatsCards user={user!} />
-
-            {/* Progress Bar */}
             <ProgressBar user={user!} />
-
-            {/* Products Grid */}
             <ProductGrid products={products} loading={productsLoading} />
           </div>
         </Show>
