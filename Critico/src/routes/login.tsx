@@ -12,7 +12,6 @@ export default function Login() {
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
   
-  // ✅ Speichere redirectTo beim Mount (bevor es durch Navigation verloren geht)
   const [savedRedirectTo, setSavedRedirectTo] = createSignal<string>("/home");
 
   onMount(() => {
@@ -27,14 +26,24 @@ export default function Login() {
         if (decoded.startsWith("/")) {
           console.log("✅ LOGIN MOUNT: Saved redirectTo:", decoded);
           setSavedRedirectTo(decoded);
+          
+          // ✅ Wenn redirectTo ein activate Link ist, dann ist pendingActivateToken gültig
+          // Ansonsten LÖSCHEN wir ihn, weil er nicht mehr relevant ist
+          if (!decoded.includes("/activate/")) {
+            console.log("🗑️ LOGIN MOUNT: Clearing pendingActivateToken (not from activate route)");
+            localStorage.removeItem("pendingActivateToken");
+          }
         }
       } catch (err) {
         console.error("❌ LOGIN MOUNT: Error decoding redirectTo:", err);
       }
+    } else {
+      // ✅ Kein redirectTo Parameter? → Token ist veraltet, löschen
+      console.log("🗑️ LOGIN MOUNT: No redirectTo, clearing pendingActivateToken");
+      localStorage.removeItem("pendingActivateToken");
     }
   });
 
-  // ✅ Falls User schon eingeloggt ist
   createEffect(() => {
     const loggedIn = isLoggedIn();
     console.log("🔐 LOGIN: isLoggedIn() =", loggedIn);
@@ -43,10 +52,16 @@ export default function Login() {
       const target = savedRedirectTo();
       const pendingToken = localStorage.getItem("pendingActivateToken");
       
-      if (pendingToken) {
-        console.log("🎫 LOGIN: Pending activate token found, redirecting to activate");
-        navigate(`/activate/${pendingToken}`, { replace: true });
+      // ✅ Nur pendingToken verwenden wenn wir tatsächlich zu /activate wollen
+      if (pendingToken && target.includes("/activate/")) {
+        console.log("🎫 LOGIN: Pending activate token found AND target is activate, redirecting");
+        navigate(target, { replace: true });
       } else {
+        // ✅ Token löschen falls er existiert aber nicht relevant ist
+        if (pendingToken) {
+          console.log("🗑️ LOGIN: Clearing irrelevant pendingActivateToken");
+          localStorage.removeItem("pendingActivateToken");
+        }
         console.log("🚀 LOGIN: Already logged in, redirecting to:", target);
         navigate(target, { replace: true });
       }
@@ -77,14 +92,11 @@ export default function Login() {
       console.log("✅ LOGIN: Supabase login successful");
       console.log("👤 LOGIN: User:", data.user.email);
 
-      // ✅ Session Store updaten
-      console.log("💾 LOGIN: Updating session store...");
       setSession({
         session: data.session,
         user: data.user,
       });
 
-      // ✅ Navigation passiert automatisch durch createEffect wenn isLoggedIn() true wird
       console.log("⏳ LOGIN: Waiting for auth state change to trigger redirect...");
       console.log("═══════════════════════════════════════");
     } catch (err: any) {
