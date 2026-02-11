@@ -1,6 +1,7 @@
 import { Show, For, Accessor } from "solid-js";
 import { ProductCard } from "../ProductCard";
 import { Product } from "../../hooks/home/useProducts";
+import { t } from "../../lib/i18n";
 
 interface ProductGridProps {
   products: Accessor<Product[]>;
@@ -21,16 +22,14 @@ export default function ProductGrid(props: ProductGridProps) {
       <Show when={!props.loading() && !hasProducts()}>
         <div class="text-center py-16 sm:py-20">
           <p class="text-gray-500 dark:text-gray-400 text-base sm:text-lg">
-            Keine Produkte gefunden.
+            {t("productGrid.empty")}
           </p>
         </div>
       </Show>
 
       <Show when={hasProducts()}>
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
-          <For each={props.products()}>
-            {(product) => <ProductCard product={product} />}
-          </For>
+          <For each={props.products()}>{(product) => <ProductCard product={product} />}</For>
         </div>
       </Show>
     </main>
