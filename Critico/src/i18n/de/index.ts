@@ -36,6 +36,8 @@ import { dict as headerActions } from "./headerActions";
 import { dict as createProduct } from "./createProduct";
 import { dict as tags } from "./tags";
 import { dict as filterDropdown } from "./filterDropdown";
+import { dict as activate } from "./activate";
+
 
 
 
@@ -81,5 +83,6 @@ export const dict = {
   createProduct,
   productDetail,
   tags,
-  filterDropdown
+  filterDropdown,
+  activate
 } as const;
