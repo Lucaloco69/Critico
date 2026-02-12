@@ -5,6 +5,7 @@ import sessionStore, { isLoggedIn } from "../lib/sessionStore";
 import { badgeStore } from "../lib/badgeStore";
 import { messagesStore } from "../lib/messagesStore";
 import { ChatPreview } from "~/types/chat";
+import { RealtimePostgresChangesPayload, REALTIME_SUBSCRIBE_STATES } from '@supabase/supabase-js';
 
 let globalMessagesChannel: any = null;
 let reloadTimeout: any = null;
@@ -68,7 +69,7 @@ export function useMessages() {
     }
   });
 
-  // ✅ WICHTIG: Store-Update Listener
+  // ✅ Store-Update Listener
   createEffect(() => {
     console.log("👂 useMessages.createEffect (Store-Listener) TRIGGERED");
     
@@ -112,8 +113,18 @@ export function useMessages() {
   const setupRealtime = (userId: number) => {
     console.log("🔌 useMessages.setupRealtime START for user:", userId);
     
-    globalMessagesChannel = supabase
-      .channel(`messages-list-user-${userId}`)
+    // ✅ Channel mit broadcast config erstellen
+    globalMessagesChannel = supabase.channel(`messages-list-user-${userId}`, {
+      config: {
+        broadcast: { 
+          self: true,
+          ack: true
+        }
+      }
+    });
+
+    globalMessagesChannel
+      // ✅ INSERT Event - empfangene Messages
       .on(
         "postgres_changes",
         {
@@ -122,11 +133,11 @@ export function useMessages() {
           table: "Messages",
           filter: `receiver_id=eq.${userId}`,
         },
-        (payload) => {
+        (payload: RealtimePostgresChangesPayload<any>) => {
           console.log("🔔 useMessages: INSERT Event (received)", payload);
           
           if (["direct", "request", "request_qr_ready", "request_accepted", "request_declined"].includes(payload.new.message_type)) {
-            console.log("✅ useMessages: Relevante Message, reload!");
+            console.log("✅ useMessages: Relevante Message empfangen, reload!");
             
             if (reloadTimeout) clearTimeout(reloadTimeout);
             reloadTimeout = setTimeout(() => {
@@ -135,6 +146,7 @@ export function useMessages() {
           }
         }
       )
+      // ✅ INSERT Event - gesendete Messages
       .on(
         "postgres_changes",
         {
@@ -143,7 +155,7 @@ export function useMessages() {
           table: "Messages",
           filter: `sender_id=eq.${userId}`,
         },
-        (payload) => {
+        (payload: RealtimePostgresChangesPayload<any>) => {
           console.log("🔔 useMessages: INSERT Event (sent)", payload);
           
           if (["direct", "request", "request_qr_ready", "request_accepted", "request_declined"].includes(payload.new.message_type)) {
@@ -156,6 +168,7 @@ export function useMessages() {
           }
         }
       )
+      // ✅ UPDATE Event - für message_type Changes
       .on(
         "postgres_changes",
         {
@@ -163,7 +176,7 @@ export function useMessages() {
           schema: "public",
           table: "Messages",
         },
-        (payload) => {
+        (payload: RealtimePostgresChangesPayload<any>) => {
           console.log("🔔 useMessages: UPDATE Event", payload);
           
           if (
@@ -179,171 +192,218 @@ export function useMessages() {
           }
         }
       )
-      .subscribe((status) => {
-        console.log("📡 useMessages Channel Status:", status);
+      // ✅ BROADCAST Event - für Accept/Decline
+      .on(
+        "broadcast",
+        { event: "message_updated" },
+        (payload: { payload: { messageId: number; chatId: number } }) => {
+          console.log("🔔🔔🔔 useMessages: BROADCAST empfangen:", payload);
+          
+          console.log("✅ useMessages: Broadcast empfangen, reload Chats!");
+          
+          if (reloadTimeout) clearTimeout(reloadTimeout);
+          reloadTimeout = setTimeout(() => {
+            loadChats(userId);
+          }, 300);
+        }
+      )
+      .subscribe((status: string, err?: Error) => {
+        console.log("📡 useMessages Channel Status:", {
+          status,
+          error: err,
+          channelName: `messages-list-user-${userId}`,
+          timestamp: new Date().toISOString()
+        });
+        
+        if (status === REALTIME_SUBSCRIBE_STATES.SUBSCRIBED) {
+          console.log("✅✅✅ useMessages: REALTIME CHANNEL AKTIV!");
+        } else if (status === REALTIME_SUBSCRIBE_STATES.CLOSED) {
+          console.error("❌❌❌ useMessages: REALTIME CHANNEL GESCHLOSSEN!");
+        } else if (status === REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR) {
+          console.error("❌❌❌ useMessages: REALTIME CHANNEL ERROR:", err);
+        }
       });
     
     console.log("✅ useMessages.setupRealtime COMPLETE");
   };
 
-  const loadChats = async (userId: number) => {
-    console.log("📥📥📥 useMessages.loadChats START for user:", userId);
-    const startTime = Date.now();
-    
-    try {
-      const { data: userChats, error: chatsError } = await supabase
+ const loadChats = async (userId: number) => {
+  console.log("📥📥📥 useMessages.loadChats START for user:", userId);
+  const startTime = Date.now();
+  
+  try {
+    const { data: userChats, error: chatsError } = await supabase
+      .from("Chat_Participants")
+      .select("chat_id")
+      .eq("user_id", userId);
+
+    if (chatsError) throw chatsError;
+
+    if (!userChats || userChats.length === 0) {
+      console.log("⚠️ useMessages.loadChats: Keine Chats gefunden");
+      batch(() => {
+        setChats([]);
+        setFilteredChats([]);
+        setDirectMessageCount(0);
+      });
+      return;
+    }
+
+    const chatIds = userChats.map(c => c.chat_id);
+    console.log("📋 useMessages.loadChats: Chat IDs:", chatIds);
+
+    const { data: allChatDetails } = await supabase
+      .from("Chats")
+      .select("id, product_id")
+      .in("id", chatIds);
+
+    const chatDetails = (allChatDetails || []).filter(c => c.product_id === null);
+    console.log("💬 useMessages.loadChats: Direct Chats:", chatDetails.length);
+
+    if (chatDetails.length === 0) {
+      batch(() => {
+        setChats([]);
+        setFilteredChats([]);
+        setDirectMessageCount(0);
+      });
+      return;
+    }
+
+    const directChatIds = chatDetails.map(c => c.id);
+    const chatPreviews: ChatPreview[] = [];
+    let totalUnreadCount = 0;
+
+    for (const chatId of directChatIds) {
+      console.log(`🔍 useMessages.loadChats: Verarbeite Chat ${chatId}`);
+      
+      const { data: participants } = await supabase
         .from("Chat_Participants")
-        .select("chat_id")
-        .eq("user_id", userId);
+        .select(`
+          user_id,
+          User (
+            id,
+            name,
+            surname,
+            picture,
+            trustlevel
+          )
+        `)
+        .eq("chat_id", chatId)
+        .neq("user_id", userId);
 
-      if (chatsError) throw chatsError;
-
-      if (!userChats || userChats.length === 0) {
-        console.log("⚠️ useMessages.loadChats: Keine Chats gefunden");
-        batch(() => {
-          setChats([]);
-          setFilteredChats([]);
-          setDirectMessageCount(0);
-        });
-        return;
+      if (!participants || participants.length === 0) {
+        console.log(`⚠️ useMessages.loadChats: Keine Partner für Chat ${chatId}`);
+        continue;
       }
 
-      const chatIds = userChats.map(c => c.chat_id);
-      console.log("📋 useMessages.loadChats: Chat IDs:", chatIds);
+      const partner = participants[0].User as any;
+      console.log(`👥 useMessages.loadChats: Chat ${chatId} Partner:`, partner.name);
 
-      const { data: allChatDetails } = await supabase
-        .from("Chats")
-        .select("id, product_id")
-        .in("id", chatIds);
+      const { data: lastMsg, error: lastMsgError } = await supabase
+        .from("Messages")
+        .select("content, created_at, message_type")
+        .eq("chat_id", chatId)
+        .in("message_type", ["direct", "request", "request_qr_ready", "request_accepted", "request_declined"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      const chatDetails = (allChatDetails || []).filter(c => c.product_id === null);
-      console.log("💬 useMessages.loadChats: Direct Chats:", chatDetails.length);
-
-      if (chatDetails.length === 0) {
-        batch(() => {
-          setChats([]);
-          setFilteredChats([]);
-          setDirectMessageCount(0);
-        });
-        return;
+      if (lastMsgError) {
+        console.error(`❌ useMessages.loadChats: Fehler bei Chat ${chatId}:`, lastMsgError);
       }
 
-      const directChatIds = chatDetails.map(c => c.id);
-      const chatPreviews: ChatPreview[] = [];
-      let totalUnreadCount = 0;
+      console.log(`💬 useMessages.loadChats: Chat ${chatId} Letzte Nachricht:`, lastMsg?.content || "Keine");
 
-      for (const chatId of directChatIds) {
-        console.log(`🔍 useMessages.loadChats: Verarbeite Chat ${chatId}`);
-        
-        const { data: participants } = await supabase
-          .from("Chat_Participants")
-          .select(`
-            user_id,
-            User (
-              id,
-              name,
-              surname,
-              picture,
-              trustlevel
-            )
-          `)
-          .eq("chat_id", chatId)
-          .neq("user_id", userId);
+      const { data: unreadMessages, error: unreadError } = await supabase
+        .from("Messages")
+        .select("id, sender_id, receiver_id, read, content, message_type")
+        .eq("chat_id", chatId)
+        .in("message_type", ["direct", "request", "request_qr_ready", "request_accepted", "request_declined"])
+        .eq("receiver_id", userId)
+        .eq("read", false);
 
-        if (!participants || participants.length === 0) {
-          console.log(`⚠️ useMessages.loadChats: Keine Partner für Chat ${chatId}`);
-          continue;
-        }
-
-        const partner = participants[0].User as any;
-        console.log(`👥 useMessages.loadChats: Chat ${chatId} Partner:`, partner.name);
-
-        const { data: lastMsg, error: lastMsgError } = await supabase
-          .from("Messages")
-          .select("content, created_at, message_type")
-          .eq("chat_id", chatId)
-          .in("message_type", ["direct", "request", "request_qr_ready", "request_accepted", "request_declined"])
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (lastMsgError) {
-          console.error(`❌ useMessages.loadChats: Fehler bei Chat ${chatId}:`, lastMsgError);
-        }
-
-        console.log(`💬 useMessages.loadChats: Chat ${chatId} Letzte Nachricht:`, lastMsg?.content || "Keine");
-
-        const { data: unreadMessages, error: unreadError } = await supabase
-          .from("Messages")
-          .select("id, sender_id, receiver_id, read, content, message_type")
-          .eq("chat_id", chatId)
-          .in("message_type", ["direct", "request", "request_qr_ready", "request_accepted", "request_declined"])
-          .eq("receiver_id", userId)
-          .eq("read", false);
-
-        if (unreadError) {
-          console.error(`❌ useMessages.loadChats: Fehler unread für Chat ${chatId}:`, unreadError);
-        }
-
-        const unreadCount = (unreadMessages || []).length;
-        totalUnreadCount += unreadCount;
-        
-        messagesStore.setUnreadCount(chatId, unreadCount);
-        
-        console.log(`📬 useMessages.loadChats: Chat ${chatId} - Unread:`, unreadCount);
-
-        const hasUnreadRequest = (unreadMessages || []).some(
-          m => m.message_type === 'request' && !m.read
-        );
-
-        chatPreviews.push({
-          chatId,
-          partnerId: partner.id,
-          partnerName: partner.name,
-          partnerSurname: partner.surname,
-          partnerPicture: partner.picture,
-          lastMessage: lastMsg?.content || "Noch keine Nachrichten",
-          lastMessageTime: lastMsg?.created_at || new Date().toISOString(),
-          lastMessageType: lastMsg?.message_type,
-          unreadCount: unreadCount,
-          hasUnreadRequest: hasUnreadRequest,
-          partnerTrustlevel: partner.trustlevel,
-        });
+      if (unreadError) {
+        console.error(`❌ useMessages.loadChats: Fehler unread für Chat ${chatId}:`, unreadError);
       }
 
-      chatPreviews.sort((a, b) => 
-        new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
+      const unreadCount = (unreadMessages || []).length;
+      totalUnreadCount += unreadCount;
+      
+      messagesStore.setUnreadCount(chatId, unreadCount);
+      
+      console.log(`📬 useMessages.loadChats: Chat ${chatId} - Unread:`, unreadCount);
+
+      const hasUnreadRequest = (unreadMessages || []).some(
+        m => m.message_type === 'request' && !m.read
       );
 
-      console.log("📊 useMessages.loadChats: Insgesamt", chatPreviews.length, "Chats");
-      console.log("📬 useMessages.loadChats: Total Unread:", totalUnreadCount);
-
-      const currentSearch = searchQuery();
-
-      let filtered: ChatPreview[];
-      if (!currentSearch || currentSearch.trim() === "") {
-        filtered = chatPreviews;
-      } else {
-        filtered = chatPreviews.filter((chat) =>
-          `${chat.partnerName} ${chat.partnerSurname}`.toLowerCase().includes(currentSearch.toLowerCase()) ||
-          chat.lastMessage.toLowerCase().includes(currentSearch.toLowerCase())
-        );
-      }
-
-      console.log("🔄 useMessages.loadChats: Setze States...");
-      
-      batch(() => {
-        setChats([...chatPreviews]);
-        setFilteredChats([...filtered]);
-        setDirectMessageCount(totalUnreadCount);
+      chatPreviews.push({
+        chatId,
+        partnerId: partner.id,
+        partnerName: partner.name,
+        partnerSurname: partner.surname,
+        partnerPicture: partner.picture,
+        lastMessage: lastMsg?.content || "Noch keine Nachrichten",
+        lastMessageTime: lastMsg?.created_at || new Date().toISOString(),
+        lastMessageType: lastMsg?.message_type,
+        unreadCount: unreadCount,
+        hasUnreadRequest: hasUnreadRequest,
+        partnerTrustlevel: partner.trustlevel,
       });
-
-      const duration = Date.now() - startTime;
-      console.log(`✅✅✅ useMessages.loadChats COMPLETE in ${duration}ms`);
-    } catch (err) {
-      console.error("❌ useMessages.loadChats ERROR:", err);
     }
-  };
+
+    chatPreviews.sort((a, b) => 
+      new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
+    );
+
+    console.log("📊 useMessages.loadChats: Insgesamt", chatPreviews.length, "Chats");
+    console.log("📬 useMessages.loadChats: Total Unread:", totalUnreadCount);
+
+    const currentSearch = searchQuery();
+
+    let filtered: ChatPreview[];
+    if (!currentSearch || currentSearch.trim() === "") {
+      filtered = chatPreviews;
+    } else {
+      filtered = chatPreviews.filter((chat) =>
+        `${chat.partnerName} ${chat.partnerSurname}`.toLowerCase().includes(currentSearch.toLowerCase()) ||
+        chat.lastMessage.toLowerCase().includes(currentSearch.toLowerCase())
+      );
+    }
+
+    console.log("🔄 useMessages.loadChats: Setze States...");
+    
+    // ✅ Force complete re-render
+    batch(() => {
+      setChats([]);
+      setFilteredChats([]);
+      
+      queueMicrotask(() => {
+        setChats(chatPreviews.map(c => ({ ...c })));
+        setFilteredChats(filtered.map(c => ({ ...c })));
+        setDirectMessageCount(totalUnreadCount);
+        
+        console.log("✅✅✅ useMessages: States gesetzt:", {
+          chatsCount: chatPreviews.length,
+          filteredCount: filtered.length,
+          totalUnread: totalUnreadCount,
+          chats: chatPreviews.map(c => ({
+            partnerId: c.partnerId,
+            unread: c.unreadCount,
+            lastMsg: c.lastMessage.substring(0, 20)
+          })),
+          timestamp: Date.now()
+        });
+      });
+    });
+
+    const duration = Date.now() - startTime;
+    console.log(`✅✅✅ useMessages.loadChats COMPLETE in ${duration}ms`);
+  } catch (err) {
+    console.error("❌ useMessages.loadChats ERROR:", err);
+  }
+};
+
 
   const handleSearchChange = (value: string | ((prev: string) => string)) => {
     const query = typeof value === 'function' ? value(searchQuery()) : value;

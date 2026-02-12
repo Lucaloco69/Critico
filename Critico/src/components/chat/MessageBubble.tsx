@@ -56,31 +56,33 @@ export function MessageBubble(props: MessageBubbleProps) {
         <div class={`flex ${props.isOwn ? "justify-end" : "justify-start"} w-full`}>
           {/* ✅ max-w-[60%] für die gesamte Message-Gruppe */}
           <div class={`flex gap-2 max-w-[60%] ${props.isOwn ? "flex-row-reverse" : ""}`}>
-            {/* Avatar */}
-            <div class="relative w-8 h-8 flex-shrink-0">
-              <Show
-                when={props.message.sender?.picture}
-                fallback={
-                  <div class="w-8 h-8 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
-                    {props.message.sender?.name?.charAt(0) ?? "?"}
-                  </div>
-                }
-              >
-                <img
-                  src={props.message.sender!.picture!}
-                  alt={props.message.sender?.name}
-                  class="w-8 h-8 rounded-full object-cover shadow-md"
-                />
-              </Show>
-
-              <Show when={tl() != null}>
-                <div
-                  class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full text-[9px] leading-[16px] text-center font-semibold bg-black/70 text-white"
-                  title={`Trustlevel ${tl()}`}
+            {/* ✅ Avatar Container - KOMPLETT ISOLIERT */}
+            <div class="flex-shrink-0 self-end mb-1">
+              <div class="relative w-8 h-8">
+                <Show
+                  when={props.message.sender?.picture}
+                  fallback={
+                    <div class="w-8 h-8 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
+                      {props.message.sender?.name?.charAt(0) ?? "?"}
+                    </div>
+                  }
                 >
-                  {tl()}
-                </div>
-              </Show>
+                  <img
+                    src={props.message.sender!.picture!}
+                    alt={props.message.sender?.name}
+                    class="w-8 h-8 rounded-full object-cover shadow-md"
+                  />
+                </Show>
+
+                <Show when={tl() != null}>
+                  <div
+                    class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full text-[9px] leading-[16px] text-center font-semibold bg-black/70 text-white"
+                    title={`Trustlevel ${tl()}`}
+                  >
+                    {tl()}
+                  </div>
+                </Show>
+              </div>
             </div>
 
             {/* Message Content Container */}
@@ -92,8 +94,8 @@ export function MessageBubble(props: MessageBubbleProps) {
                   min-w-[80px]
                   max-w-full
                   ${props.isOwn
-                    ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white"
-                    : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-br-md"
+                    : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-bl-md"
                   }
                 `}
               >
