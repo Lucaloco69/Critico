@@ -1,5 +1,5 @@
 import { A } from "@solidjs/router";
-import { Show, createMemo } from "solid-js";
+import { Show, onMount } from "solid-js";
 import { ChatPreview } from "~/types/chat";
 import { t } from "../../lib/i18n";
 
@@ -18,73 +18,75 @@ const trustBadgeClass = (tl: number) => {
 };
 
 export function ChatPreviewItem(props: ChatPreviewItemProps) {
-  // ✅ createMemo für reactive values
-  const chat = createMemo(() => props.chat);
-  const tl = createMemo(() => props.chat.partnerTrustlevel);
-  const unreadCount = createMemo(() => props.chat.unreadCount);
-  const hasUnreadRequest = createMemo(() => props.chat.hasUnreadRequest);
-  const lastMessageType = createMemo(() => props.chat.lastMessageType);
-  const lastMessage = createMemo(() => props.chat.lastMessage);
+  onMount(() => {
+    console.log("🆕 ChatPreviewItem mounted:", {
+      partnerId: props.chat.partnerId,
+      partnerName: props.chat.partnerName,
+      unreadCount: props.chat.unreadCount,
+      lastMessage: props.chat.lastMessage.substring(0, 20)
+    });
+  });
 
-  const getPreviewText = createMemo(() => {
-    const type = lastMessageType();
+  const getPreviewText = () => {
+    const type = props.chat.lastMessageType;
 
     if (type === "request") return t("messagesChatPreviewItem.previewRequest");
     if (type === "request_accepted") return t("messagesChatPreviewItem.previewAccepted");
     if (type === "request_declined") return t("messagesChatPreviewItem.previewDeclined");
 
-    return lastMessage();
-  });
+    return props.chat.lastMessage;
+  };
 
-  const getPreviewStyle = createMemo(() => {
-    const type = lastMessageType();
+  const getPreviewStyle = () => {
+    const type = props.chat.lastMessageType;
 
     if (type === "request") return "text-amber-600 dark:text-amber-400 font-semibold";
     if (type === "request_accepted") return "text-green-600 dark:text-green-400 font-semibold";
     if (type === "request_declined") return "text-red-600 dark:text-red-400 font-semibold";
 
-    return unreadCount() > 0 
+    return props.chat.unreadCount > 0 
       ? "text-gray-900 dark:text-white font-medium" 
       : "text-gray-600 dark:text-gray-400";
-  });
+  };
+
+  console.log("🔄 ChatPreviewItem render:", props.chat.partnerName, "unread:", props.chat.unreadCount);
 
   return (
     <A
-      href={`/chat/${chat().partnerId}`}
+      href={`/chat/${props.chat.partnerId}`}
       class="flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
     >
       <div class="relative flex-shrink-0">
         <Show
-          when={chat().partnerPicture}
+          when={props.chat.partnerPicture}
           fallback={
             <div class="w-14 h-14 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
-              {chat().partnerName.charAt(0)}
-              {chat().partnerSurname.charAt(0)}
+              {props.chat.partnerName.charAt(0)}
+              {props.chat.partnerSurname.charAt(0)}
             </div>
           }
         >
           <img
-            src={chat().partnerPicture!}
-            alt={`${chat().partnerName} ${chat().partnerSurname}`}
+            src={props.chat.partnerPicture!}
+            alt={`${props.chat.partnerName} ${props.chat.partnerSurname}`}
             class="w-14 h-14 rounded-full object-cover shadow-md"
           />
         </Show>
 
-        <Show when={tl() != null}>
+        <Show when={props.chat.partnerTrustlevel != null}>
           <div
             class={`absolute -bottom-1 -right-1 px-2 py-0.5 rounded-full text-[10px] font-bold shadow border border-white dark:border-gray-900 ${trustBadgeClass(
-              tl() as number,
+              props.chat.partnerTrustlevel as number,
             )}`}
-            title={t("messagesChatPreviewItem.trustlevelTitle", { level: tl() as number })}
+            title={t("messagesChatPreviewItem.trustlevelTitle", { level: props.chat.partnerTrustlevel as number })}
           >
-            TL{tl()}
+            TL{props.chat.partnerTrustlevel}
           </div>
         </Show>
 
-        {/* ✅ WICHTIG: unreadCount() als Funktion aufrufen */}
-        <Show when={unreadCount() > 0}>
+        <Show when={props.chat.unreadCount > 0}>
           <div class="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg">
-            {unreadCount()}
+            {props.chat.unreadCount}
           </div>
         </Show>
       </div>
@@ -92,16 +94,15 @@ export function ChatPreviewItem(props: ChatPreviewItemProps) {
       <div class="flex-1 min-w-0">
         <div class="flex items-baseline justify-between mb-1">
           <h3 class="font-semibold text-gray-900 dark:text-white truncate">
-            {chat().partnerName} {chat().partnerSurname}
+            {props.chat.partnerName} {props.chat.partnerSurname}
           </h3>
           <span class="text-xs text-gray-500 dark:text-gray-400 ml-2 flex-shrink-0">
-            {props.formatTime(chat().lastMessageTime)}
+            {props.formatTime(props.chat.lastMessageTime)}
           </span>
         </div>
 
         <div class="flex items-center gap-2">
-          {/* ✅ WICHTIG: hasUnreadRequest() als Funktion aufrufen */}
-          <Show when={hasUnreadRequest()}>
+          <Show when={props.chat.hasUnreadRequest}>
             <span class="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-semibold rounded-full border border-amber-200 dark:border-amber-800">
               {t("messagesChatPreviewItem.requestBadge")}
             </span>

@@ -5,6 +5,7 @@ import sessionStore, { isLoggedIn } from "../lib/sessionStore";
 import { messagesStore } from "../lib/messagesStore";
 import { RealtimePostgresChangesPayload, REALTIME_SUBSCRIBE_STATES } from '@supabase/supabase-js';
 
+
 export interface Message {
   id: number;
   content: string;
@@ -51,7 +52,9 @@ export function useChat() {
   const params = useParams();
   const navigate = useNavigate();
 
-  const [messages, setMessages] = createSignal<Message[]>([]);
+  // ✅ Verwende globalen Store statt lokalem Signal
+  const { chatMessages: messages } = messagesStore;
+  
   const [newMessage, setNewMessage] = createSignal("");
   const [chatPartner, setChatPartner] = createSignal<ChatPartner | null>(null);
   const [currentUserId, setCurrentUserId] = createSignal<number | null>(null);
@@ -117,135 +120,46 @@ export function useChat() {
     return date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
   };
 
- const upsertMessageLocal = (msg: Message) => {
-  console.log("🔧 useChat.upsertMessageLocal:", msg.id, msg.content.substring(0, 30));
-  
-  setMessages((prev) => {
-    const idx = prev.findIndex((m) => m.id === msg.id);
+  const loadMessages = async (directChatId: number, userId: number) => {
+    console.log("📥 useChat.loadMessages START:", { directChatId, userId });
     
-    if (idx === -1) {
-      console.log("✅ useChat: Neue Message hinzugefügt");
-      // ✅ Neues Array mit spread
-      const updated = [...prev, { ...msg }];
-      
-      queueMicrotask(() => {
-        console.log("📊 useChat: Messages nach INSERT:", {
-          count: updated.length,
-          lastMessage: updated[updated.length - 1]?.content.substring(0, 30)
-        });
-      });
-      
-      return updated;
-    }
-    
-    console.log("🔄 useChat: Existierende Message aktualisiert");
-    // ✅ Neues Array mit map
-    const updated = prev.map((m) => m.id === msg.id ? { ...msg } : m);
-    
-    queueMicrotask(() => {
-      console.log("📊 useChat: Messages nach UPDATE:", {
-        count: updated.length,
-        updatedMessageId: msg.id,
-        updatedMessageType: msg.message_type
-      });
-    });
-    
-    return updated;
-  });
-  
-  setTimeout(scrollToBottom, 100);
-};
+    const { data, error } = await supabase
+      .from("Messages")
+      .select(messageSelect)
+      .eq("chat_id", directChatId)
+      .in("message_type", validTypes)
+      .order("created_at", { ascending: true })
+      .returns<Message[]>();
 
-
-  const fetchMessageById = async (id: number) => {
-    console.log("🔍 useChat.fetchMessageById:", id);
-    const { data, error } = await supabase.from("Messages").select(messageSelect).eq("id", id).single<Message>();
     if (error) {
-      console.warn("⚠️ useChat.fetchMessageById failed:", { id, error });
-      return null;
-    }
-    console.log("✅ useChat.fetchMessageById success:", id);
-    return data;
-  };
-
-const loadMessages = async (directChatId: number, userId: number) => {
-  console.log("📥 useChat.loadMessages START:", { directChatId, userId });
-  
-  const { data, error } = await supabase
-    .from("Messages")
-    .select(messageSelect)
-    .eq("chat_id", directChatId)
-    .in("message_type", validTypes)
-    .order("created_at", { ascending: true })
-    .returns<Message[]>();
-
-  if (error) {
-    console.error("❌ useChat.loadMessages ERROR:", error);
-    return;
-  }
-
-  console.log("✅ useChat.loadMessages: Loaded", data?.length || 0, "messages");
-  
-  // ✅ Force complete re-render mit neuem Array
-  const newMessages = data ? data.map(m => ({ ...m })) : [];
-  
-  // ✅ Erst leeren, dann neu setzen
-  setMessages([]);
-  
-  queueMicrotask(() => {
-    setMessages(newMessages);
-    
-    console.log("🔄 useChat.loadMessages: Messages gesetzt:", {
-      count: newMessages.length,
-      messages: newMessages.map(m => ({
-        id: m.id,
-        content: m.content.substring(0, 30),
-        type: m.message_type,
-        senderId: m.sender_id
-      })),
-      timestamp: Date.now()
-    });
-  });
-
-  const req =
-    newMessages.find((m) => m.message_type === "request") ||
-    newMessages.find((m) => m.message_type === "request_qr_ready") ||
-    newMessages.find((m) => m.message_type === "request_accepted" || m.message_type === "request_declined");
-
-  setProductOwnerId(req?.product?.owner_id ?? null);
-
-  queueMicrotask(scrollToBottom);
-};
-
-
-  const handleUpdateEvent = (payload: RealtimePostgresChangesPayload<any>, source: string) => {
-    console.log(`🔔🔔🔔 useChat: UPDATE Event (${source}):`, payload);
-
-    if (!validTypes.includes(payload.new.message_type)) {
-      console.log("⏭️ useChat: Ungültiger message_type bei UPDATE:", payload.new.message_type);
+      console.error("❌ useChat.loadMessages ERROR:", error);
       return;
     }
 
-    console.log("🔄 useChat: Message UPDATE empfangen");
-    fetchMessageById(payload.new.id).then((full) => {
-      if (!full) {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === payload.new.id ? { ...m, message_type: payload.new.message_type, read: payload.new.read } : m
-          )
-        );
-        return;
-      }
-      upsertMessageLocal(full);
-      
-      const currentChatId = chatId();
-      console.log("🔔 useChat (UPDATE): Calling messagesStore.notifyChatUpdated:", currentChatId);
-      
-      if (currentChatId) {
-        messagesStore.notifyChatUpdated(currentChatId);
-        console.log("✅ useChat (UPDATE): Store benachrichtigt");
-      }
+    console.log("✅ useChat.loadMessages: Loaded", data?.length || 0, "messages");
+    
+    // ✅ Verwende globalen Store Setter
+    const freshMessages = (data || []).map(m => ({ ...m }));
+    messagesStore.setChatMessages(freshMessages);
+    
+    console.log("📊 useChat: Messages gesetzt:", {
+      count: freshMessages.length,
+      lastId: freshMessages[freshMessages.length - 1]?.id,
+      lastContent: freshMessages[freshMessages.length - 1]?.content.substring(0, 30)
     });
+
+    const req =
+      (data || []).find((m) => m.message_type === "request") ||
+      (data || []).find((m) => m.message_type === "request_qr_ready") ||
+      (data || []).find((m) => m.message_type === "request_accepted" || m.message_type === "request_declined");
+
+    setProductOwnerId(req?.product?.owner_id ?? null);
+
+    setTimeout(scrollToBottom, 100);
+    setTimeout(scrollToBottom, 300);
+
+    await messagesStore.markChatAsRead(directChatId, userId);
+
   };
 
   onMount(async () => {
@@ -324,7 +238,6 @@ const loadMessages = async (directChatId: number, userId: number) => {
 
       console.log("🔌 useChat.onMount: Setup Realtime für Chat:", directChatId);
 
-      // ✅ Channel mit broadcast config erstellen
       globalChannel = supabase.channel(`chat-messages-${directChatId}`, {
         config: {
           broadcast: { 
@@ -335,7 +248,6 @@ const loadMessages = async (directChatId: number, userId: number) => {
       });
 
       globalChannel
-        // ✅ INSERT Event
         .on(
           "postgres_changes",
           {
@@ -345,7 +257,7 @@ const loadMessages = async (directChatId: number, userId: number) => {
             filter: `chat_id=eq.${directChatId}`,
           },
           (payload: RealtimePostgresChangesPayload<any>) => {
-            console.log("🔔🔔🔔 useChat: INSERT Event:", payload);
+            console.log("🔔🔔🔔 useChat: INSERT Event:", payload.new.id);
 
             if (!validTypes.includes(payload.new.message_type)) {
               console.log("⏭️ useChat: Ungültiger message_type:", payload.new.message_type);
@@ -357,39 +269,10 @@ const loadMessages = async (directChatId: number, userId: number) => {
               return;
             }
 
-            console.log("📥 useChat: Neue Message empfangen, lade vollständig...");
-            fetchMessageById(payload.new.id).then((full) => {
-              if (!full) {
-                console.warn("⚠️ useChat: Konnte Message nicht laden");
-                return;
-              }
-              console.log("✅ useChat: Message geladen, füge hinzu");
-              upsertMessageLocal(full);
-
-              const currentChatId = chatId();
-              if (currentChatId) {
-                messagesStore.notifyChatUpdated(currentChatId);
-              }
-
-              if (full.receiver_id === userId) {
-                const currentChatId = chatId();
-                if (currentChatId) {
-                  console.log("📖 useChat: Markiere Message als gelesen:", full.id);
-                  supabase
-                    .from("Messages")
-                    .update({ read: true })
-                    .eq("id", full.id)
-                    .then(() => {
-                      console.log("✅ useChat: Message als gelesen markiert");
-                      messagesStore.clearUnreadCount(currentChatId);
-                      messagesStore.notifyChatUpdated(currentChatId);
-                    });
-                }
-              }
-            });
+            console.log("✅ useChat: Neue Message empfangen, lade alle Messages neu");
+            loadMessages(directChatId, userId);
           }
         )
-        // ✅ UPDATE Event
         .on(
           "postgres_changes",
           {
@@ -398,9 +281,17 @@ const loadMessages = async (directChatId: number, userId: number) => {
             table: "Messages",
             filter: `chat_id=eq.${directChatId}`,
           },
-          (payload: RealtimePostgresChangesPayload<any>) => handleUpdateEvent(payload, "chat_id")
+          (payload: RealtimePostgresChangesPayload<any>) => {
+            console.log("🔔 useChat: UPDATE Event:", payload.new.id);
+
+            if (!validTypes.includes(payload.new.message_type)) {
+              return;
+            }
+
+            console.log("✅ useChat: Message UPDATE, lade alle Messages neu");
+            loadMessages(directChatId, userId);
+          }
         )
-        // ✅ BROADCAST Event
         .on(
           "broadcast",
           { event: "message_updated" },
@@ -414,19 +305,8 @@ const loadMessages = async (directChatId: number, userId: number) => {
               return;
             }
             
-            console.log("✅ useChat: Broadcast für unseren Chat, lade Message neu:", messageId);
-            
-            fetchMessageById(messageId).then((full) => {
-              if (full) {
-                console.log("✅ useChat: Updated message geladen:", full);
-                upsertMessageLocal(full);
-                
-                const currentChatId = chatId();
-                if (currentChatId) {
-                  messagesStore.notifyChatUpdated(currentChatId);
-                }
-              }
-            });
+            console.log("✅ useChat: Broadcast für unseren Chat, lade alle Messages neu");
+            loadMessages(directChatId, userId);
           }
         )
         .subscribe((status: string, err?: Error) => {
@@ -510,7 +390,10 @@ const loadMessages = async (directChatId: number, userId: number) => {
       };
 
       console.log("✨ useChat: Füge optimistic message hinzu:", tempId);
-      setMessages(prev => [...prev, optimisticMessage]);
+      
+      // ✅ Verwende globalen Store
+      const currentMessages = messages();
+      messagesStore.setChatMessages([...currentMessages, optimisticMessage]);
       
       setTimeout(scrollToBottom, 0);
       setTimeout(scrollToBottom, 100);
@@ -536,15 +419,16 @@ const loadMessages = async (directChatId: number, userId: number) => {
 
       console.log("✅ useChat.handleSendMessage: Message gesendet:", data.id);
       
-      setMessages(prev => prev.map(m => m.id === tempId ? data : m));
-      setTimeout(scrollToBottom, 100);
-      
-      messagesStore.notifyChatUpdated(currentChatId);
+      // ✅ Lade alle Messages neu (ersetzt optimistic message)
+      await loadMessages(currentChatId, userId);
       
     } catch (err) {
       console.error("❌ useChat.handleSendMessage ERROR:", err);
       alert("Fehler beim Senden der Nachricht: " + (err as Error).message);
-      setMessages(prev => prev.filter(m => m.id >= 0));
+      
+      // ✅ Entferne optimistic message bei Fehler
+      const currentMessages = messages();
+      messagesStore.setChatMessages(currentMessages.filter(m => m.id >= 0));
       setNewMessage(messageContent);
     } finally {
       setSending(false);
@@ -578,7 +462,6 @@ const loadMessages = async (directChatId: number, userId: number) => {
 
       console.log("✅ useChat.handleAcceptRequest: DB Update erfolgreich");
 
-      // ✅ BROADCAST
       if (globalChannel) {
         console.log("📡 useChat.handleAcceptRequest: Sende Broadcast!");
         
@@ -594,12 +477,7 @@ const loadMessages = async (directChatId: number, userId: number) => {
         });
       }
 
-      const full = await fetchMessageById(messageId);
-      if (full) upsertMessageLocal(full);
-      
-      if (cId) {
-        messagesStore.notifyChatUpdated(cId);
-      }
+      await loadMessages(cId, ownerId);
       
       console.log("✅ useChat.handleAcceptRequest COMPLETE");
     } catch (err) {
@@ -613,6 +491,7 @@ const loadMessages = async (directChatId: number, userId: number) => {
     
     try {
       const cId = chatId();
+      const userId = currentUserId();
       
       const { error } = await supabase
         .from("Messages")
@@ -623,7 +502,6 @@ const loadMessages = async (directChatId: number, userId: number) => {
 
       console.log("✅ useChat.handleDeclineRequest: DB Update erfolgreich");
 
-      // ✅ BROADCAST
       if (globalChannel && cId) {
         console.log("📡 useChat.handleDeclineRequest: Sende Broadcast!");
         
@@ -639,11 +517,8 @@ const loadMessages = async (directChatId: number, userId: number) => {
         });
       }
 
-      const full = await fetchMessageById(messageId);
-      if (full) upsertMessageLocal(full);
-      
-      if (cId) {
-        messagesStore.notifyChatUpdated(cId);
+      if (cId && userId) {
+        await loadMessages(cId, userId);
       }
       
       console.log("✅ useChat.handleDeclineRequest COMPLETE");

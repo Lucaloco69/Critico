@@ -3,6 +3,7 @@ import { createStore } from "solid-js/store";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
 
+
 interface SessionData {
   session: Session | null;
   user: User | null;
@@ -10,11 +11,20 @@ interface SessionData {
   username: string | null;
 }
 
+
 // ✅ In-Memory Cache für schnelle Lookups
 let userIdCache: { [authId: string]: number } = {};
 
+
 // ✅ NEU: Track ob je eine gültige Session existierte
 let hadValidSession = false;
+
+
+// ✅ Debounce Tracker für Auth Events
+let authCheckTimeout: any = null;
+let lastAuthEvent: string = "";
+let lastAuthTime: number = 0;
+
 
 // Lade Cache beim Start aus localStorage
 try {
@@ -27,6 +37,7 @@ try {
   console.warn("⚠️ Failed to load user ID cache:", err);
 }
 
+
 const [sessionStore, setSessionStore] = createStore<SessionData>({
   session: null,
   user: null,
@@ -34,10 +45,12 @@ const [sessionStore, setSessionStore] = createStore<SessionData>({
   username: null,
 });
 
+
 export const isLoggedIn = createMemo(() => !!sessionStore.session);
 export const currentUserId = createMemo(() => sessionStore.userId);
 export const currentUsername = createMemo(() => sessionStore.username);
 export const hadValidSessionBefore = () => hadValidSession; // ✅ NEU: Export
+
 
 export const getSession = () => ({
   session: sessionStore.session,
@@ -45,6 +58,7 @@ export const getSession = () => ({
   userId: sessionStore.userId,
   username: sessionStore.username,
 });
+
 
 const clearAll = () => {
   setSessionStore({
@@ -54,6 +68,7 @@ const clearAll = () => {
     username: null,
   });
 };
+
 
 const setBaseSession = (session: Session | null, user?: User | null) => {
   if (!session) {
@@ -68,6 +83,7 @@ const setBaseSession = (session: Session | null, user?: User | null) => {
     user: user ?? session.user ?? null,
   });
 };
+
 
 const loadDbUser = async (authId: string) => {
   try {
@@ -95,6 +111,7 @@ const loadDbUser = async (authId: string) => {
     
     const startTime = Date.now();
 
+
     // ✅ 3. DB Query mit 2 Sekunden Timeout
     const timeoutPromise = new Promise<{ data: null; error: null }>((resolve) => 
       setTimeout(() => {
@@ -104,11 +121,13 @@ const loadDbUser = async (authId: string) => {
       }, 2000)
     );
 
+
     const queryPromise = supabase
       .from("User")
       .select("id")
       .eq("auth_id", authId)
       .maybeSingle();
+
 
     console.log("📤 DB query...");
     const result = await Promise.race([queryPromise, timeoutPromise]);
@@ -118,7 +137,9 @@ const loadDbUser = async (authId: string) => {
       console.log(`⏱️ Query OK in ${elapsed}ms`);
     }
 
+
     const { data, error } = result;
+
 
     if (error) {
       console.error("❌ Supabase error:", {
@@ -129,11 +150,13 @@ const loadDbUser = async (authId: string) => {
       return;
     }
 
+
     if (!data) {
       console.warn("⚠️ No data (timeout or not found)");
       setSessionStore({ userId: null, username: null });
       return;
     }
+
 
     console.log("✅ DB user loaded, userId:", data.id);
     
@@ -157,10 +180,12 @@ const loadDbUser = async (authId: string) => {
   }
 };
 
+
 export const setSession = (data: Partial<SessionData>) => {
   if ("session" in data) {
     const sess = data.session ?? null;
     setBaseSession(sess, data.user ?? null);
+
 
     if (sess?.user?.id) {
       loadDbUser(sess.user.id).catch(() => {
@@ -170,8 +195,10 @@ export const setSession = (data: Partial<SessionData>) => {
     return;
   }
 
+
   setSessionStore(data as any);
 };
+
 
 export const clearSession = async () => {
   console.log("🚪 Clearing session and signing out...");
@@ -196,6 +223,7 @@ export const clearSession = async () => {
   window.location.href = "/login";
 };
 
+
 export const checkSession = async (timeoutMs = 5000) => {
   try {
     console.log("═══════════════════════════════════════");
@@ -212,12 +240,14 @@ export const checkSession = async (timeoutMs = 5000) => {
     
     const { data, error } = await Promise.race([sessionPromise, timeoutPromise]);
 
+
     if (error) {
       console.error("❌ Error getting session:", error);
       clearAll();
       console.log("═══════════════════════════════════════");
       return false;
     }
+
 
     if (!data.session) {
       console.log("ℹ️ No session found");
@@ -226,14 +256,17 @@ export const checkSession = async (timeoutMs = 5000) => {
       return false;
     }
 
+
     console.log("✅ Session found:", data.session.user.email);
     console.log("⏰ Expires:", new Date(data.session.expires_at! * 1000).toLocaleString());
+
 
     const expiresAt = data.session.expires_at;
     const now = Math.floor(Date.now() / 1000);
     const timeUntilExpiry = expiresAt ? expiresAt - now : 0;
     
     console.log("⏱️ Time until expiry:", Math.floor(timeUntilExpiry / 60), "minutes");
+
 
     // Token abgelaufen? → Refresh
     if (expiresAt && expiresAt <= now) {
@@ -256,6 +289,7 @@ export const checkSession = async (timeoutMs = 5000) => {
       return true;
     }
 
+
     // Token läuft bald ab? → Refresh
     if (timeUntilExpiry < 300) {
       console.warn("⚠️ Token expires soon, refreshing...");
@@ -275,10 +309,12 @@ export const checkSession = async (timeoutMs = 5000) => {
       }
     }
 
+
     // Token gültig
     console.log("✅ Using valid token");
     setBaseSession(data.session, data.session.user);
     loadDbUser(data.session.user.id).catch(() => {});
+
 
     console.log("═══════════════════════════════════════");
     return true;
@@ -291,6 +327,7 @@ export const checkSession = async (timeoutMs = 5000) => {
   }
 };
 
+
 export const initAuthListener = async () => {
   console.log("🚀 Initializing auth listener...");
   
@@ -299,50 +336,70 @@ export const initAuthListener = async () => {
   const {
     data: { subscription },
   } = supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log("🔔 Auth state changed:", event);
+    // ✅ DEBOUNCE: Verhindere doppelte Events
+    const now = Date.now();
+    if (event === lastAuthEvent && (now - lastAuthTime) < 200) {
+      console.log("⏭️ Skipping duplicate auth event:", event);
+      return;
+    }
+    
+    lastAuthEvent = event;
+    lastAuthTime = now;
+    
+    // ✅ Clear previous timeout
+    if (authCheckTimeout) {
+      clearTimeout(authCheckTimeout);
+    }
+    
+    // ✅ Debounce: Warte 100ms bevor Processing
+    authCheckTimeout = setTimeout(async () => {
+      console.log("🔔 Auth state changed:", event);
 
-    if (event === 'TOKEN_REFRESHED') {
-      console.log("🔄 Token refreshed");
-      if (session) {
-        setBaseSession(session, session.user);
-        loadDbUser(session.user.id).catch(() => {});
+      if (event === 'TOKEN_REFRESHED') {
+        console.log("🔄 Token refreshed");
+        if (session) {
+          setBaseSession(session, session.user);
+          loadDbUser(session.user.id).catch(() => {});
+        }
+        return;
       }
-      return;
-    }
 
-    if (event === 'SIGNED_OUT') {
-      console.log("🚪 User signed out");
-      clearAll();
-      hadValidSession = false; // ✅ NEU: Reset auch hier
-      userIdCache = {};
-      localStorage.removeItem("pendingActivateToken");
-      
-      // ✅ Nach Logout: Zu /login OHNE redirectTo
-      window.location.href = "/login";
-      return;
-    }
+      if (event === 'SIGNED_OUT') {
+        console.log("🚪 User signed out");
+        clearAll();
+        hadValidSession = false;
+        userIdCache = {};
+        localStorage.removeItem("pendingActivateToken");
+        
+        window.location.href = "/login";
+        return;
+      }
 
-    if (!session) {
-      console.log("ℹ️ No session");
-      clearAll();
-      return;
-    }
+      if (!session) {
+        console.log("ℹ️ No session");
+        clearAll();
+        return;
+      }
 
-    console.log("✅ Session active:", session.user.email);
-    setBaseSession(session, session.user);
-    loadDbUser(session.user.id).catch(() => {});
+      console.log("✅ Session active:", session.user.email);
+      setBaseSession(session, session.user);
+      loadDbUser(session.user.id).catch(() => {});
+    }, 100); // ✅ 100ms debounce
   });
 
   return subscription;
 };
 
+
 export const startSessionHealthCheck = () => {
   const CHECK_INTERVAL = 60000;
+
 
   const intervalId = setInterval(async () => {
     const sess = sessionStore.session;
     
     if (!sess) return;
+
 
     const expiresAt = sess.expires_at;
     const now = Math.floor(Date.now() / 1000);
@@ -370,8 +427,10 @@ export const startSessionHealthCheck = () => {
     }
   }, CHECK_INTERVAL);
 
+
   return () => clearInterval(intervalId);
 };
+
 
 export const setupSessionSync = () => {
   createEffect(() => {
@@ -380,5 +439,6 @@ export const setupSessionSync = () => {
     }
   });
 };
+
 
 export default sessionStore;

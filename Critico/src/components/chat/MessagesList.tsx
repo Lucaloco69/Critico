@@ -1,4 +1,4 @@
-import { For, Show, Accessor, createEffect } from "solid-js";
+import { For, Show, Accessor, createEffect, Index } from "solid-js";
 import type { Message } from "../../hooks/useChat";
 import { MessageBubble } from "./MessageBubble";
 import { t } from "../../lib/i18n";
@@ -16,18 +16,14 @@ interface MessagesListProps {
 export function MessagesList(props: MessagesListProps) {
   createEffect(() => {
     const msgs = props.messages();
-    const productIds = Array.from(new Set(msgs.map((m: any) => m.product_id).filter((x): x is number => typeof x === "number")));
-
-    console.log("🧾 MessagesList debug (top):", {
-      loading: props.loading(),
-      currentUserId: props.currentUserId(),
-      messagesCount: msgs.length,
-      productIds,
-      first: msgs[0] ? { id: msgs[0].id, type: msgs[0].message_type, product_id: (msgs[0] as any).product_id ?? null } : null,
-      last: msgs[msgs.length - 1]
-        ? { id: msgs[msgs.length - 1].id, type: msgs[msgs.length - 1].message_type, product_id: (msgs[msgs.length - 1] as any).product_id ?? null }
-        : null,
-    });
+    
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log("🧾 MessagesList createEffect TRIGGERED");
+    console.log("   Messages Count:", msgs.length);
+    console.log("   Loading:", props.loading());
+    console.log("   First message:", msgs[0]?.id);
+    console.log("   Last message:", msgs[msgs.length - 1]?.id, msgs[msgs.length - 1]?.content.substring(0, 30));
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   });
 
   return (
@@ -46,26 +42,13 @@ export function MessagesList(props: MessagesListProps) {
             </div>
           </Show>
 
-          <For each={props.messages()}>
-            {(message: any) => {
+          {/* ✅ For mit fallbackKey statt Index */}
+          <For each={props.messages()} fallback={null}>
+            {(message) => {
               const isOwn = message.sender_id === props.currentUserId();
               const perMessageOwnerId: number | null = message.product?.owner_id ?? null;
 
-              createEffect(() => {
-                console.log("📩 MessagesList per-message:", {
-                  messageId: message.id,
-                  type: message.message_type,
-                  senderId: message.sender_id,
-                  currentUserId: props.currentUserId(),
-                  productId: message.product_id ?? null,
-                  productOwnerId: perMessageOwnerId,
-                  isOwn,
-                  isOwnerByProduct:
-                    perMessageOwnerId != null &&
-                    props.currentUserId() != null &&
-                    Number(perMessageOwnerId) === Number(props.currentUserId()),
-                });
-              });
+              console.log("💬 Rendering message:", message.id, message.content.substring(0, 20));
 
               return (
                 <MessageBubble

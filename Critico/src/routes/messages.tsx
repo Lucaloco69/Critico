@@ -5,8 +5,7 @@ import { ChatsList } from "../components/messages/ChatsList";
 import { useMessages } from "../hooks/useMessages";
 
 export default function Messages() {
-
-    console.log("🏠 MESSAGES COMPONENT: Rendering...");
+  console.log("🏠 MESSAGES COMPONENT: Rendering...");
 
   const {
     filteredChats,
@@ -16,16 +15,27 @@ export default function Messages() {
     formatTime,
   } = useMessages();
 
-  // ✅ Track filteredChats changes
+  // ✅ TEST: Wird der Effect überhaupt installiert?
+  console.log("🔧 Installing createEffect NOW");
+  let renderCount = 0;
+  
   createEffect(() => {
-  const chats = filteredChats();
-  console.log("📄 MESSAGES PAGE: filteredChats changed!", chats.length);
-  if (chats.length > 0) {
-    console.log("📄 MESSAGES PAGE: First chat:", JSON.stringify(chats[0]));
-  }
-});
+    renderCount++;
+    const chats = filteredChats();
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log("📄 MESSAGES PAGE: Effect triggered! Render:", renderCount);
+    console.log("   Chats length:", chats.length);
+    console.log("   Chats array:", chats); // ✅ Log komplettes Array
+    if (chats.length > 0) {
+      console.log("   First chat:", chats[0].partnerName);
+      console.log("   First unread:", chats[0].unreadCount);
+      console.log("   First timestamp:", (chats[0] as any)._timestamp);
+    }
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  });
 
-console.log("🏠 MESSAGES COMPONENT: Nach createEffect");
+  console.log("🔧 createEffect installed!");
+  console.log("🏠 MESSAGES COMPONENT: Nach createEffect");
 
   return (
     <div class="min-h-screen bg-gray-50 dark:bg-gray-900">

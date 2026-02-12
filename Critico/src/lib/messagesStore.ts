@@ -1,19 +1,24 @@
 import { createSignal } from "solid-js";
 import { supabase } from "./supabaseClient";
+import { ChatPreview } from "~/types/chat";
+import type { Message } from "~/hooks/useChat"; // ✅ Import Message type
 
-const [updateTrigger, setUpdateTrigger] = createSignal(0);
+
 const [unreadCounts, setUnreadCounts] = createSignal<Record<number, number>>({});
-const [lastChatUpdate, setLastChatUpdate] = createSignal<{chatId: number, timestamp: number} | null>(null);
+
+// ✅ Globale Chats Signals
+const [chats, setChats] = createSignal<ChatPreview[]>([]);
+const [filteredChats, setFilteredChats] = createSignal<ChatPreview[]>([]);
+
+// ✅ NEU: Globale Chat Messages Signal
+const [chatMessages, setChatMessages] = createSignal<Message[]>([]);
+
 
 export const messagesStore = {
-  updateTrigger,
   unreadCounts,
-  
-  triggerUpdate: () => {
-    const newValue = updateTrigger() + 1;
-    console.log("🔄 messagesStore.triggerUpdate:", newValue);
-    setUpdateTrigger(newValue);
-  },
+  chats,
+  filteredChats,
+  chatMessages, // ✅ NEU
   
   setUnreadCount(chatId: number, count: number) {
     console.log("📊 messagesStore.setUnreadCount:", { chatId, count });
@@ -22,13 +27,32 @@ export const messagesStore = {
   
   getUnreadCount(chatId: number): number {
     const count = unreadCounts()[chatId] || 0;
-    console.log("📊 messagesStore.getUnreadCount:", { chatId, count });
     return count;
   },
   
   clearUnreadCount(chatId: number) {
     console.log("🧹 messagesStore.clearUnreadCount:", chatId);
     setUnreadCounts(prev => ({ ...prev, [chatId]: 0 }));
+  },
+  
+  setChats(newChats: ChatPreview[]) {
+    console.log("📋 messagesStore.setChats:", { count: newChats.length, firstUnread: newChats[0]?.unreadCount });
+    setChats(newChats);
+  },
+  
+  setFilteredChats(newChats: ChatPreview[]) {
+    console.log("📋 messagesStore.setFilteredChats:", { count: newChats.length, firstUnread: newChats[0]?.unreadCount });
+    setFilteredChats(newChats);
+  },
+  
+  // ✅ NEU: Setter für Chat Messages
+  setChatMessages(newMessages: Message[]) {
+    console.log("💬 messagesStore.setChatMessages:", { 
+      count: newMessages.length, 
+      lastId: newMessages[newMessages.length - 1]?.id,
+      lastContent: newMessages[newMessages.length - 1]?.content?.substring(0, 30)
+    });
+    setChatMessages(newMessages);
   },
   
   async markChatAsRead(chatId: number, userId: number) {
@@ -45,39 +69,10 @@ export const messagesStore = {
       if (error) throw error;
       
       this.clearUnreadCount(chatId);
-      this.triggerUpdate();
       
       console.log("✅ messagesStore.markChatAsRead SUCCESS:", chatId);
     } catch (err) {
       console.error("❌ messagesStore.markChatAsRead ERROR:", err);
     }
-  },
-  
-  notifyChatUpdated(chatId: number) {
-    const timestamp = Date.now();
-    console.log("🔔🔔🔔 messagesStore.notifyChatUpdated CALLED:", { chatId, timestamp });
-    console.trace("Stack trace:");
-    
-    const updateObj = { chatId, timestamp };
-    setLastChatUpdate(updateObj);
-    
-    console.log("🔔 messagesStore.notifyChatUpdated - Signal gesetzt:", updateObj);
-    console.log("🔔 messagesStore.notifyChatUpdated - Aktueller Wert:", lastChatUpdate());
-    
-    this.triggerUpdate();
-  },
-  
-  getLastChatUpdate() {
-    const value = lastChatUpdate();
-    console.log("👀 messagesStore.getLastChatUpdate:", value);
-    return value;
   }
 };
-
-// Debug: Log bei jeder Änderung des Signals
-setInterval(() => {
-  const current = lastChatUpdate();
-  if (current) {
-    console.log("⏰ messagesStore HEARTBEAT - lastChatUpdate:", current);
-  }
-}, 5000);

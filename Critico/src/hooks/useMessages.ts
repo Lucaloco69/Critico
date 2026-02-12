@@ -1,4 +1,4 @@
-import { createSignal, createEffect, onMount, onCleanup, batch } from "solid-js";
+import { createSignal, createEffect, onMount, onCleanup } from "solid-js";
 import { useNavigate, useLocation } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import sessionStore, { isLoggedIn } from "../lib/sessionStore";
@@ -7,22 +7,29 @@ import { messagesStore } from "../lib/messagesStore";
 import { ChatPreview } from "~/types/chat";
 import { RealtimePostgresChangesPayload, REALTIME_SUBSCRIBE_STATES } from '@supabase/supabase-js';
 
+
 let globalMessagesChannel: any = null;
 let reloadTimeout: any = null;
+let loadChatsTimeout: any = null;
+
 
 export function useMessages() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [chats, setChats] = createSignal<ChatPreview[]>([]);
-  const [filteredChats, setFilteredChats] = createSignal<ChatPreview[]>([]);
+  // ✅ Verwende globalen Store statt lokale Signals
+  const { filteredChats } = messagesStore;
+  
   const [searchQuery, setSearchQuery] = createSignal("");
   const [loading, setLoading] = createSignal(true);
   const [currentUserId, setCurrentUserId] = createSignal<number | null>(null);
 
+
   const { setDirectMessageCount } = badgeStore;
 
+
   console.log("🏗️ useMessages: Hook wird initialisiert");
+
 
   onMount(async () => {
     console.log("🚀 useMessages.onMount START");
@@ -33,6 +40,7 @@ export function useMessages() {
       return;
     }
 
+
     try {
       const { data: userData } = await supabase
         .from("User")
@@ -40,10 +48,11 @@ export function useMessages() {
         .eq("auth_id", sessionStore.user.id)
         .single();
 
+
       if (userData) {
         console.log("✅ useMessages.onMount: User gefunden:", userData.id);
         setCurrentUserId(userData.id);
-        await loadChats(userData.id);
+        loadChatsDebounced(userData.id);
         
         if (!globalMessagesChannel) {
           setupRealtime(userData.id);
@@ -57,6 +66,7 @@ export function useMessages() {
     }
   });
 
+
   createEffect(() => {
     const path = location.pathname;
     const userId = currentUserId();
@@ -65,55 +75,25 @@ export function useMessages() {
     
     if (path === "/messages" && userId) {
       console.log("🔄 useMessages: Zurück zur Messages-Seite, lade Chats neu");
-      loadChats(userId);
+      loadChatsDebounced(userId);
     }
   });
 
-  // ✅ Store-Update Listener
-  createEffect(() => {
-    console.log("👂 useMessages.createEffect (Store-Listener) TRIGGERED");
-    
-    const chatUpdate = messagesStore.getLastChatUpdate();
-    const userId = currentUserId();
-    
-    console.log("👂 useMessages.createEffect (Store-Listener) - Daten:", {
-      chatUpdate,
-      userId,
-      hasUpdate: !!chatUpdate,
-      timestamp: chatUpdate?.timestamp || 0
-    });
-    
-    if (userId && chatUpdate && chatUpdate.timestamp > 0) {
-      console.log("✅✅✅ useMessages: Store-Update erkannt für Chat:", chatUpdate.chatId);
-      console.log("⏰ useMessages: Update Timestamp:", new Date(chatUpdate.timestamp).toISOString());
-      
-      if (reloadTimeout) {
-        console.log("⏳ useMessages: Clearing existing reload timeout");
-        clearTimeout(reloadTimeout);
-      }
-      
-      reloadTimeout = setTimeout(() => {
-        console.log("🔄🔄🔄 useMessages: LOADING CHATS nach Store-Update...");
-        loadChats(userId);
-      }, 300);
-    } else {
-      console.log("⏭️ useMessages: Kein Store-Update oder User nicht geladen");
-    }
-  });
 
   onCleanup(() => {
     console.log("🧹 useMessages.onCleanup");
     if (reloadTimeout) clearTimeout(reloadTimeout);
+    if (loadChatsTimeout) clearTimeout(loadChatsTimeout);
     if (globalMessagesChannel) {
       supabase.removeChannel(globalMessagesChannel);
       globalMessagesChannel = null;
     }
   });
 
+
   const setupRealtime = (userId: number) => {
     console.log("🔌 useMessages.setupRealtime START for user:", userId);
     
-    // ✅ Channel mit broadcast config erstellen
     globalMessagesChannel = supabase.channel(`messages-list-user-${userId}`, {
       config: {
         broadcast: { 
@@ -123,8 +103,8 @@ export function useMessages() {
       }
     });
 
+
     globalMessagesChannel
-      // ✅ INSERT Event - empfangene Messages
       .on(
         "postgres_changes",
         {
@@ -141,12 +121,11 @@ export function useMessages() {
             
             if (reloadTimeout) clearTimeout(reloadTimeout);
             reloadTimeout = setTimeout(() => {
-              loadChats(userId);
+              loadChatsDebounced(userId);
             }, 300);
           }
         }
       )
-      // ✅ INSERT Event - gesendete Messages
       .on(
         "postgres_changes",
         {
@@ -163,12 +142,11 @@ export function useMessages() {
             
             if (reloadTimeout) clearTimeout(reloadTimeout);
             reloadTimeout = setTimeout(() => {
-              loadChats(userId);
+              loadChatsDebounced(userId);
             }, 300);
           }
         }
       )
-      // ✅ UPDATE Event - für message_type Changes
       .on(
         "postgres_changes",
         {
@@ -187,12 +165,11 @@ export function useMessages() {
             
             if (reloadTimeout) clearTimeout(reloadTimeout);
             reloadTimeout = setTimeout(() => {
-              loadChats(userId);
+              loadChatsDebounced(userId);
             }, 300);
           }
         }
       )
-      // ✅ BROADCAST Event - für Accept/Decline
       .on(
         "broadcast",
         { event: "message_updated" },
@@ -203,7 +180,7 @@ export function useMessages() {
           
           if (reloadTimeout) clearTimeout(reloadTimeout);
           reloadTimeout = setTimeout(() => {
-            loadChats(userId);
+            loadChatsDebounced(userId);
           }, 300);
         }
       )
@@ -227,155 +204,170 @@ export function useMessages() {
     console.log("✅ useMessages.setupRealtime COMPLETE");
   };
 
-const loadChats = async (userId: number) => {
-  console.log("📥 Loading chats for user:", userId);
-  const startTime = Date.now();
-  
-  try {
-    const { data: userChats, error: chatsError } = await supabase
-      .from("Chat_Participants")
-      .select("chat_id")
-      .eq("user_id", userId);
 
-    if (chatsError) throw chatsError;
-
-    if (!userChats || userChats.length === 0) {
-      batch(() => {
-        setChats([]);
-        setFilteredChats([]);
-        setDirectMessageCount(0);
-      });
-      return;
+  const loadChatsDebounced = (userId: number) => {
+    console.log("🔄 loadChatsDebounced called for user:", userId);
+    
+    if (loadChatsTimeout) {
+      console.log("⏭️ Canceling previous loadChats call");
+      clearTimeout(loadChatsTimeout);
     }
+    
+    loadChatsTimeout = setTimeout(() => {
+      loadChats(userId);
+    }, 100);
+  };
 
-    const chatIds = userChats.map(c => c.chat_id);
 
-    const { data: allChatDetails } = await supabase
-      .from("Chats")
-      .select("id, product_id")
-      .in("id", chatIds);
-
-    const chatDetails = (allChatDetails || []).filter(c => c.product_id === null);
-
-    if (chatDetails.length === 0) {
-      batch(() => {
-        setChats([]);
-        setFilteredChats([]);
-        setDirectMessageCount(0);
-      });
-      return;
-    }
-
-    const directChatIds = chatDetails.map(c => c.id);
-    const chatPreviews: ChatPreview[] = [];
-    let totalUnreadCount = 0;
-
-    for (const chatId of directChatIds) {
-      const { data: participants } = await supabase
+  const loadChats = async (userId: number) => {
+    console.log("📥 Loading chats for user:", userId);
+    const startTime = Date.now();
+    
+    try {
+      const { data: userChats, error: chatsError } = await supabase
         .from("Chat_Participants")
-        .select(`
-          user_id,
-          User (
-            id,
-            name,
-            surname,
-            picture,
-            trustlevel
-          )
-        `)
-        .eq("chat_id", chatId)
-        .neq("user_id", userId);
+        .select("chat_id")
+        .eq("user_id", userId);
 
-      if (!participants || participants.length === 0) {
-        console.warn(`⚠️ Chat ${chatId}: Keine Partner gefunden`);
-        continue;
+      if (chatsError) throw chatsError;
+
+      if (!userChats || userChats.length === 0) {
+        messagesStore.setChats([]);
+        messagesStore.setFilteredChats([]);
+        setDirectMessageCount(0);
+        return;
       }
 
-      // ✅ NULL CHECK: Partner könnte gelöscht sein
-      const partner = participants[0].User as any;
-      
-      if (!partner || !partner.id) {
-        console.warn(`⚠️ Chat ${chatId}: Partner User ist null oder gelöscht, überspringe`);
-        continue;
+      const chatIds = userChats.map(c => c.chat_id);
+
+      const { data: allChatDetails } = await supabase
+        .from("Chats")
+        .select("id, product_id")
+        .in("id", chatIds);
+
+      const chatDetails = (allChatDetails || []).filter(c => c.product_id === null);
+
+      if (chatDetails.length === 0) {
+        messagesStore.setChats([]);
+        messagesStore.setFilteredChats([]);
+        setDirectMessageCount(0);
+        return;
       }
 
-      const { data: lastMsg } = await supabase
-        .from("Messages")
-        .select("content, created_at, message_type")
-        .eq("chat_id", chatId)
-        .in("message_type", ["direct", "request", "request_qr_ready", "request_accepted", "request_declined"])
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const directChatIds = chatDetails.map(c => c.id);
+      const chatPreviews: ChatPreview[] = [];
+      let totalUnreadCount = 0;
 
-      const { data: unreadMessages } = await supabase
-        .from("Messages")
-        .select("id, sender_id, receiver_id, read, content, message_type")
-        .eq("chat_id", chatId)
-        .in("message_type", ["direct", "request", "request_qr_ready", "request_accepted", "request_declined"])
-        .eq("receiver_id", userId)
-        .eq("read", false);
+      for (const chatId of directChatIds) {
+        const { data: participants } = await supabase
+          .from("Chat_Participants")
+          .select(`
+            user_id,
+            User (
+              id,
+              name,
+              surname,
+              picture,
+              trustlevel
+            )
+          `)
+          .eq("chat_id", chatId)
+          .neq("user_id", userId);
 
-      const unreadCount = (unreadMessages || []).length;
-      totalUnreadCount += unreadCount;
-      
-      messagesStore.setUnreadCount(chatId, unreadCount);
+        if (!participants || participants.length === 0) {
+          console.warn(`⚠️ Chat ${chatId}: Keine Partner gefunden`);
+          continue;
+        }
 
-      const hasUnreadRequest = (unreadMessages || []).some(
-        m => m.message_type === 'request' && !m.read
+        const partner = participants[0].User as any;
+        
+        if (!partner || !partner.id) {
+          console.warn(`⚠️ Chat ${chatId}: Partner User ist null oder gelöscht, überspringe`);
+          continue;
+        }
+
+        const { data: lastMsg } = await supabase
+          .from("Messages")
+          .select("content, created_at, message_type")
+          .eq("chat_id", chatId)
+          .in("message_type", ["direct", "request", "request_qr_ready", "request_accepted", "request_declined"])
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const { data: unreadMessages } = await supabase
+          .from("Messages")
+          .select("id, sender_id, receiver_id, read, content, message_type")
+          .eq("chat_id", chatId)
+          .in("message_type", ["direct", "request", "request_qr_ready", "request_accepted", "request_declined"])
+          .eq("receiver_id", userId)
+          .eq("read", false);
+
+        const unreadCount = (unreadMessages || []).length;
+        totalUnreadCount += unreadCount;
+        
+        messagesStore.setUnreadCount(chatId, unreadCount);
+
+        const hasUnreadRequest = (unreadMessages || []).some(
+          m => m.message_type === 'request' && !m.read
+        );
+
+        chatPreviews.push({
+          chatId,
+          partnerId: partner.id,
+          partnerName: partner.name ?? "Unbekannt",
+          partnerSurname: partner.surname ?? "",
+          partnerPicture: partner.picture ?? null,
+          lastMessage: lastMsg?.content || "Noch keine Nachrichten",
+          lastMessageTime: lastMsg?.created_at || new Date().toISOString(),
+          lastMessageType: lastMsg?.message_type,
+          unreadCount: unreadCount,
+          hasUnreadRequest: hasUnreadRequest,
+          partnerTrustlevel: partner.trustlevel ?? 0,
+        });
+      }
+
+      chatPreviews.sort((a, b) => 
+        new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
       );
 
-      // ✅ Null-safe property access
-      chatPreviews.push({
-        chatId,
-        partnerId: partner.id,
-        partnerName: partner.name ?? "Unbekannt",
-        partnerSurname: partner.surname ?? "",
-        partnerPicture: partner.picture ?? null,
-        lastMessage: lastMsg?.content || "Noch keine Nachrichten",
-        lastMessageTime: lastMsg?.created_at || new Date().toISOString(),
-        lastMessageType: lastMsg?.message_type,
-        unreadCount: unreadCount,
-        hasUnreadRequest: hasUnreadRequest,
-        partnerTrustlevel: partner.trustlevel ?? 0,
+      const currentSearch = searchQuery();
+
+      let filtered: ChatPreview[];
+      if (!currentSearch || currentSearch.trim() === "") {
+        filtered = chatPreviews;
+      } else {
+        filtered = chatPreviews.filter((chat) =>
+          `${chat.partnerName} ${chat.partnerSurname}`.toLowerCase().includes(currentSearch.toLowerCase()) ||
+          chat.lastMessage.toLowerCase().includes(currentSearch.toLowerCase())
+        );
+      }
+
+      console.log("🔧 Before set:", {
+        currentChatsLength: messagesStore.chats().length,
+        currentFilteredLength: messagesStore.filteredChats().length,
+        newChatsLength: chatPreviews.length,
+        newFilteredLength: filtered.length,
+        firstUnread: chatPreviews[0]?.unreadCount
       });
-    }
 
-    chatPreviews.sort((a, b) => 
-      new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
-    );
+      // ✅ Verwende globalen Store
+      messagesStore.setChats(chatPreviews);
+      messagesStore.setFilteredChats(filtered);
+      setDirectMessageCount(totalUnreadCount);
 
-    const currentSearch = searchQuery();
-
-    let filtered: ChatPreview[];
-    if (!currentSearch || currentSearch.trim() === "") {
-      filtered = chatPreviews;
-    } else {
-      filtered = chatPreviews.filter((chat) =>
-        `${chat.partnerName} ${chat.partnerSurname}`.toLowerCase().includes(currentSearch.toLowerCase()) ||
-        chat.lastMessage.toLowerCase().includes(currentSearch.toLowerCase())
-      );
-    }
-
-    // ✅ Force complete re-render
-    batch(() => {
-      setChats([]);
-      setFilteredChats([]);
-      
-      queueMicrotask(() => {
-        setChats(chatPreviews.map(c => ({ ...c })));
-        setFilteredChats(filtered.map(c => ({ ...c })));
-        setDirectMessageCount(totalUnreadCount);
+      console.log("🔥 DATA SET:", {
+        chatsLength: messagesStore.chats().length,
+        filteredLength: messagesStore.filteredChats().length,
+        firstUnread: messagesStore.filteredChats()[0]?.unreadCount
       });
-    });
 
-    const duration = Date.now() - startTime;
-    console.log(`✅ Loaded ${chatPreviews.length} chats (${totalUnreadCount} unread) in ${duration}ms`);
-  } catch (err) {
-    console.error("❌ Error loading chats:", err);
-  }
-};
-
+      const duration = Date.now() - startTime;
+      console.log(`✅ Loaded ${chatPreviews.length} chats (${totalUnreadCount} unread) in ${duration}ms`);
+    } catch (err) {
+      console.error("❌ Error loading chats:", err);
+    }
+  };
 
 
   const handleSearchChange = (value: string | ((prev: string) => string)) => {
@@ -384,18 +376,19 @@ const loadChats = async (userId: number) => {
     
     console.log("🔍 useMessages.handleSearchChange:", query);
     
-    const currentChats = chats();
+    const currentChats = messagesStore.chats();
     
     if (!query || query.trim() === "") {
-      setFilteredChats([...currentChats]);
+      messagesStore.setFilteredChats([...currentChats]);
     } else {
       const filtered = currentChats.filter((chat) =>
         `${chat.partnerName} ${chat.partnerSurname}`.toLowerCase().includes(query.toLowerCase()) ||
         chat.lastMessage.toLowerCase().includes(query.toLowerCase())
       );
-      setFilteredChats([...filtered]);
+      messagesStore.setFilteredChats([...filtered]);
     }
   };
+
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -419,6 +412,7 @@ const loadChats = async (userId: number) => {
       });
     }
   };
+
 
   return {
     filteredChats,
