@@ -12,7 +12,7 @@ export default function Login() {
   const [password, setPassword] = createSignal("");
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
-
+  
   const [savedRedirectTo, setSavedRedirectTo] = createSignal<string>("/home");
 
   onMount(() => {
@@ -27,10 +27,21 @@ export default function Login() {
         if (decoded.startsWith("/")) {
           console.log("✅ LOGIN MOUNT: Saved redirectTo:", decoded);
           setSavedRedirectTo(decoded);
+          
+          // ✅ Wenn redirectTo ein activate Link ist, dann ist pendingActivateToken gültig
+          // Ansonsten LÖSCHEN wir ihn, weil er nicht mehr relevant ist
+          if (!decoded.includes("/activate/")) {
+            console.log("🗑️ LOGIN MOUNT: Clearing pendingActivateToken (not from activate route)");
+            localStorage.removeItem("pendingActivateToken");
+          }
         }
       } catch (err) {
         console.error("❌ LOGIN MOUNT: Error decoding redirectTo:", err);
       }
+    } else {
+      // ✅ Kein redirectTo Parameter? → Token ist veraltet, löschen
+      console.log("🗑️ LOGIN MOUNT: No redirectTo, clearing pendingActivateToken");
+      localStorage.removeItem("pendingActivateToken");
     }
   });
 
@@ -41,11 +52,17 @@ export default function Login() {
     if (loggedIn) {
       const target = savedRedirectTo();
       const pendingToken = localStorage.getItem("pendingActivateToken");
-
-      if (pendingToken) {
-        console.log("🎫 LOGIN: Pending activate token found, redirecting to activate");
-        navigate(`/activate/${pendingToken}`, { replace: true });
+      
+      // ✅ Nur pendingToken verwenden wenn wir tatsächlich zu /activate wollen
+      if (pendingToken && target.includes("/activate/")) {
+        console.log("🎫 LOGIN: Pending activate token found AND target is activate, redirecting");
+        navigate(target, { replace: true });
       } else {
+        // ✅ Token löschen falls er existiert aber nicht relevant ist
+        if (pendingToken) {
+          console.log("🗑️ LOGIN: Clearing irrelevant pendingActivateToken");
+          localStorage.removeItem("pendingActivateToken");
+        }
         console.log("🚀 LOGIN: Already logged in, redirecting to:", target);
         navigate(target, { replace: true });
       }

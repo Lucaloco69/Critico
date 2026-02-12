@@ -1,3 +1,4 @@
+// src/components/ProtectedRoute.tsx
 import { Component, JSX, Show, createEffect, createSignal, onMount } from 'solid-js';
 import { useNavigate, useLocation } from '@solidjs/router';
 import { isLoggedIn, checkSession, hadValidSessionBefore } from '../lib/sessionStore';
@@ -18,7 +19,16 @@ export const ProtectedRoute: Component<ProtectedRouteProps> = (props) => {
     setCheckedOnce(true);
   });
 
+  // ✅ Einmaliger Check beim Mount
+  onMount(async () => {
+    console.log("🔒 PROTECTED ROUTE: Component mounted, checking session...");
+    await performCheck();
+    setCheckedOnce(true);
+  });
+
+  // ✅ Check wenn Route sich ändert
   createEffect(() => {
+    // Trigger bei location change
     location.pathname;
     
     if (checkedOnce()) {

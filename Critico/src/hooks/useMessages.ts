@@ -227,8 +227,8 @@ export function useMessages() {
     console.log("✅ useMessages.setupRealtime COMPLETE");
   };
 
- const loadChats = async (userId: number) => {
-  console.log("📥📥📥 useMessages.loadChats START for user:", userId);
+const loadChats = async (userId: number) => {
+  console.log("📥 Loading chats for user:", userId);
   const startTime = Date.now();
   
   try {
@@ -240,7 +240,6 @@ export function useMessages() {
     if (chatsError) throw chatsError;
 
     if (!userChats || userChats.length === 0) {
-      console.log("⚠️ useMessages.loadChats: Keine Chats gefunden");
       batch(() => {
         setChats([]);
         setFilteredChats([]);
@@ -250,7 +249,6 @@ export function useMessages() {
     }
 
     const chatIds = userChats.map(c => c.chat_id);
-    console.log("📋 useMessages.loadChats: Chat IDs:", chatIds);
 
     const { data: allChatDetails } = await supabase
       .from("Chats")
@@ -258,7 +256,6 @@ export function useMessages() {
       .in("id", chatIds);
 
     const chatDetails = (allChatDetails || []).filter(c => c.product_id === null);
-    console.log("💬 useMessages.loadChats: Direct Chats:", chatDetails.length);
 
     if (chatDetails.length === 0) {
       batch(() => {
@@ -274,8 +271,6 @@ export function useMessages() {
     let totalUnreadCount = 0;
 
     for (const chatId of directChatIds) {
-      console.log(`🔍 useMessages.loadChats: Verarbeite Chat ${chatId}`);
-      
       const { data: participants } = await supabase
         .from("Chat_Participants")
         .select(`
@@ -292,14 +287,19 @@ export function useMessages() {
         .neq("user_id", userId);
 
       if (!participants || participants.length === 0) {
-        console.log(`⚠️ useMessages.loadChats: Keine Partner für Chat ${chatId}`);
+        console.warn(`⚠️ Chat ${chatId}: Keine Partner gefunden`);
         continue;
       }
 
+      // ✅ NULL CHECK: Partner könnte gelöscht sein
       const partner = participants[0].User as any;
-      console.log(`👥 useMessages.loadChats: Chat ${chatId} Partner:`, partner.name);
+      
+      if (!partner || !partner.id) {
+        console.warn(`⚠️ Chat ${chatId}: Partner User ist null oder gelöscht, überspringe`);
+        continue;
+      }
 
-      const { data: lastMsg, error: lastMsgError } = await supabase
+      const { data: lastMsg } = await supabase
         .from("Messages")
         .select("content, created_at, message_type")
         .eq("chat_id", chatId)
@@ -308,13 +308,7 @@ export function useMessages() {
         .limit(1)
         .maybeSingle();
 
-      if (lastMsgError) {
-        console.error(`❌ useMessages.loadChats: Fehler bei Chat ${chatId}:`, lastMsgError);
-      }
-
-      console.log(`💬 useMessages.loadChats: Chat ${chatId} Letzte Nachricht:`, lastMsg?.content || "Keine");
-
-      const { data: unreadMessages, error: unreadError } = await supabase
+      const { data: unreadMessages } = await supabase
         .from("Messages")
         .select("id, sender_id, receiver_id, read, content, message_type")
         .eq("chat_id", chatId)
@@ -322,42 +316,34 @@ export function useMessages() {
         .eq("receiver_id", userId)
         .eq("read", false);
 
-      if (unreadError) {
-        console.error(`❌ useMessages.loadChats: Fehler unread für Chat ${chatId}:`, unreadError);
-      }
-
       const unreadCount = (unreadMessages || []).length;
       totalUnreadCount += unreadCount;
       
       messagesStore.setUnreadCount(chatId, unreadCount);
-      
-      console.log(`📬 useMessages.loadChats: Chat ${chatId} - Unread:`, unreadCount);
 
       const hasUnreadRequest = (unreadMessages || []).some(
         m => m.message_type === 'request' && !m.read
       );
 
+      // ✅ Null-safe property access
       chatPreviews.push({
         chatId,
         partnerId: partner.id,
-        partnerName: partner.name,
-        partnerSurname: partner.surname,
-        partnerPicture: partner.picture,
+        partnerName: partner.name ?? "Unbekannt",
+        partnerSurname: partner.surname ?? "",
+        partnerPicture: partner.picture ?? null,
         lastMessage: lastMsg?.content || "Noch keine Nachrichten",
         lastMessageTime: lastMsg?.created_at || new Date().toISOString(),
         lastMessageType: lastMsg?.message_type,
         unreadCount: unreadCount,
         hasUnreadRequest: hasUnreadRequest,
-        partnerTrustlevel: partner.trustlevel,
+        partnerTrustlevel: partner.trustlevel ?? 0,
       });
     }
 
     chatPreviews.sort((a, b) => 
       new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
     );
-
-    console.log("📊 useMessages.loadChats: Insgesamt", chatPreviews.length, "Chats");
-    console.log("📬 useMessages.loadChats: Total Unread:", totalUnreadCount);
 
     const currentSearch = searchQuery();
 
@@ -371,8 +357,6 @@ export function useMessages() {
       );
     }
 
-    console.log("🔄 useMessages.loadChats: Setze States...");
-    
     // ✅ Force complete re-render
     batch(() => {
       setChats([]);
@@ -382,27 +366,16 @@ export function useMessages() {
         setChats(chatPreviews.map(c => ({ ...c })));
         setFilteredChats(filtered.map(c => ({ ...c })));
         setDirectMessageCount(totalUnreadCount);
-        
-        console.log("✅✅✅ useMessages: States gesetzt:", {
-          chatsCount: chatPreviews.length,
-          filteredCount: filtered.length,
-          totalUnread: totalUnreadCount,
-          chats: chatPreviews.map(c => ({
-            partnerId: c.partnerId,
-            unread: c.unreadCount,
-            lastMsg: c.lastMessage.substring(0, 20)
-          })),
-          timestamp: Date.now()
-        });
       });
     });
 
     const duration = Date.now() - startTime;
-    console.log(`✅✅✅ useMessages.loadChats COMPLETE in ${duration}ms`);
+    console.log(`✅ Loaded ${chatPreviews.length} chats (${totalUnreadCount} unread) in ${duration}ms`);
   } catch (err) {
-    console.error("❌ useMessages.loadChats ERROR:", err);
+    console.error("❌ Error loading chats:", err);
   }
 };
+
 
 
   const handleSearchChange = (value: string | ((prev: string) => string)) => {

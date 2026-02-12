@@ -342,7 +342,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
               <span class={`font-semibold ${statusInfo().textColor}`}>{statusInfo().text}</span>
             </div>
 
-            {/* Grundtext: Tester sieht bei QR-Ready NICHT den Link */}
             <Show
               when={!(isQrReady() && !props.isOwner)}
               fallback={
@@ -367,7 +366,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
               </div>
             </Show>
 
-            {/* QR + Copy/Print nur für Owner bei request_qr_ready */}
             <Show when={shouldShowQr()}>
               <div class="mt-3 pt-3 border-t border-amber-200 dark:border-amber-800">
                 <div class="print-area">
@@ -412,7 +410,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
               </div>
             </Show>
 
-            {/* Accept/Decline nur für Owner bei pending */}
             <Show when={isPending() && props.isOwner}>
               <div class="flex gap-2 mt-3 pt-3 border-t border-amber-200 dark:border-amber-800">
                 <button
