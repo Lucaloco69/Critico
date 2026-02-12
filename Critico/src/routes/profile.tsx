@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useProfile } from "../hooks/profile/useProfile";
 import { useProfilePicture } from "../hooks/profile/useProfilePicture";
 import { useUserProducts } from "../hooks/profile/useUserProduct";
+import { clearSession } from "../lib/sessionStore";
 
 import ProfileHeader from "../components/profile/Header";
 import StatusMessages from "../components/profile/StatusMessages";
@@ -23,13 +24,13 @@ export default function Profile() {
 
   const { products, loading: productsLoading } = useUserProducts(() => user()?.id);
 
-  const goBack = () => navigate(-1);
-
-  const logout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (!error) {
-      setUser(null);
-      navigate("/login", { replace: true });
+  const handleLogout = async () => {
+    try {
+      console.log("🚪 Logging out from profile...");
+      // ✅ clearSession navigiert automatisch zu /login OHNE Parameter
+      await clearSession();
+    } catch (err) {
+      console.error("❌ Logout error:", err);
     }
   };
 
@@ -38,18 +39,42 @@ export default function Profile() {
       <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="flex items-center justify-between mb-6">
           <button
-            type="button"
-            onClick={goBack}
-            class="px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/15 transition"
+            onClick={() => navigate("/home")}
+            class="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
           >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
             {t("profile.back")}
           </button>
 
           <button
-            type="button"
-            onClick={logout}
-            class="px-4 py-2 rounded-lg bg-red-500/80 text-white hover:bg-red-500 transition"
+            onClick={handleLogout}
+            class="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
           >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+              />
+            </svg>
             {t("profile.logout")}
           </button>
         </div>

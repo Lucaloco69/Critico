@@ -309,7 +309,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
           <Show
             when={props.message.sender?.picture}
             fallback={
-              <div class="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
+              <div class="w-8 h-8 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
                 {props.message.sender?.name?.charAt(0) ?? "?"}
               </div>
             }
@@ -321,7 +321,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
             />
           </Show>
 
-          {/* Trustlevel Badge */}
           <Show when={tl() != null}>
             <div
               class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full text-[9px] leading-[16px] text-center font-semibold bg-black/70 text-white"
@@ -334,13 +333,12 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
 
         {/* Content */}
         <div>
-          <div class={`px-4 py-3 rounded-2xl shadow-md border-2 ${statusInfo().bgColor}`}>
+          <div class={`px-4 py-3 rounded-2xl shadow-md border-2 ${statusInfo().bgColor} ${props.isOwn ? "rounded-br-md" : "rounded-bl-md"}`}>
             <div class="flex items-center gap-2 mb-2">
               <span class="text-xl">{statusInfo().icon}</span>
               <span class={`font-semibold ${statusInfo().textColor}`}>{statusInfo().text}</span>
             </div>
 
-            {/* Grundtext: Tester sieht bei QR-Ready NICHT den Link */}
             <Show
               when={!(isQrReady() && !props.isOwner)}
               fallback={
@@ -365,7 +363,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
               </div>
             </Show>
 
-            {/* QR + Copy/Print nur für Owner bei request_qr_ready */}
             <Show when={shouldShowQr()}>
               <div class="mt-3 pt-3 border-t border-amber-200 dark:border-amber-800">
                 <div class="print-area">
@@ -410,7 +407,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
               </div>
             </Show>
 
-            {/* Accept/Decline nur für Owner bei pending */}
             <Show when={isPending() && props.isOwner}>
               <div class="flex gap-2 mt-3 pt-3 border-t border-amber-200 dark:border-amber-800">
                 <button

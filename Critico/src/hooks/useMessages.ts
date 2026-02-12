@@ -255,8 +255,15 @@ export function useMessages() {
           continue;
         }
 
+        // ✅ NULL CHECK!
         const partner = participants[0].User as any;
-        console.log(`👥 useMessages.loadChats: Chat ${chatId} Partner:`, partner.name);
+        
+        if (!partner || !partner.id) {
+          console.warn(`⚠️ MESSAGES: Chat ${chatId} - Partner User ist null oder gelöscht, überspringe`);
+          continue;
+        }
+
+        console.log(`👥 MESSAGES: Chat ${chatId} Partner:`, partner.name);
 
         const { data: lastMsg, error: lastMsgError } = await supabase
           .from("Messages")
@@ -296,18 +303,19 @@ export function useMessages() {
           m => m.message_type === 'request' && !m.read
         );
 
+        // ✅ Null-safe property access
         chatPreviews.push({
           chatId,
           partnerId: partner.id,
-          partnerName: partner.name,
-          partnerSurname: partner.surname,
-          partnerPicture: partner.picture,
+          partnerName: partner.name ?? "Unbekannt",
+          partnerSurname: partner.surname ?? "",
+          partnerPicture: partner.picture ?? null,
           lastMessage: lastMsg?.content || "Noch keine Nachrichten",
           lastMessageTime: lastMsg?.created_at || new Date().toISOString(),
           lastMessageType: lastMsg?.message_type,
           unreadCount: unreadCount,
           hasUnreadRequest: hasUnreadRequest,
-          partnerTrustlevel: partner.trustlevel,
+          partnerTrustlevel: partner.trustlevel ?? 0,
         });
       }
 
