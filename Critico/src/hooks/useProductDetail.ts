@@ -1,8 +1,8 @@
-// src/hooks/useProductDetail.ts
 import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { supabase } from "../lib/supabaseClient";
 import sessionStore, { isLoggedIn } from "../lib/sessionStore";
 import type { Comment, Product } from "../types/product";
+import { t } from "../lib/i18n";
 
 interface ProductDB {
   id: number;
@@ -39,7 +39,7 @@ const emptyModal: ModalState = { show: false, type: "info", title: "", message: 
 
 const unknownUser = (senderId: number): Comment["User"] => ({
   id: senderId,
-  name: "Unbekannt",
+  name: t("productDetail.unknownUserName"),
   surname: "",
   picture: null,
   trustlevel: null,
@@ -62,7 +62,7 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     title: string,
     message: string,
     action?: () => void,
-    actionLabel?: string,
+    actionLabel?: string
   ) => setModal({ show: true, type, title, message, action, actionLabel });
 
   const closeModal = () => setModal(emptyModal);
@@ -90,10 +90,9 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
   };
 
   const transformProduct = (db: ProductDB): Product => {
-    const images =
-      db.product_images?.length
-        ? [...db.product_images].sort((a, b) => a.order_index - b.order_index).map((i) => i.image_url)
-        : [];
+    const images = db.product_images?.length
+      ? [...db.product_images].sort((a, b) => a.order_index - b.order_index).map((i) => i.image_url)
+      : [];
 
     return {
       id: db.id,
@@ -127,11 +126,10 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     return valid.reduce((sum, s) => sum + s, 0) / valid.length;
   };
 
-  // ✅ Separate Load-Funktionen
   const loadProduct = async (pid: number) => {
     try {
       console.log("🔄 PRODUCT DETAIL: Loading product", pid);
-      
+
       const { data: productData, error: productError } = await supabase
         .from("Product")
         .select(
@@ -154,17 +152,16 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
               Tags ( id, name )
             ),
             product_images ( id, image_url, order_index )
-          `,
+          `
         )
         .eq("id", pid)
         .single<ProductDB>();
 
       if (productError || !productData) throw productError;
-      
+
       const transformed = transformProduct(productData);
       console.log("✅ PRODUCT DETAIL: Product loaded, stars:", transformed.stars);
-      
-      // ✅ Erstelle komplett neues Product Objekt
+
       setProduct(transformed);
     } catch (err) {
       console.error("Error loading product:", err);
@@ -174,7 +171,7 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
   const loadComments = async (pid: number) => {
     try {
       console.log("🔄 PRODUCT DETAIL: Loading comments for product", pid);
-      
+
       const { data: messagesData } = await supabase
         .from("Messages")
         .select(
@@ -192,7 +189,7 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
               picture,
               trustlevel
             )
-          `,
+          `
         )
         .eq("product_id", pid)
         .eq("message_type", "product")
@@ -200,46 +197,23 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
 
       const list = ((messagesData as MessageRow[] | null) ?? []).map(toComment);
       console.log("✅ PRODUCT DETAIL: Comments loaded:", list.length);
-      
+
       setComments(list);
 
       const avg = computeAvgStars(list);
       console.log("📊 PRODUCT DETAIL: Computed average stars:", avg);
-      
+
       if (avg != null) {
-        // Update DB
         await supabase.from("Product").update({ stars: avg }).eq("id", pid);
-        
-        // ✅ Update lokales Product Signal - WICHTIG: Neues Objekt erstellen!
+
         setProduct((prev) => {
           if (!prev) return null;
           console.log("🌟 PRODUCT DETAIL: Updating product stars:", prev.stars, "→", avg);
-          // Erstelle komplett neues Objekt für Reaktivität
-          return { 
-            ...prev, 
-            stars: avg
-          };
+          return { ...prev, stars: avg };
         });
       }
     } catch (err) {
       console.error("Error loading comments:", err);
-    }
-  };
-
-  // ✅ Wrapper für Realtime
-  const reloadProduct = () => {
-    const pid = productId();
-    if (pid && !Number.isNaN(pid)) {
-      console.log("🔄 PRODUCT DETAIL: Reloading product...");
-      loadProduct(pid);
-    }
-  };
-
-  const reloadComments = () => {
-    const pid = productId();
-    if (pid && !Number.isNaN(pid)) {
-      console.log("🔄 PRODUCT DETAIL: Reloading comments...");
-      loadComments(pid);
     }
   };
 
@@ -258,6 +232,7 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
 
     (async () => {
       const ok = await checkCommentPermission(uid, pid);
+      console.log("🔐 Permission check result:", ok);
       setCanComment(ok);
       setCheckingPermission(false);
     })();
@@ -277,20 +252,27 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     })();
   });
 
-  // Realtime comments
+  // ✅ Realtime comments
   createEffect(() => {
     const pid = productId();
     if (!pid || Number.isNaN(pid)) return;
+
+    console.log("🔄 REALTIME: Setting up channel for product", pid);
 
     const channel = supabase
       .channel("product-comments-" + pid)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "Messages", filter: `product_id=eq.${pid}` },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "Messages",
+          filter: `product_id=eq.${pid}`,
+        },
         (payload: any) => {
           if (payload.new?.message_type !== "product") return;
 
-          console.log("🔔 PRODUCT DETAIL: New comment received");
+          console.log("🔔 REALTIME: New comment received", payload.new.id);
 
           (async () => {
             const { data: row, error } = await supabase
@@ -310,37 +292,63 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
                     picture,
                     trustlevel
                   )
-                `,
+                `
               )
               .eq("id", payload.new.id)
               .eq("message_type", "product")
               .maybeSingle<MessageRow>();
 
-            if (error || !row) return;
+            if (error || !row) {
+              console.error("❌ REALTIME: Error fetching comment:", error);
+              return;
+            }
 
             setComments((prev) => {
-              if (prev.some((c) => c.id === row.id)) return prev;
-              const next = [toComment(row), ...prev];
+              if (prev.some((c) => c.id === row.id)) {
+                console.log("⚠️ REALTIME: Comment already exists, skipping");
+                return prev;
+              }
+
+              const next = [...prev, toComment(row)];
+              console.log("✅ REALTIME: Comment added, total:", next.length);
 
               const avg = computeAvgStars(next);
               if (avg != null) {
                 const rounded = Math.round(avg * 2) / 2;
-                console.log("🌟 PRODUCT DETAIL: Realtime - Updating stars to", rounded);
-                
-                // ✅ Update Product Signal mit neuem Objekt
-                setProduct((p) => {
-                  if (!p) return null;
-                  return { ...p, stars: rounded };
-                });
+                console.log("🌟 REALTIME: Updating stars to", rounded);
+
+                supabase.from("Product").update({ stars: rounded }).eq("id", pid);
+                setProduct((p) => (p ? { ...p, stars: rounded } : null));
               }
+
               return next;
             });
           })();
-        },
+        }
       )
-      .subscribe();
+      .subscribe(async (status) => {
+        console.log("📡 REALTIME: Channel status:", status);
+
+        if (status === "SUBSCRIBED") {
+          console.log("✅ REALTIME: Successfully subscribed to product", pid);
+        } else if (status === "CHANNEL_ERROR") {
+          console.error("❌ REALTIME: Channel error for product", pid);
+        } else if (status === "TIMED_OUT") {
+          console.error("⏱️ REALTIME: Channel timed out for product", pid);
+
+          // ✅ DEBUG: Teste manuell ob SELECT funktioniert
+          const { data, error } = await supabase
+            .from("Messages")
+            .select("id")
+            .eq("product_id", pid)
+            .limit(1);
+
+          console.log("🧪 Manual SELECT test:", { data, error });
+        }
+      });
 
     onCleanup(() => {
+      console.log("🧹 REALTIME: Cleaning up channel for product", pid);
       supabase.removeChannel(channel);
     });
   });
@@ -353,12 +361,12 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     const prod = product();
 
     if (typeof uid !== "number" || !prod) {
-      showModal("info", "Einen Moment", "Dein Konto oder das Produkt wird noch geladen. Bitte versuche es gleich nochmal.");
+      showModal("info", t("productDetail.modal.oneMomentTitle"), t("productDetail.modal.oneMomentText"));
       return;
     }
 
     if (uid === prod.owner_id) {
-      showModal("warning", "Eigenes Produkt", "Du kannst keine Testanfrage für dein eigenes Produkt stellen.");
+      showModal("warning", t("productDetail.modal.ownProductTitle"), t("productDetail.modal.ownProductText"));
       return;
     }
 
@@ -377,10 +385,12 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
       if (existingRequest) {
         showModal(
           "info",
-          existingRequest.message_type === "request_accepted" ? "Bereits akzeptiert" : "Anfrage bereits gesendet",
           existingRequest.message_type === "request_accepted"
-            ? "Deine Anfrage wurde bereits akzeptiert! Du kannst jetzt kommentieren."
-            : "Du hast bereits eine Anfrage für dieses Produkt gesendet!",
+            ? t("productDetail.modal.alreadyAcceptedTitle")
+            : t("productDetail.modal.requestAlreadySentTitle"),
+          existingRequest.message_type === "request_accepted"
+            ? t("productDetail.modal.alreadyAcceptedText")
+            : t("productDetail.modal.requestAlreadySentText")
         );
         return;
       }
@@ -392,7 +402,7 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
       if (chatError) throw chatError;
 
       const chatId = chatData as number;
-      const requestContent = `Ich möchte gerne dein Produkt "${prod.name}" testen!`;
+      const requestContent = t("productDetail.requestContent", { name: prod.name });
 
       const { error: messageError } = await supabase.from("Messages").insert({
         content: requestContent,
@@ -408,14 +418,20 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
 
       showModal(
         "success",
-        "Anfrage gesendet",
-        "Deine Anfrage wurde erfolgreich gesendet! Du wirst zum Chat weitergeleitet.",
+        t("productDetail.modal.requestSentTitle"),
+        t("productDetail.modal.requestSentText"),
         () => navigate(`/chat/${ownerId}`),
-        "Zum Chat",
+        t("productDetail.modal.toChat")
       );
     } catch (err: any) {
       console.error("Error sending request:", err);
-      showModal("error", "Fehler", `Fehler beim Senden der Anfrage: ${err.message || "Unbekannter Fehler"}`);
+      showModal(
+        "error",
+        t("productDetail.modal.requestSendErrorTitle"),
+        t("productDetail.modal.requestSendErrorText", {
+          msg: err?.message || t("productDetail.modal.unknownError"),
+        })
+      );
     }
   };
 
@@ -426,36 +442,69 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
   };
 
   const handleSubmitComment = async (content: string, stars: number) => {
+    console.log("💬 SUBMIT COMMENT: Starting...");
+    console.log("💬 Content:", content);
+    console.log("⭐ Stars:", stars);
+
     if (!isLoggedIn()) return navigate("/login");
 
     const uid = currentUserId();
     const pid = productId();
-    if (typeof uid !== "number" || !content.trim() || Number.isNaN(pid)) return;
+
+    console.log("👤 User ID:", uid);
+    console.log("📦 Product ID:", pid);
+
+    if (typeof uid !== "number" || !content.trim() || Number.isNaN(pid)) {
+      console.error("❌ Invalid data:", { uid, content, pid });
+      return;
+    }
 
     try {
+      // Permission check
+      console.log("🔐 Checking comment permission...");
       const ok = await checkCommentPermission(uid, pid);
+      console.log("🔐 Permission result:", ok);
+
       if (!ok) {
-        showModal("warning", "Keine Berechtigung", "Du hast keine Berechtigung, dieses Produkt zu kommentieren.");
+        showModal("warning", t("productDetail.modal.noPermissionTitle"), t("productDetail.modal.noPermissionText"));
         setCanComment(false);
         return;
       }
 
-      const { data: existingChat } = await supabase.from("Chats").select("id").eq("product_id", pid).maybeSingle();
+      // Chat check/create
+      console.log("💬 Checking for existing chat...");
+      const { data: existingChat, error: chatSelectError } = await supabase
+        .from("Chats")
+        .select("id")
+        .eq("product_id", pid)
+        .maybeSingle();
+
+      if (chatSelectError) {
+        console.error("❌ CHAT SELECT ERROR:", chatSelectError);
+        throw chatSelectError;
+      }
 
       let chatId: number;
       if (existingChat) {
         chatId = existingChat.id;
+        console.log("✅ Using existing chat:", chatId);
       } else {
+        console.log("📝 Creating new chat...");
         const { data: newChat, error: chatError } = await supabase
           .from("Chats")
           .insert({ product_id: pid, created_at: new Date().toISOString() })
           .select("id")
           .single();
 
-        if (chatError) throw chatError;
+        if (chatError) {
+          console.error("❌ CHAT CREATE ERROR:", chatError);
+          throw chatError;
+        }
         chatId = newChat.id;
+        console.log("✅ Created new chat:", chatId);
       }
 
+      // Build insert data
       const insertData: Record<string, unknown> = {
         content,
         sender_id: uid,
@@ -466,26 +515,44 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
       };
       if (stars > 0) insertData.stars = stars;
 
-      const { error } = await supabase.from("Messages").insert(insertData);
+      console.log("📤 Inserting message:", insertData);
 
-      if (error) {
-        if (error.code === "42501" || error.message.includes("policy")) {
-          showModal("warning", "Keine Berechtigung", "Du hast keine Berechtigung, dieses Produkt zu kommentieren.");
+      // Insert message
+      const { error: insertError, data: insertedData } = await supabase
+        .from("Messages")
+        .insert(insertData)
+        .select();
+
+      if (insertError) {
+        console.error("❌ INSERT ERROR:", insertError);
+        console.error("❌ Error code:", insertError.code);
+        console.error("❌ Error message:", insertError.message);
+        console.error("❌ Error details:", insertError.details);
+
+        if (insertError.code === "42501" || insertError.message.includes("policy")) {
+          showModal("warning", t("productDetail.modal.noPermissionTitle"), t("productDetail.modal.noPermissionText"));
           setCanComment(false);
           return;
         }
-        throw error;
+        throw insertError;
       }
 
-      console.log("✅ Comment submitted successfully");
+      console.log("✅ Comment inserted successfully!");
+      console.log("✅ Inserted data:", insertedData);
+
+      // Reload comments manually
+      await loadComments(pid);
     } catch (err: any) {
-      console.error("Error submitting comment:", err);
-      showModal("error", "Fehler beim Kommentieren", err.message || "Unbekannter Fehler");
+      console.error("❌ SUBMIT COMMENT ERROR:", err);
+      showModal(
+        "error",
+        t("productDetail.modal.commentErrorTitle"),
+        err?.message || t("productDetail.modal.unknownError")
+      );
     }
   };
 
   return {
-    // state
     product,
     comments,
     loading,
@@ -493,19 +560,11 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     canComment,
     checkingPermission,
     modal,
-
-    // modal helpers
     showModal,
     closeModal,
     handleModalAction,
-
-    // actions
     handleRequestTest,
     handleContact,
     handleSubmitComment,
-    
-    // reload functions
-    reloadProduct,
-    reloadComments,
   };
 }

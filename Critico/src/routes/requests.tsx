@@ -2,6 +2,7 @@ import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "so
 import { A, useNavigate } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import sessionStore, { isLoggedIn } from "../lib/sessionStore";
+import { t } from "../lib/i18n";
 
 interface Request {
   id: number;
@@ -23,7 +24,6 @@ interface Request {
   };
 }
 
-// Row-Typ passend zum Supabase-Select (Joins können null sein)
 type RequestRow = Omit<Request, "Sender" | "Product"> & {
   Sender: Request["Sender"] | null;
   Product: Request["Product"] | null;
@@ -35,7 +35,6 @@ export default function Requests() {
   const [requests, setRequests] = createSignal<Request[]>([]);
   const [loading, setLoading] = createSignal(true);
 
-  // DB-UserId kommt bei dir aus sessionStore.userId
   const currentUserId = createMemo<number | null>(() => sessionStore.userId);
 
   createEffect(() => {
@@ -70,8 +69,7 @@ export default function Requests() {
           `,
         )
         .order("created_at", { ascending: false })
-        // Supabase-Typing ist bei template literal selects oft nicht inferierbar → wir override'n den Rückgabetyp.
-        .overrideTypes<RequestRow[]>(); // Supabase TS Support: overrideTypes [web:94]
+        .overrideTypes<RequestRow[]>();
 
       if (error) throw error;
 
@@ -115,8 +113,6 @@ export default function Requests() {
     const { error } = await supabase.from("ProductComments_User").insert({ user_id: userId, product_id: productId });
 
     if (!error) return;
-
-    // 23505 = unique constraint (bereits vorhanden) → OK
     if (error.code === "23505") return;
 
     console.error("❌ Error granting comment permission:", error);
@@ -136,7 +132,7 @@ export default function Requests() {
       setRequests((prev) => prev.map((r) => (r.id === requestId ? { ...r, status: "accepted" } : r)));
     } catch (err) {
       console.error("Error accepting request:", err);
-      alert("Fehler beim Annehmen der Anfrage.");
+      alert(t("requests.errorAccept"));
     }
   };
 
@@ -148,7 +144,7 @@ export default function Requests() {
       setRequests((prev) => prev.map((r) => (r.id === requestId ? { ...r, status: "declined" } : r)));
     } catch (err) {
       console.error("Error declining request:", err);
-      alert("Fehler beim Ablehnen der Anfrage.");
+      alert(t("requests.errorDecline"));
     }
   };
 
@@ -180,7 +176,7 @@ export default function Requests() {
       </header>
 
       <main class="max-w-5xl mx-auto px-4 py-8">
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Produktanfragen</h1>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">{t("requests.pageTitle")}</h1>
 
         <Show when={loading()}>
           <div class="flex justify-center items-center py-20">
@@ -194,15 +190,15 @@ export default function Requests() {
               <svg class="w-6 h-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Offene Anfragen ({pendingRequests().length})
+              {t("requests.openTitle")} ({pendingRequests().length})
             </h2>
 
             <Show when={pendingRequests().length === 0}>
               <div class="bg-white dark:bg-gray-800 rounded-xl p-8 text-center">
                 <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 00-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                 </svg>
-                <p class="text-gray-500 dark:text-gray-400">Keine offenen Anfragen</p>
+                <p class="text-gray-500 dark:text-gray-400">{t("requests.noOpen")}</p>
               </div>
             </Show>
 
@@ -237,7 +233,7 @@ export default function Requests() {
                             <span class="font-medium text-gray-900 dark:text-white">
                               {request.Sender.name} {request.Sender.surname}
                             </span>{" "}
-                            möchte dieses Produkt testen
+                            {t("requests.wantsToTest")}
                           </span>
                         </div>
 
@@ -252,7 +248,7 @@ export default function Requests() {
                           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                           </svg>
-                          Annehmen
+                          {t("requests.accept")}
                         </button>
 
                         <button
@@ -262,7 +258,7 @@ export default function Requests() {
                           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                           </svg>
-                          Ablehnen
+                          {t("requests.decline")}
                         </button>
                       </div>
                     </div>
@@ -277,12 +273,12 @@ export default function Requests() {
               <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Beantwortete Anfragen ({answeredRequests().length})
+              {t("requests.answeredTitle")} ({answeredRequests().length})
             </h2>
 
             <Show when={answeredRequests().length === 0}>
               <div class="bg-white dark:bg-gray-800 rounded-xl p-8 text-center">
-                <p class="text-gray-500 dark:text-gray-400">Keine beantworteten Anfragen</p>
+                <p class="text-gray-500 dark:text-gray-400">{t("requests.noAnswered")}</p>
               </div>
             </Show>
 
@@ -320,7 +316,7 @@ export default function Requests() {
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                             </svg>
-                            Angenommen
+                            {t("requests.accepted")}
                           </span>
                         </Show>
 
@@ -329,7 +325,7 @@ export default function Requests() {
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                             </svg>
-                            Abgelehnt
+                            {t("requests.declined")}
                           </span>
                         </Show>
                       </div>

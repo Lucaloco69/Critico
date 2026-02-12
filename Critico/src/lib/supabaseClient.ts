@@ -9,15 +9,21 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // ✅ JWT wird automatisch in localStorage gespeichert
     storage: window.localStorage,
     storageKey: 'supabase.auth.token',
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    // ✅ Optional: Flow type (default ist 'implicit')
     flowType: 'implicit',
+  },
+  // ✅ REALTIME CONFIG
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
+    },
   },
 });
 
 console.log("✅ Supabase client initialized with JWT persistence");
+console.log("📡 Supabase Realtime enabled:", !!supabase.realtime);
+console.log("🔗 Supabase URL:", supabaseUrl);

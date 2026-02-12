@@ -17,6 +17,7 @@ import { createSignal, For, Show } from "solid-js";
 import { useNavigate, A } from "@solidjs/router";
 import StarRating from "./StarRating";
 import type { Comment } from "../types/product";
+import { t } from "../lib/i18n";
 
 interface CommentSectionProps {
   comments: Comment[];
@@ -67,18 +68,21 @@ export default function CommentSection(props: CommentSectionProps) {
             d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
           />
         </svg>
-        Bewertungen & Kommentare ({props.comments.length})
+
+        {t("commentSection.headerTitle")}{" "}
+        {t("commentSection.headerCount", { count: props.comments.length })}
       </h2>
 
       {/* Nicht eingeloggt: Anmelde-Banner */}
       <Show when={!props.isLoggedIn}>
         <div class="mb-8 p-6 bg-sky-50 dark:bg-sky-900/20 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
-          <p class="text-gray-700 dark:text-gray-300 mb-3">Melde dich an, um eine Bewertung zu hinterlassen</p>
+          <p class="text-gray-700 dark:text-gray-300 mb-3">{t("commentSection.loginBannerText")}</p>
           <button
             onClick={() => navigate("/login")}
             class="px-6 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold transition-colors"
+            type="button"
           >
-            Anmelden
+            {t("commentSection.loginButton")}
           </button>
         </div>
       </Show>
@@ -114,11 +118,10 @@ export default function CommentSection(props: CommentSectionProps) {
 
                   <div>
                     <p class="text-sm font-semibold text-yellow-800 dark:text-yellow-300 mb-1">
-                      Anfrage angenommen – noch nicht freigeschaltet
+                      {t("commentSection.permissionBlockedTitle")}
                     </p>
                     <p class="text-sm text-yellow-700 dark:text-yellow-400">
-                      Du kannst erst kommentieren, sobald du das Produkt erhalten und den Aktivierungs‑QR‑Code auf dem
-                      Beileger/Paket gescannt hast.
+                      {t("commentSection.permissionBlockedText")}
                     </p>
                   </div>
                 </div>
@@ -128,7 +131,7 @@ export default function CommentSection(props: CommentSectionProps) {
             <form onSubmit={handleSubmit} class="mb-8 space-y-4">
               <div class="mb-4">
                 <label class="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
-                  Deine Bewertung (optional)
+                  {t("commentSection.ratingLabel")}
                 </label>
                 <div class="flex gap-2">
                   <For each={[1, 2, 3, 4, 5]}>
@@ -140,7 +143,9 @@ export default function CommentSection(props: CommentSectionProps) {
                       >
                         <svg
                           class={`w-8 h-8 ${
-                            star <= newCommentStars() ? "text-amber-400" : "text-gray-300 dark:text-gray-600"
+                            star <= newCommentStars()
+                              ? "text-amber-400"
+                              : "text-gray-300 dark:text-gray-600"
                           }`}
                           fill="currentColor"
                           viewBox="0 0 20 20"
@@ -157,9 +162,9 @@ export default function CommentSection(props: CommentSectionProps) {
                 <textarea
                   value={newComment()}
                   onInput={(e) => setNewComment(e.currentTarget.value)}
-                  placeholder="Teile deine Erfahrung mit diesem Produkt..."
+                  placeholder={t("commentSection.textareaPlaceholder")}
                   class="w-full bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none resize-none"
-                  rows="3"
+                  rows={3}
                 />
               </div>
 
@@ -172,7 +177,7 @@ export default function CommentSection(props: CommentSectionProps) {
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                   </svg>
-                  {submitting() ? "Wird gesendet..." : "Bewertung absenden"}
+                  {submitting() ? t("commentSection.submitSending") : t("commentSection.submit")}
                 </button>
               </div>
             </form>
@@ -184,10 +189,20 @@ export default function CommentSection(props: CommentSectionProps) {
       <div class="space-y-4">
         <Show when={props.comments.length === 0}>
           <div class="text-center py-12">
-            <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+            <svg
+              class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-3"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+              />
             </svg>
-            <p class="text-gray-500 dark:text-gray-400">Noch keine Bewertungen. Sei der Erste!</p>
+            <p class="text-gray-500 dark:text-gray-400">{t("commentSection.emptyText")}</p>
           </div>
         </Show>
 
@@ -225,13 +240,14 @@ export default function CommentSection(props: CommentSectionProps) {
                     </Show>
 
                     <Show when={comment.User?.trustlevel != null}>
-                      <div
-                        class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] leading-[18px] text-center font-semibold bg-black/70 text-white"
-                        title={`Trustlevel ${comment.User!.trustlevel}`}
-                      >
-                        {comment.User!.trustlevel}
-                      </div>
-                    </Show>
+  <div
+    class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] leading-[18px] text-center font-semibold bg-black/70 text-white"
+    title={t("commentSection.trustlevelTitle", { level: comment.User!.trustlevel! })}
+  >
+    {comment.User!.trustlevel}
+  </div>
+</Show>
+
                   </A>
 
                   <div class="flex-1 min-w-0">
@@ -245,11 +261,15 @@ export default function CommentSection(props: CommentSectionProps) {
                               isOwnComment ? "text-sky-700 dark:text-sky-300" : "text-gray-900 dark:text-white"
                             }`}
                           >
-                            {comment.User ? `${comment.User.name} ${comment.User.surname}` : "Unbekannter Nutzer"}
+                            {comment.User
+                              ? `${comment.User.name} ${comment.User.surname}`
+                              : t("commentSection.unknownUser")}
                           </A>
 
                           <Show when={isOwnComment}>
-                            <span class="px-2 py-0.5 bg-sky-500 text-white text-xs font-bold rounded-full">Ich</span>
+                            <span class="px-2 py-0.5 bg-sky-500 text-white text-xs font-bold rounded-full">
+                              {t("commentSection.meBadge")}
+                            </span>
                           </Show>
 
                           <span class="text-sm text-gray-500 dark:text-gray-400">{formatDate(comment.created_at)}</span>

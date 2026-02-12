@@ -1,6 +1,7 @@
 import { For, Show, Accessor, createEffect } from "solid-js";
 import type { Message } from "../../hooks/useChat";
 import { MessageBubble } from "./MessageBubble";
+import { t } from "../../lib/i18n";
 
 interface MessagesListProps {
   messages: Accessor<Message[]>;
@@ -13,28 +14,18 @@ interface MessagesListProps {
 }
 
 export function MessagesList(props: MessagesListProps) {
-  // Debug: zeigt, ob Messages mehrere Produkte enthalten (jetzt erlaubt),
-  // aber du siehst sofort, ob product_id / owner_id fehlt.
   createEffect(() => {
     const msgs = props.messages();
-    const productIds = Array.from(
-      new Set(msgs.map((m: any) => m.product_id).filter((x): x is number => typeof x === "number"))
-    );
+    const productIds = Array.from(new Set(msgs.map((m: any) => m.product_id).filter((x): x is number => typeof x === "number")));
 
     console.log("🧾 MessagesList debug (top):", {
       loading: props.loading(),
       currentUserId: props.currentUserId(),
       messagesCount: msgs.length,
       productIds,
-      first: msgs[0]
-        ? { id: msgs[0].id, type: msgs[0].message_type, product_id: (msgs[0] as any).product_id ?? null }
-        : null,
+      first: msgs[0] ? { id: msgs[0].id, type: msgs[0].message_type, product_id: (msgs[0] as any).product_id ?? null } : null,
       last: msgs[msgs.length - 1]
-        ? {
-            id: msgs[msgs.length - 1].id,
-            type: msgs[msgs.length - 1].message_type,
-            product_id: (msgs[msgs.length - 1] as any).product_id ?? null,
-          }
+        ? { id: msgs[msgs.length - 1].id, type: msgs[msgs.length - 1].message_type, product_id: (msgs[msgs.length - 1] as any).product_id ?? null }
         : null,
     });
   });
@@ -51,19 +42,15 @@ export function MessagesList(props: MessagesListProps) {
         <div class="px-4 py-6 space-y-4 max-w-5xl mx-auto w-full">
           <Show when={props.messages().length === 0}>
             <div class="text-center py-12">
-              <p class="text-gray-500 dark:text-gray-400">Noch keine Nachrichten. Starte die Unterhaltung!</p>
+              <p class="text-gray-500 dark:text-gray-400">{t("chatMessagesList.empty")}</p>
             </div>
           </Show>
 
           <For each={props.messages()}>
             {(message: any) => {
               const isOwn = message.sender_id === props.currentUserId();
-
-              // ✅ Owner pro Message: kommt aus embed `product.owner_id`
-              // Falls du noch nicht gejoined hast, ist das null (dann keine Owner-Buttons).
               const perMessageOwnerId: number | null = message.product?.owner_id ?? null;
 
-              // Debug pro Message
               createEffect(() => {
                 console.log("📩 MessagesList per-message:", {
                   messageId: message.id,

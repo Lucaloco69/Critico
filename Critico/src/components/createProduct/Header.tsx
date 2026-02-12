@@ -1,4 +1,5 @@
 import { A } from "@solidjs/router";
+import { t } from "../../lib/i18n"; // Pfad anpassen, falls Header woanders liegt
 
 export default function Header() {
   return (
@@ -17,7 +18,7 @@ export default function Header() {
                  bg-white/60 dark:bg-white/5 px-3 sm:px-4 py-2 text-sm sm:text-base
                  text-gray-700 dark:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-white/10 transition-colors"
         >
-          Abbrechen
+          {t("createProductHeader.cancel")}
         </A>
       </div>
     </header>

@@ -1,4 +1,5 @@
 import { Accessor, Setter } from "solid-js";
+import { t } from "../lib/i18n"; // falls dein SearchBar in src/components liegt, ggf. Pfad anpassen
 
 interface SearchBarProps {
   searchQuery: Accessor<string>;
@@ -26,7 +27,7 @@ export function SearchBar(props: SearchBarProps) {
 
         <input
           type="text"
-          placeholder="Produkte durchsuchen..."
+          placeholder={t("searchBar.placeholder")}
           value={props.searchQuery()}
           onInput={(e) => props.setSearchQuery(e.currentTarget.value)}
           class="w-full h-11 pl-12 pr-4 rounded-xl bg-white dark:bg-gray-700/70 border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/40 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500/70 focus:border-sky-500"

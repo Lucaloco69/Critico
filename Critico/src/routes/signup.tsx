@@ -2,6 +2,7 @@ import { createSignal, createEffect } from "solid-js";
 import { useNavigate, A } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import { isLoggedIn } from "../lib/sessionStore";
+import { t } from "../lib/i18n";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -29,16 +30,15 @@ export default function Signup() {
     try {
       console.log("🔐 Starting signup for:", email());
 
-      // 1. Erstelle Auth User
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email(),
         password: password(),
         options: {
           data: {
             firstName: firstName(),
-            lastName: lastName()
-          }
-        }
+            lastName: lastName(),
+          },
+        },
       });
 
       if (authError) {
@@ -47,20 +47,18 @@ export default function Signup() {
       }
 
       if (!authData.user) {
-        throw new Error("User creation failed");
+        throw new Error(t("signup.userCreationFailed"));
       }
 
       console.log("✅ Auth user created:", authData.user.id);
 
-      // 2. Erstelle User-Profil (✅ Angepasst an deine Spalten!)
       const { data: user, error: userError } = await supabase
         .from("User")
         .insert({
-          auth_id: authData.user.id,    // ✅ auth_id (lowercase!)
-          name: firstName(),             // ✅ name statt first_name
-          surname: lastName(),           // ✅ surname statt last_name
-          email: email() 
-                          // ✅ email
+          auth_id: authData.user.id,
+          name: firstName(),
+          surname: lastName(),
+          email: email(),
         })
         .select()
         .single();
@@ -72,20 +70,20 @@ export default function Signup() {
 
       console.log("✅ User profile created:", user.id);
 
-      setMessage(`Registrierung erfolgreich! Willkommen ${firstName()} ${lastName()}!`);
-      
-      // Optional: Zeige Message für Email-Bestätigung
+      setMessage(
+        t("signup.successWelcome", { firstName: firstName(), lastName: lastName() })
+      );
+
       if (authData.user.identities?.length === 0) {
-        setMessage("Bitte bestätige deine Email-Adresse!");
+        setMessage(t("signup.confirmEmail"));
       }
 
       setTimeout(() => {
         navigate("/login", { replace: true });
       }, 2000);
-
     } catch (err: any) {
       console.error("💥 Signup error:", err);
-      setError(err.message || "Ein unbekannter Fehler ist aufgetreten.");
+      setError(err?.message || t("signup.unknownError"));
     } finally {
       setLoading(false);
     }
@@ -97,21 +95,27 @@ export default function Signup() {
         <div class="text-center">
           <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-linear-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-lg">
             <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+              />
             </svg>
           </div>
+
           <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-            Neues Konto erstellen
+            {t("signup.title")}
           </h1>
           <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Erstelle dein Critico Konto
+            {t("signup.subtitle")}
           </p>
         </div>
 
         <form class="space-y-5" onSubmit={handleSignup}>
           <div>
             <label for="firstName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Vorname
+              {t("signup.firstName")}
             </label>
             <input
               id="firstName"
@@ -119,14 +123,14 @@ export default function Signup() {
               class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
               value={firstName()}
               onInput={(e) => setFirstName(e.currentTarget.value)}
-              placeholder="Max"
+              placeholder={t("signup.firstNamePlaceholder")}
               required
             />
           </div>
 
           <div>
             <label for="lastName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Nachname
+              {t("signup.lastName")}
             </label>
             <input
               id="lastName"
@@ -134,14 +138,14 @@ export default function Signup() {
               class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
               value={lastName()}
               onInput={(e) => setLastName(e.currentTarget.value)}
-              placeholder="Mustermann"
+              placeholder={t("signup.lastNamePlaceholder")}
               required
             />
           </div>
 
           <div>
             <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              E-Mail
+              {t("signup.email")}
             </label>
             <input
               id="email"
@@ -149,14 +153,14 @@ export default function Signup() {
               class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
               value={email()}
               onInput={(e) => setEmail(e.currentTarget.value)}
-              placeholder="max@example.com"
+              placeholder={t("signup.emailPlaceholder")}
               required
             />
           </div>
 
           <div>
             <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Passwort
+              {t("signup.password")}
             </label>
             <input
               id="password"
@@ -164,12 +168,12 @@ export default function Signup() {
               class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
               value={password()}
               onInput={(e) => setPassword(e.currentTarget.value)}
-              placeholder="••••••••"
+              placeholder={t("signup.passwordPlaceholder")}
               required
               minlength="6"
             />
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Mindestens 6 Zeichen
+              {t("signup.passwordHint")}
             </p>
           </div>
 
@@ -203,18 +207,18 @@ export default function Signup() {
             {loading() ? (
               <span class="flex items-center justify-center gap-2">
                 <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Wird erstellt...
+                {t("signup.submitting")}
               </span>
             ) : (
-              'Konto erstellen'
+              t("signup.submit")
             )}
           </button>
         </form>
 
         <p class="text-sm text-center text-gray-600 dark:text-gray-400">
-          Schon ein Konto?{' '}
+          {t("signup.alreadyAccount")}{" "}
           <A href="/login" class="font-semibold text-sky-600 hover:text-sky-500 transition-colors">
-            Jetzt anmelden
+            {t("signup.login")}
           </A>
         </p>
       </div>

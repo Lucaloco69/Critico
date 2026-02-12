@@ -1,6 +1,6 @@
 import { Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { supabase } from "../lib/supabaseClient"; // ggf. Pfad anpassen
+import { supabase } from "../lib/supabaseClient";
 import { useProfile } from "../hooks/profile/useProfile";
 import { useProfilePicture } from "../hooks/profile/useProfilePicture";
 import { useUserProducts } from "../hooks/profile/useUserProduct";
@@ -11,18 +11,16 @@ import StatusMessages from "../components/profile/StatusMessages";
 import StatsCards from "../components/profile/StatsCard";
 import ProgressBar from "../components/profile/ProgressBar";
 import ProductGrid from "../components/profile/ProductGrid";
+import { t } from "../lib/i18n";
 
 export default function Profile() {
-  const navigate = useNavigate(); // navigate(-1) = zurück [web:1009]
+  const navigate = useNavigate();
   const { user, setUser, loading, error: profileError } = useProfile();
 
-  const {
-    uploading,
-    error: pictureError,
-    success,
-    handleFileUpload,
-    handleDeletePicture,
-  } = useProfilePicture(user, setUser);
+  const { uploading, error: pictureError, success, handleFileUpload, handleDeletePicture } = useProfilePicture(
+    user,
+    setUser,
+  );
 
   const { products, loading: productsLoading } = useUserProducts(() => user()?.id);
 
@@ -39,8 +37,7 @@ export default function Profile() {
   return (
     <div class="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-950">
       <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* ✅ Back Button & Logout Button */}
-        <div class="flex justify-between items-center mb-6">
+        <div class="flex items-center justify-between mb-6">
           <button
             onClick={() => navigate("/home")}
             class="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
@@ -58,7 +55,7 @@ export default function Profile() {
                 d="M15 19l-7-7 7-7"
               />
             </svg>
-            Zurück
+            {t("profile.back")}
           </button>
 
           <button
@@ -78,7 +75,7 @@ export default function Profile() {
                 d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
               />
             </svg>
-            Abmelden
+            {t("profile.logout")}
           </button>
         </div>
 
@@ -97,11 +94,7 @@ export default function Profile() {
               onDelete={handleDeletePicture}
             />
 
-            <StatusMessages
-              error={() => pictureError() || profileError()}
-              success={success}
-              uploading={uploading}
-            />
+            <StatusMessages error={() => pictureError() || profileError()} success={success} uploading={uploading} />
 
             <StatsCards user={user!} />
             <ProgressBar user={user!} />

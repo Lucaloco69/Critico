@@ -1,4 +1,4 @@
-import { createSignal, createEffect } from "solid-js";
+import { createSignal, createEffect, onMount } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { supabase } from "../../lib/supabaseClient";
 import sessionStore, { isLoggedIn } from "../../lib/sessionStore";
@@ -38,8 +38,8 @@ export function useCreateProduct() {
     }
   });
 
-  // Lade alle verfügbaren Tags
-  createEffect(async () => {
+  // ✅ FIXED: Lade alle verfügbaren Tags beim Mount
+  onMount(async () => {
     try {
       const { data, error } = await supabase
         .from("Tags")
@@ -76,8 +76,8 @@ export function useCreateProduct() {
     setPreviewUrls,
     setCurrentImageIndex,
     setSelectedTags,
-    setLoading,        // ✅ Hinzugefügt
-    setUploading,      // ✅ Hinzugefügt
+    setLoading,
+    setUploading,
     setError,
     setSuccess,
   };

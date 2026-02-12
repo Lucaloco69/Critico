@@ -1,4 +1,5 @@
 import { For, Show, Accessor, Setter, onMount, onCleanup } from "solid-js";
+import { t, locale } from "../lib/i18n";
 
 interface Tag {
   id: number;
@@ -33,6 +34,38 @@ export function FilterDropdown(props: FilterDropdownProps) {
     );
   };
 
+  // 🔍 DEBUG: Tag-Name übersetzen
+  const getTranslatedTagName = (tagName: string): string => {
+    const key = tagName.toLowerCase().trim();
+    const fullKey = `tags.${key}`;
+    
+    console.group("🔍 Tag Translation Debug");
+    console.log("Original Tag Name:", tagName);
+    console.log("Normalized Key:", key);
+    console.log("Full i18n Key:", fullKey);
+    console.log("Current Locale:", locale());
+    
+    try {
+      const translated = t(fullKey as any);
+      console.log("✅ Translation SUCCESS:", translated);
+      console.groupEnd();
+      return translated;
+    } catch (error) {
+      console.error("❌ Translation FAILED:", error);
+      console.log("→ Fallback to original:", tagName);
+      console.groupEnd();
+      return tagName;
+    }
+  };
+
+  // 🔍 DEBUG: Alle Tags beim Mount loggen
+  onMount(() => {
+    console.group("🏷️ All Tags in FilterDropdown");
+    console.log("Total tags:", props.tags().length);
+    console.table(props.tags());
+    console.groupEnd();
+  });
+
   return (
     <div class="relative w-full sm:w-auto" ref={dropdownRef}>
       <button
@@ -61,7 +94,7 @@ export function FilterDropdown(props: FilterDropdownProps) {
           />
         </svg>
 
-        <span class="text-base font-semibold leading-none">Filter</span>
+        <span class="text-base font-semibold leading-none">{t("filterDropdown.filterButton")}</span>
 
         <Show when={props.selectedTags().length > 0}>
           <span class="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-sky-500 text-white text-xs font-bold rounded-full">
@@ -72,7 +105,9 @@ export function FilterDropdown(props: FilterDropdownProps) {
 
       <Show when={props.showDropdown()}>
         <div class="absolute top-full mt-2 left-0 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-4 max-h-96 overflow-y-auto z-50">
-          <p class="text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">Tags filtern</p>
+          <p class="text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
+            {t("filterDropdown.filterTagsTitle")}
+          </p>
 
           <For each={props.tags()}>
             {(tag) => (
@@ -83,7 +118,9 @@ export function FilterDropdown(props: FilterDropdownProps) {
                   onChange={() => toggleTag(tag.id)}
                   class="w-4 h-4 rounded accent-sky-600 focus:ring-2 focus:ring-sky-500"
                 />
-                <span class="text-sm text-gray-700 dark:text-gray-300">{tag.name}</span>
+                <span class="text-sm text-gray-700 dark:text-gray-300">
+                  {getTranslatedTagName(tag.name)}
+                </span>
               </label>
             )}
           </For>
@@ -94,7 +131,7 @@ export function FilterDropdown(props: FilterDropdownProps) {
               onClick={() => props.setSelectedTags([])}
               class="mt-3 w-full h-10 rounded-lg text-sm text-sky-600 hover:text-sky-700 font-medium"
             >
-              Filter zurücksetzen
+              {t("filterDropdown.resetFilters")}
             </button>
           </Show>
         </div>

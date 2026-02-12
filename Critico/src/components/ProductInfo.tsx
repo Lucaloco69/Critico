@@ -2,6 +2,7 @@ import { Show, For, createMemo } from "solid-js";
 import { A } from "@solidjs/router";
 import type { Product } from "../types/product";
 import StarRating from "./StarRating";
+import { t } from "../lib/i18n";
 
 interface ProductInfoProps {
   product: Product;
@@ -12,7 +13,6 @@ interface ProductInfoProps {
 }
 
 export default function ProductInfo(props: ProductInfoProps) {
-  // derived values (gleiches Verhalten, weniger Wiederholungen)
   const user = () => props.product.User ?? null;
 
   const isOwner = createMemo(() => {
@@ -25,7 +25,21 @@ export default function ProductInfo(props: ProductInfoProps) {
   const profileHref = () => (isOwner() ? "/profile" : `/profile/${props.product.owner_id}`);
   const contactBtnWidthClass = () => (isOwner() ? "w-full" : "flex-1");
 
-  const commentsLabel = () => (props.commentsCount === 1 ? "Bewertung" : "Bewertungen");
+  const commentsLabel = () =>
+    props.commentsCount === 1
+      ? t("productInfo.review_singular")
+      : t("productInfo.review_plural");
+
+  // Helper: Tag-Name übersetzen
+  const getTranslatedTagName = (tagName: string): string => {
+    const key = tagName.toLowerCase().trim();
+    
+    try {
+      return t(`tags.${key}` as any);
+    } catch {
+      return tagName;
+    }
+  };
 
   return (
     <div class="flex flex-col h-full">
@@ -33,7 +47,9 @@ export default function ProductInfo(props: ProductInfoProps) {
 
       <div class="flex items-center gap-3 mb-4">
         <StarRating rating={props.product.stars} maxStars={5} size="lg" />
-        <span class="text-2xl font-semibold text-gray-900 dark:text-white">{props.product.stars.toFixed(1)}</span>
+        <span class="text-2xl font-semibold text-gray-900 dark:text-white">
+          {props.product.stars.toFixed(1)}
+        </span>
         <span class="text-gray-500 dark:text-gray-400">
           ({props.commentsCount} {commentsLabel()})
         </span>
@@ -47,7 +63,6 @@ export default function ProductInfo(props: ProductInfoProps) {
         </div>
       </Show>
 
-      {/* Owner Info */}
       <Show when={user()}>
         {(u) => (
           <A
@@ -74,11 +89,13 @@ export default function ProductInfo(props: ProductInfoProps) {
               </Show>
 
               <div class="min-w-0">
-                <p class="text-sm text-gray-500 dark:text-gray-400">Verkäufer</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{t("productInfo.seller")}</p>
                 <p class="font-semibold text-gray-900 dark:text-white truncate">
                   {u().name} {u().surname}
                 </p>
-                <p class="text-xs text-sky-600 dark:text-sky-300 mt-0.5">{isOwner() ? "Dein Profil" : "Profil ansehen"}</p>
+                <p class="text-xs text-sky-600 dark:text-sky-300 mt-0.5">
+                  {isOwner() ? t("productInfo.yourProfile") : t("productInfo.viewProfile")}
+                </p>
               </div>
             </div>
           </A>
@@ -86,18 +103,22 @@ export default function ProductInfo(props: ProductInfoProps) {
       </Show>
 
       <div class="mb-6">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Beschreibung</h3>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+          {t("productInfo.descriptionTitle")}
+        </h3>
         <p class="text-gray-700 dark:text-gray-300 leading-relaxed">{props.product.beschreibung}</p>
       </div>
 
       <Show when={props.product.tags && props.product.tags.length > 0}>
         <div class="mb-6">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Kategorien</h3>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+            {t("productInfo.categoriesTitle")}
+          </h3>
           <div class="flex flex-wrap gap-2">
             <For each={props.product.tags}>
               {(tag) => (
                 <span class="px-3 py-1 bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 rounded-full text-sm font-medium">
-                  {tag.name}
+                  {getTranslatedTagName(tag.name)}
                 </span>
               )}
             </For>
@@ -119,7 +140,7 @@ export default function ProductInfo(props: ProductInfoProps) {
                 d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
               />
             </svg>
-            Zum Testen anfragen
+            {t("productInfo.requestTest")}
           </button>
         </Show>
 
@@ -135,7 +156,7 @@ export default function ProductInfo(props: ProductInfoProps) {
               d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
             />
           </svg>
-          Verkäufer kontaktieren
+          {t("productInfo.contactSeller")}
         </button>
       </div>
     </div>

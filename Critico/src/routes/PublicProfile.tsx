@@ -2,6 +2,7 @@
 import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import { A, useParams } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
+import { t } from "../lib/i18n";
 
 import Header from "../components/public_profile/Header";
 import StatsGrid from "../components/public_profile/StatsGrid";
@@ -112,7 +113,7 @@ export default function PublicProfile() {
         setLoading(true);
         setError("");
 
-        if (!uid || Number.isNaN(uid)) throw new Error("Ungültige User ID");
+        if (!uid || Number.isNaN(uid)) throw new Error(t("publicProfile.invalidUserId"));
 
         const { data: base, error: fetchError } = await supabase
           .from("User")
@@ -136,7 +137,6 @@ export default function PublicProfile() {
         const level = base.trustlevel ?? 0;
         const exp = base.exp ?? 0;
 
-        // Wir berechnen das weiter (falls du es später doch brauchst), zeigen es aber nicht im UI.
         const expNext = nextExpForLevel(level);
         const reviewsNext = Math.ceil(expNext / EXP_PER_REVIEW);
 
@@ -152,7 +152,7 @@ export default function PublicProfile() {
         await loadProductsForUser(base.id);
       } catch (err: any) {
         console.error("Fehler beim Laden:", err);
-        setError(err?.message || "Profil konnte nicht geladen werden");
+        setError(err?.message || t("publicProfile.profileLoadFailed"));
       } finally {
         setLoading(false);
         setProductsLoading(false);
@@ -169,7 +169,7 @@ export default function PublicProfile() {
           </A>
 
           <A href="/home" class="px-4 py-2 text-gray-200 hover:bg-white/5 rounded-lg transition-colors border border-white/10">
-            Zurück
+            {t("publicProfile.back")}
           </A>
         </div>
       </header>

@@ -1,6 +1,7 @@
 import { A } from "@solidjs/router";
 import { Show, For, createEffect } from "solid-js";
 import StarRating from "./StarRating";
+import { t } from "../lib/i18n";
 
 interface Product {
   id: number;
@@ -18,10 +19,22 @@ interface ProductCardProps {
 }
 
 export function ProductCard(props: ProductCardProps) {
-  // ✅ Debug: Track wenn stars sich ändern
   createEffect(() => {
     console.log("🃏 ProductCard ID:", props.product.id, "Stars:", props.product.stars);
   });
+
+  const imgAlt = () => props.product.name?.trim() || t("productCard.imageAltFallback");
+
+  // Helper: Tag-Name übersetzen
+  const getTranslatedTagName = (tagName: string): string => {
+    const key = tagName.toLowerCase().trim();
+    
+    try {
+      return t(`tags.${key}` as any);
+    } catch {
+      return tagName;
+    }
+  };
 
   return (
     <A
@@ -42,7 +55,7 @@ export function ProductCard(props: ProductCardProps) {
           >
             <img
               src={props.product.picture!}
-              alt={props.product.name}
+              alt={imgAlt()}
               loading="lazy"
               decoding="async"
               class="w-full h-full object-contain p-3 group-hover:scale-110 transition-transform duration-500 ease-out"
@@ -66,13 +79,12 @@ export function ProductCard(props: ProductCardProps) {
           </Show>
         </div>
 
-        {/* ✅ Prüfe auf > 0 statt nur truthy */}
         <Show
           when={props.product.stars > 0}
           fallback={
             <div class="flex items-center gap-2 h-5">
               <span class="text-xs text-gray-400 dark:text-gray-500 italic">
-                Noch keine Bewertung
+                {t("productCard.noRating")}
               </span>
             </div>
           }
@@ -94,7 +106,7 @@ export function ProductCard(props: ProductCardProps) {
             <For each={props.product.tags?.slice(0, 2)}>
               {(tag) => (
                 <span class="px-2.5 py-1 bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 text-xs rounded-full font-medium">
-                  {tag.name}
+                  {getTranslatedTagName(tag.name)}
                 </span>
               )}
             </For>
