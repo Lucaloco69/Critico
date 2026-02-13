@@ -16,8 +16,9 @@ export function Home() {
   const { products, loading, loadProducts } = useProducts(trustlevel);
   const { tags } = useTags();
 
+  // ✅ FIX: products ist Store, wrap als Accessor!
   const { selectedTags, setSelectedTags, searchQuery, setSearchQuery, filteredProducts } =
-    useProductFilters(products);
+    useProductFilters(() => products);
 
   useRealtimeProducts(userId, loadProducts);
   useRealtimeMessages(userId);
@@ -29,7 +30,6 @@ export function Home() {
 
   return (
     <div class="min-h-screen bg-gray-50 dark:bg-gradient-to-br dark:from-gray-900 dark:via-slate-900 dark:to-gray-950">
-      {/* Header FULL width */}
       <HomeHeader
         tags={tags}
         selectedTags={selectedTags}
@@ -39,7 +39,6 @@ export function Home() {
         onCreateProduct={handleCreateProduct}
       />
 
-      {/* Page content constrained */}
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div class="pb-10 sm:pb-12 lg:pb-16">
           <ProductGrid products={filteredProducts} loading={loading} />

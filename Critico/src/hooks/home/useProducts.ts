@@ -1,4 +1,5 @@
 import { createSignal, createEffect, Accessor } from "solid-js";
+import { createStore } from "solid-js/store";
 import { supabase } from "../../lib/supabaseClient";
 
 export interface Product {
@@ -7,7 +8,7 @@ export interface Product {
   beschreibung: string;
   picture: string | null;
   owner_id: number;
-  stars: number;
+  stars: number | null;
   price: number | null;
   tags?: { id: number; name: string }[];
 }
@@ -30,7 +31,7 @@ const maxPriceForTrustlevel = (tl: number) => {
 };
 
 export function useProducts(trustlevel: Accessor<number>) {
-  const [products, setProducts] = createSignal<Product[]>([]);
+  const [products, setProducts] = createStore<Product[]>([]);
   const [loading, setLoading] = createSignal(true);
 
   const loadProducts = async () => {
@@ -66,6 +67,9 @@ export function useProducts(trustlevel: Accessor<number>) {
 
       if (productsError) throw productsError;
 
+      // ✅ DEBUG: Was kommt von Supabase?
+      console.log("🔍 RAW productsData:", productsData?.slice(0, 2));
+
       const transformedProducts = (productsData || []).map((p: any) => {
         const allImages: string[] = [];
 
@@ -76,27 +80,38 @@ export function useProducts(trustlevel: Accessor<number>) {
           allImages.push(...images);
         }
 
-        return {
+        const transformed = {
           id: p.id,
           name: p.name,
           beschreibung: p.beschreibung,
           price: p.price ?? null,
           picture: allImages[0] || null,
           owner_id: p.owner_id,
-          stars: Number(p.stars) || 0, // ✅ Konvertiere zu Number
+          stars: p.stars !== null && p.stars !== undefined ? Number(p.stars) : null,
           tags: p.Product_Tags?.map((pt: any) => pt.Tags).filter(Boolean) || [],
         };
+
+        // ✅ DEBUG: Log transformation
+        console.log(`🔧 Product ${p.id}:`, {
+          name: p.name,
+          starsRaw: p.stars,
+          starsTransformed: transformed.stars,
+        });
+
+        return transformed;
       });
 
       console.log("✅ HOME: Products loaded:", transformedProducts.length);
-      if (transformedProducts.length > 0) {
-        console.log("📊 HOME: Sample products with stars:", 
-          transformedProducts.slice(0, 3).map(p => ({ id: p.id, name: p.name, stars: p.stars }))
-        );
-      }
+      console.log("📊 HOME: First 3 products with stars:", 
+        transformedProducts.slice(0, 3).map(p => ({ 
+          id: p.id, 
+          name: p.name, 
+          stars: p.stars 
+        }))
+      );
 
-      // ✅ WICHTIG: Neues Array erstellen für Reaktivität
-      setProducts([...transformedProducts]);
+      setProducts(transformedProducts);
+      
     } catch (err) {
       console.error("❌ HOME: Fehler beim Laden der Produkte:", err);
     } finally {
@@ -104,14 +119,13 @@ export function useProducts(trustlevel: Accessor<number>) {
     }
   };
 
-  // Reload when trustlevel changes
   createEffect(() => {
     trustlevel();
     loadProducts();
   });
 
   return {
-    products,
+    products, // ✅ DIREKT den Store returnen!
     loading,
     loadProducts,
   };

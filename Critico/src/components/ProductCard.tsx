@@ -1,7 +1,8 @@
 import { A } from "@solidjs/router";
-import { Show, For, createEffect } from "solid-js";
+import { Show, For, createEffect, createMemo } from "solid-js";
 import StarRating from "./StarRating";
 import { t } from "../lib/i18n";
+
 
 interface Product {
   id: number;
@@ -9,18 +10,30 @@ interface Product {
   beschreibung: string;
   picture: string | null;
   owner_id: number;
-  stars: number;
+  stars: number | null;
   price: number | null;
   tags?: { id: number; name: string }[];
 }
+
 
 interface ProductCardProps {
   product: Product;
 }
 
+
 export function ProductCard(props: ProductCardProps) {
-  createEffect(() => {
-    console.log("🃏 ProductCard ID:", props.product.id, "Stars:", props.product.stars);
+  // ✅ Mache stars reaktiv
+  const stars = createMemo(() => props.product.stars);
+  const hasRating = createMemo(() => {
+    const s = stars();
+    const result = s !== null && s !== undefined && s > 0;
+    console.log("🃏 ProductCard hasRating:", {
+      id: props.product.id,
+      name: props.product.name,
+      stars: s,
+      hasRating: result
+    });
+    return result;
   });
 
   const imgAlt = () => props.product.name?.trim() || t("productCard.imageAltFallback");
@@ -80,7 +93,7 @@ export function ProductCard(props: ProductCardProps) {
         </div>
 
         <Show
-          when={props.product.stars > 0}
+          when={hasRating()}
           fallback={
             <div class="flex items-center gap-2 h-5">
               <span class="text-xs text-gray-400 dark:text-gray-500 italic">
@@ -90,9 +103,9 @@ export function ProductCard(props: ProductCardProps) {
           }
         >
           <div class="flex items-center gap-2.5">
-            <StarRating rating={props.product.stars} maxStars={5} />
+            <StarRating rating={stars()!} maxStars={5} />
             <span class="text-sm font-medium text-gray-700 dark:text-gray-300 tabular-nums">
-              {props.product.stars.toFixed(1)}
+              {stars()!.toFixed(1)}
             </span>
           </div>
         </Show>

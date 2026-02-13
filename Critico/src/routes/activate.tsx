@@ -3,22 +3,27 @@ import { useNavigate, useParams, A } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import { isLoggedIn } from "../lib/sessionStore";
 
+
 export default function Activate() {
   const params = useParams();
   const navigate = useNavigate();
+
 
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string>("");
   const [productId, setProductId] = createSignal<number | null>(null);
   const [success, setSuccess] = createSignal(false);
 
+
   createEffect(() => {
     const token = params.token;
+
 
     const run = async () => {
       try {
         setLoading(true);
         setError("");
+
 
         // Prüfe ob Token existiert
         if (!token) {
@@ -27,28 +32,54 @@ export default function Activate() {
           return;
         }
 
+
+        // ✅ NEU: Warte auf Session-Initialisierung
+        console.log("🔍 Activate: Prüfe Session Status...");
+        
+        // Hole Session direkt von Supabase (wartet bis geladen)
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        console.log("🔐 Activate: Session Status:", { 
+          hasSession: !!session, 
+          email: session?.user?.email,
+          isLoggedIn: isLoggedIn() 
+        });
+
+
         // Prüfe ob User eingeloggt ist
-        if (!isLoggedIn()) {
-          // Speichere Token für nach dem Login (jetzt type-safe)
+        if (!session) {
+          console.log("❌ Activate: Nicht eingeloggt, redirect zu /login");
+          // Speichere Token für nach dem Login
           localStorage.setItem("pendingActivateToken", token);
           // WICHTIG: replace: true, damit diese Seite nicht im Verlauf bleibt
           navigate("/login", { replace: true });
           return;
         }
 
+
+        console.log("✅ Activate: Eingeloggt, löse Token ein...");
+
+
         // Token einlösen
         const { data, error: rpcError } = await supabase.rpc("redeem_comment_token", {
           p_token: token,
         });
 
+
         if (rpcError) throw rpcError;
+
 
         const prodId = Number(data);
         setProductId(prodId);
         setSuccess(true);
 
+
+        console.log("✅ Activate: Token eingelöst, Product ID:", prodId);
+
+
         // Entferne den gespeicherten Token (falls vorhanden)
         localStorage.removeItem("pendingActivateToken");
+
 
         // Automatische Weiterleitung nach 2 Sekunden zur Produktseite
         // WICHTIG: replace: true entfernt die Activate-Seite aus dem Verlauf
@@ -56,7 +87,9 @@ export default function Activate() {
           navigate(`/product/${prodId}`, { replace: true });
         }, 2000);
 
+
       } catch (e: any) {
+        console.error("❌ Activate: Fehler:", e);
         setError(e?.message ?? "Aktivierung fehlgeschlagen.");
         // Bei Fehler auch Token entfernen
         localStorage.removeItem("pendingActivateToken");
@@ -65,8 +98,10 @@ export default function Activate() {
       }
     };
 
+
     void run();
   });
+
 
   const handleGoToProduct = () => {
     if (productId()) {
@@ -75,10 +110,12 @@ export default function Activate() {
     }
   };
 
+
   const handleGoHome = () => {
     // WICHTIG: replace: true
     navigate("/home", { replace: true });
   };
+
 
   return (
     <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 px-4">
@@ -94,6 +131,7 @@ export default function Activate() {
             </p>
           </div>
         </Show>
+
 
         <Show when={!loading() && !!error()}>
           <div class="flex flex-col items-center gap-4">
@@ -117,6 +155,7 @@ export default function Activate() {
           </div>
         </Show>
 
+
         <Show when={!loading() && !error() && success()}>
           <div class="flex flex-col items-center gap-4">
             <div class="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
@@ -133,6 +172,7 @@ export default function Activate() {
             <p class="text-sm text-gray-500 dark:text-gray-400">
               Du wirst gleich weitergeleitet...
             </p>
+
 
             <button
               onClick={handleGoToProduct}

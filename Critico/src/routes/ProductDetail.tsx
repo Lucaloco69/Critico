@@ -27,15 +27,13 @@ export default function ProductDetail() {
     handleRequestTest,
     handleContact,
     handleSubmitComment,
-    reloadProduct, // ✅ NEU: Expose reload function
-    reloadComments, // ✅ NEU: Expose reload function
+  
   } = useProductDetail(productId, navigate);
 
   // ✅ NEU: Realtime Updates für Product + Comments
   useRealtimeProductDetail(productId, () => {
     console.log("🔄 PRODUCT DETAIL: Realtime triggered, reloading...");
-    reloadProduct();
-    reloadComments();
+   
   });
 
   return (
