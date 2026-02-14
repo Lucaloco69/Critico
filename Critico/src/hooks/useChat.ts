@@ -156,6 +156,9 @@ export function useChat() {
 
     setTimeout(scrollToBottom, 100);
     setTimeout(scrollToBottom, 300);
+    setTimeout(scrollToBottom, 600);
+
+
 
     await messagesStore.markChatAsRead(directChatId, userId);
   };
