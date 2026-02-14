@@ -5,7 +5,6 @@ import sessionStore, { isLoggedIn } from "../lib/sessionStore";
 import { messagesStore } from "../lib/messagesStore";
 import { RealtimePostgresChangesPayload, REALTIME_SUBSCRIBE_STATES } from '@supabase/supabase-js';
 
-
 export interface Message {
   id: number;
   content: string;
@@ -159,7 +158,6 @@ export function useChat() {
     setTimeout(scrollToBottom, 300);
 
     await messagesStore.markChatAsRead(directChatId, userId);
-
   };
 
   onMount(async () => {
@@ -188,6 +186,7 @@ export function useChat() {
 
       if (!userData) {
         console.log("❌ useChat.onMount: Kein User gefunden");
+        setLoading(false);
         return;
       }
 
@@ -198,7 +197,10 @@ export function useChat() {
       const partnerId = Number(params.partnerId);
       console.log("👥 useChat.onMount: Partner ID:", partnerId);
       
-      if (!partnerId) return;
+      if (!partnerId) {
+        setLoading(false);
+        return;
+      }
 
       const { data: partnerData } = await supabase
         .from("User")
@@ -222,11 +224,13 @@ export function useChat() {
       setChatId(directChatId);
       console.log("✅ useChat.onMount: Chat ID:", directChatId);
 
+      // ✅ WICHTIG: Warte auf loadMessages BEVOR loading auf false gesetzt wird
       await loadMessages(directChatId, userId);
       await messagesStore.markChatAsRead(directChatId, userId);
 
       if (globalChannel && globalChatId === directChatId) {
         console.log("⏭️ useChat.onMount: Channel bereits aktiv für Chat:", directChatId);
+        setLoading(false);
         return;
       }
 
@@ -328,9 +332,12 @@ export function useChat() {
 
       globalChatId = directChatId;
       console.log("✅ useChat.onMount COMPLETE");
+      
+      // ✅ ENDLICH: Setze loading auf false NACHDEM alles geladen ist
+      setLoading(false);
+      
     } catch (err) {
       console.error("❌ useChat.onMount ERROR:", err);
-    } finally {
       setLoading(false);
     }
   });
