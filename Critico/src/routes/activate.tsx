@@ -32,7 +32,7 @@ export default function Activate() {
           // Speichere Token für nach dem Login (jetzt type-safe)
           localStorage.setItem("pendingActivateToken", token);
           // WICHTIG: replace: true, damit diese Seite nicht im Verlauf bleibt
-          navigate(`/login?redirectTo=/activate/${token}`, { replace: true });
+          navigate("/login", { replace: true });
           return;
         }
 

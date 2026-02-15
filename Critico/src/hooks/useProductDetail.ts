@@ -382,15 +382,22 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
       const pid = prod.id;
       const ownerId = prod.owner_id;
 
-      const { data: existingRequest } = await supabase
+      const { data: existingRequests, error: requestCheckError } = await supabase
         .from("Messages")
         .select("id, message_type")
         .eq("sender_id", uid)
         .eq("product_id", pid)
         .in("message_type", ["request", "request_accepted"])
-        .maybeSingle();
+        .limit(1);
+
+      if (requestCheckError) {
+        console.error("❌ Error checking existing requests:", requestCheckError);
+      }
+
+      const existingRequest = existingRequests?.[0];
 
       if (existingRequest) {
+        console.log("⚠️ Request prevented: Found existing request", existingRequest);
         showModal(
           "info",
           existingRequest.message_type === "request_accepted"
@@ -476,6 +483,30 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
       if (!ok) {
         showModal("warning", t("productDetail.modal.noPermissionTitle"), t("productDetail.modal.noPermissionText"));
         setCanComment(false);
+        return;
+      }
+
+      // Check for existing comment
+      console.log("🔍 Checking for duplicates...");
+      const { data: existingComments, error: commentCheckError } = await supabase
+        .from("Messages")
+        .select("id")
+        .eq("product_id", pid)
+        .eq("sender_id", uid)
+        .eq("message_type", "product")
+        .limit(1);
+
+      if (commentCheckError) {
+        console.error("❌ Error checking existing comments:", commentCheckError);
+      }
+
+      if (existingComments && existingComments.length > 0) {
+        console.warn("⚠️ Comment prevented: User already commented on this product");
+        showModal(
+          "warning",
+          t("productDetail.modal.alreadyCommentedTitle"),
+          t("productDetail.modal.alreadyCommentedText")
+        );
         return;
       }
 

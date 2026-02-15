@@ -26,6 +26,9 @@ export const dict = {
 
     commentErrorTitle: "Fehler beim Kommentieren",
     unknownError: "Unbekannter Fehler",
+
+    alreadyCommentedTitle: "Bereits kommentiert",
+    alreadyCommentedText: "Du hast dieses Produkt bereits bewertet. Mehrfache Bewertungen sind nicht erlaubt.",
   },
 
   requestContent: 'Ich möchte gerne dein Produkt "{{ name }}" testen!',
