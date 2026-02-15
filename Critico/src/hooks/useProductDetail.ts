@@ -257,99 +257,107 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     const pid = productId();
     if (!pid || Number.isNaN(pid)) return;
 
-    console.log("🔄 REALTIME: Setting up channel for product", pid);
+    let channel: any = null;
+    let retryTimeout: any;
 
-    const channel = supabase
-      .channel("product-comments-" + pid)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "Messages",
-          filter: `product_id=eq.${pid}`,
-        },
-        (payload: any) => {
-          if (payload.new?.message_type !== "product") return;
+    const setupChannel = () => {
+      // Clean up previous channel if exists
+      if (channel) {
+        supabase.removeChannel(channel);
+        channel = null;
+      }
 
-          console.log("🔔 REALTIME: New comment received", payload.new.id);
+      console.log("🔄 REALTIME: Setting up channel for product", pid);
 
-          (async () => {
-            const { data: row, error } = await supabase
-              .from("Messages")
-              .select(
-                `
-                  id,
-                  content,
-                  stars,
-                  created_at,
-                  sender_id,
-                  message_type,
-                  sender:User!Messages_sender_id_fkey (
+      channel = supabase
+        .channel("product-comments-" + pid)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "Messages",
+            filter: `product_id=eq.${pid}`,
+          },
+          (payload: any) => {
+            if (payload.new?.message_type !== "product") return;
+
+            console.log("🔔 REALTIME: New comment received", payload.new.id);
+
+            (async () => {
+              const { data: row, error } = await supabase
+                .from("Messages")
+                .select(
+                  `
                     id,
-                    name,
-                    surname,
-                    picture,
-                    trustlevel
-                  )
-                `
-              )
-              .eq("id", payload.new.id)
-              .eq("message_type", "product")
-              .maybeSingle<MessageRow>();
+                    content,
+                    stars,
+                    created_at,
+                    sender_id,
+                    message_type,
+                    sender:User!Messages_sender_id_fkey (
+                      id,
+                      name,
+                      surname,
+                      picture,
+                      trustlevel
+                    )
+                  `
+                )
+                .eq("id", payload.new.id)
+                .eq("message_type", "product")
+                .maybeSingle<MessageRow>();
 
-            if (error || !row) {
-              console.error("❌ REALTIME: Error fetching comment:", error);
-              return;
+              if (error || !row) {
+                console.error("❌ REALTIME: Error fetching comment:", error);
+                return;
+              }
+
+              setComments((prev) => {
+                if (prev.some((c) => c.id === row.id)) {
+                  console.log("⚠️ REALTIME: Comment already exists, skipping");
+                  return prev;
+                }
+
+                const next = [...prev, toComment(row)];
+                console.log("✅ REALTIME: Comment added, total:", next.length);
+
+                const avg = computeAvgStars(next);
+                if (avg != null) {
+                  const rounded = Math.round(avg * 2) / 2;
+                  console.log("🌟 REALTIME: Updating stars to", rounded);
+
+                  supabase.from("Product").update({ stars: rounded }).eq("id", pid);
+                  setProduct((p) => (p ? { ...p, stars: rounded } : null));
+                }
+
+                return next;
+              });
+            })();
+          }
+        )
+        .subscribe((status) => {
+          console.log("📡 REALTIME: Channel status:", status);
+
+          if (status === "SUBSCRIBED") {
+            console.log("✅ REALTIME: Successfully subscribed to product", pid);
+          } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            console.error(`❌ REALTIME: Channel failed (${status}). Retrying in 5s...`);
+            if (channel) {
+              supabase.removeChannel(channel);
+              channel = null;
             }
+            retryTimeout = setTimeout(setupChannel, 5000);
+          }
+        });
+    };
 
-            setComments((prev) => {
-              if (prev.some((c) => c.id === row.id)) {
-                console.log("⚠️ REALTIME: Comment already exists, skipping");
-                return prev;
-              }
-
-              const next = [...prev, toComment(row)];
-              console.log("✅ REALTIME: Comment added, total:", next.length);
-
-              const avg = computeAvgStars(next);
-              if (avg != null) {
-                const rounded = Math.round(avg * 2) / 2;
-                console.log("🌟 REALTIME: Updating stars to", rounded);
-
-                supabase.from("Product").update({ stars: rounded }).eq("id", pid);
-                setProduct((p) => (p ? { ...p, stars: rounded } : null));
-              }
-
-              return next;
-            });
-          })();
-        }
-      )
-      .subscribe(async (status) => {
-        console.log("📡 REALTIME: Channel status:", status);
-
-        if (status === "SUBSCRIBED") {
-          console.log("✅ REALTIME: Successfully subscribed to product", pid);
-        } else if (status === "CHANNEL_ERROR") {
-          console.error("❌ REALTIME: Channel error for product", pid);
-        } else if (status === "TIMED_OUT") {
-          console.error("⏱️ REALTIME: Channel timed out for product", pid);
-
-          // ✅ DEBUG: Teste manuell ob SELECT funktioniert
-          const { data, error } = await supabase
-            .from("Messages")
-            .select("id")
-            .eq("product_id", pid)
-            .limit(1);
-
-          console.log("🧪 Manual SELECT test:", { data, error });
-        }
-      });
+    setupChannel();
 
     onCleanup(() => {
       console.log("🧹 REALTIME: Cleaning up channel for product", pid);
-      supabase.removeChannel(channel);
+      if (retryTimeout) clearTimeout(retryTimeout);
+      if (channel) supabase.removeChannel(channel);
     });
   });
 

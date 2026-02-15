@@ -13,14 +13,14 @@ export function Home() {
   const navigate = useNavigate();
 
   const { userId, trustlevel } = useCurrentUser();
-  const { products, loading, loadProducts } = useProducts(trustlevel);
+  const { products, loading, loadProducts, refreshProductRating } = useProducts(trustlevel);
   const { tags } = useTags();
 
   // ✅ FIX: products ist Store, wrap als Accessor!
   const { selectedTags, setSelectedTags, searchQuery, setSearchQuery, filteredProducts } =
     useProductFilters(() => products);
 
-  useRealtimeProducts(userId, loadProducts);
+  useRealtimeProducts(userId, loadProducts, refreshProductRating);
   useRealtimeMessages(userId);
 
   const handleCreateProduct = () => {

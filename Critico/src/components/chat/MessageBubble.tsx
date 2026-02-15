@@ -1,6 +1,7 @@
 import { Show, createMemo, createEffect } from "solid-js";
 import { RequestMessageBubble } from "./RequestMessageBubble";
 import type { Message } from "../../hooks/useChat";
+import { MESSAGE_TYPES } from "../../types/messages";
 
 interface MessageBubbleProps {
   message: Message & {
@@ -15,12 +16,13 @@ interface MessageBubbleProps {
 
   onAcceptRequest?: (messageId: number, senderId: number, productId: number) => Promise<void>;
   onDeclineRequest?: (messageId: number) => Promise<void>;
+  scrollToBottom: () => void;
 }
 
 export function MessageBubble(props: MessageBubbleProps) {
   const isRequestLike = createMemo(() => {
     const t = props.message.message_type;
-    return t === "request" || t === "request_qr_ready" || t === "request_accepted" || t === "request_declined";
+    return t === MESSAGE_TYPES.REQUEST || t === MESSAGE_TYPES.REQUEST_QR_READY || t === MESSAGE_TYPES.REQUEST_ACCEPTED || t === MESSAGE_TYPES.REQUEST_DECLINED;
   });
 
   const isOwner = createMemo(() => {
@@ -30,21 +32,7 @@ export function MessageBubble(props: MessageBubbleProps) {
 
   const shouldShowOwnerButtons = createMemo(() => {
     // Buttons nur für originale Request + Owner des Produkts + nicht eigene Nachricht
-    return props.message.message_type === "request" && isOwner() && !props.isOwn;
-  });
-
-  createEffect(() => {
-    console.log("🔍 MessageBubble owner/debug:", {
-      messageId: props.message.id,
-      messageType: props.message.message_type,
-      messageProductId: props.message.product_id ?? null,
-      productOwnerId: props.productOwnerId ?? null,
-      currentUserId: props.currentUserId ?? null,
-      isOwner: isOwner(),
-      isOwn: props.isOwn,
-      senderId: props.message.sender_id,
-      SHOULD_SHOW_BUTTONS: shouldShowOwnerButtons(),
-    });
+    return props.message.message_type === MESSAGE_TYPES.REQUEST && isOwner() && !props.isOwn;
   });
 
   const tl = () => props.message.sender?.trustlevel;
@@ -127,6 +115,7 @@ export function MessageBubble(props: MessageBubbleProps) {
         formatTime={props.formatTime}
         onAccept={props.onAcceptRequest}
         onDecline={props.onDeclineRequest}
+        scrollToBottom={props.scrollToBottom}
       />
     </Show>
   );

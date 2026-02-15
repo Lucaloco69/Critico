@@ -1,8 +1,8 @@
-// src/components/chat/RequestMessageBubble.tsx
 import { Show, createSignal, createEffect, createMemo } from "solid-js";
 import QRCode from "qrcode";
 import { supabase } from "../../lib/supabaseClient";
 import { t } from "../../lib/i18n";
+import { MESSAGE_TYPES } from "../../types/messages";
 
 interface RequestMessage {
   id: number;
@@ -30,6 +30,7 @@ interface RequestMessageBubbleProps {
   formatTime: (dateString: string) => string;
   onAccept?: (messageId: number, senderId: number, productId: number) => Promise<void>;
   onDecline?: (messageId: number) => Promise<void>;
+  scrollToBottom: () => void;
 }
 
 export function RequestMessageBubble(props: RequestMessageBubbleProps) {
@@ -40,63 +41,49 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
   const [qrDataUrl, setQrDataUrl] = createSignal<string | null>(null);
   const [qrError, setQrError] = createSignal<string | null>(null);
 
-  // ✅ DEBUG: Log bei Message-Änderungen
-  createEffect(() => {
-    console.log("🔄 RequestMessageBubble: Message Update:", {
-      messageId: props.message.id,
-      messageType: props.message.message_type,
-      content: props.message.content?.substring(0, 30),
-      isOwner: props.isOwner,
-      isOwn: props.isOwn,
-      productId: props.message.product_id,
-      senderId: props.message.sender_id,
-      receiverId: props.message.receiver_id
-    });
-  });
+
 
   const tl = () => props.message.sender?.trustlevel ?? null;
 
   // ✅ WICHTIG: Mache message_type reaktiv
   const messageType = createMemo(() => {
     const type = props.message.message_type;
-    console.log("📊 RequestMessageBubble: messageType memo:", type);
     return type;
   });
 
   // Status flags - nutze das Memo
-  const isPending = () => messageType() === "request";
-  const isQrReady = () => messageType() === "request_qr_ready";
-  const isAccepted = () => messageType() === "request_accepted";
-  const isDeclined = () => messageType() === "request_declined";
+  const isPending = () => messageType() === MESSAGE_TYPES.REQUEST;
+  const isQrReady = () => messageType() === MESSAGE_TYPES.REQUEST_QR_READY;
+  const isAccepted = () => messageType() === MESSAGE_TYPES.REQUEST_ACCEPTED;
+  const isDeclined = () => messageType() === MESSAGE_TYPES.REQUEST_DECLINED;
   const isQrLink = () => isAccepted() && (props.message.content ?? "").startsWith("http");
 
   const statusInfo = createMemo(() => {
     const type = messageType();
-    console.log("🎨 RequestMessageBubble: statusInfo für type:", type);
-    
+
     switch (type) {
-      case "request":
+      case MESSAGE_TYPES.REQUEST:
         return {
           icon: "🔔",
           text: t("chatRequestMessageBubble.statusRequest"),
           bgColor: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800",
           textColor: "text-amber-900 dark:text-amber-100",
         };
-      case "request_qr_ready":
+      case MESSAGE_TYPES.REQUEST_QR_READY:
         return {
           icon: "📦",
           text: t("chatRequestMessageBubble.statusQrReady"),
           bgColor: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800",
           textColor: "text-amber-900 dark:text-amber-100",
         };
-      case "request_accepted":
+      case MESSAGE_TYPES.REQUEST_ACCEPTED:
         return {
           icon: "✅",
           text: t("chatRequestMessageBubble.statusAccepted"),
           bgColor: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800",
           textColor: "text-green-900 dark:text-green-100",
         };
-      case "request_declined":
+      case MESSAGE_TYPES.REQUEST_DECLINED:
         return {
           icon: "❌",
           text: t("chatRequestMessageBubble.statusDeclined"),
@@ -149,30 +136,15 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
   const shouldShowQr = createMemo(() => {
     const d = derived();
     const show = props.isOwner && isQrReady() && d.productId != null;
-    
-    console.log("🔍 RequestMessageBubble: shouldShowQr:", show, {
-      isOwner: props.isOwner,
-      isQrReady: isQrReady(),
-      messageType: messageType(),
-      productId: d.productId,
-      ownerId: d.ownerId,
-      testerId: d.testerId,
-      failReason: !props.isOwner ? "❌ NOT OWNER" : 
-                  !isQrReady() ? "❌ NOT QR_READY" : 
-                  !d.productId ? "❌ NO PRODUCT_ID" : 
-                  "✅ ALL OK"
-    });
-    
+
     return show;
   });
 
   const handleAccept = async () => {
-    console.log("✅ RequestMessageBubble: handleAccept START");
     if (!props.onAccept || !props.message.product_id) return;
     setProcessing(true);
     try {
       await props.onAccept(props.message.id, props.message.sender_id, props.message.product_id);
-      console.log("✅ RequestMessageBubble: handleAccept SUCCESS");
     } catch (err) {
       console.error("❌ RequestMessageBubble: handleAccept ERROR:", err);
     } finally {
@@ -181,12 +153,10 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
   };
 
   const handleDecline = async () => {
-    console.log("❌ RequestMessageBubble: handleDecline START");
     if (!props.onDecline) return;
     setProcessing(true);
     try {
       await props.onDecline(props.message.id);
-      console.log("✅ RequestMessageBubble: handleDecline SUCCESS");
     } catch (err) {
       console.error("❌ RequestMessageBubble: handleDecline ERROR:", err);
     } finally {
@@ -220,41 +190,17 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
     const fallbackOwnerId = d.fallbackOwnerId;
     const fallbackTesterId = d.fallbackTesterId;
 
-    console.log("🔄 RequestMessageBubble: QR Effect triggered:", {
-      show,
-      isOwner: props.isOwner,
-      isQrReady: isQrReady(),
-      messageType: messageType(),
-      productId,
-      primaryOwnerId,
-      primaryTesterId,
-      reason: !show ? (
-        !props.isOwner ? "not owner" :
-        !isQrReady() ? "not qr_ready" :
-        !d.productId ? "no product_id" :
-        "unknown"
-      ) : "should show"
-    });
-
     setQrError(null);
     setRedeemUrl(null);
     setQrDataUrl(null);
 
     if (!show || productId == null || primaryOwnerId == null || primaryTesterId == null) {
-      console.log("⏭️ RequestMessageBubble: QR Effect skipped - Conditions:", {
-        show,
-        hasProductId: productId != null,
-        hasOwnerId: primaryOwnerId != null,
-        hasTesterId: primaryTesterId != null
-      });
       return;
     }
 
-    console.log("🔍 RequestMessageBubble: Lade Token für QR...");
 
     (async () => {
       const tryFetch = async (ownerId: number, testerId: number) => {
-        console.log("🔍 RequestMessageBubble: tryFetch Token:", { ownerId, testerId, productId });
         return supabase
           .from("ProductCommentTokens")
           .select("token, redeemed_at, created_at")
@@ -269,7 +215,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
       let res = await tryFetch(primaryOwnerId, primaryTesterId);
 
       if (!res.error && !res.data?.token && typeof fallbackOwnerId === "number" && typeof fallbackTesterId === "number") {
-        console.log("🔄 RequestMessageBubble: Trying fallback IDs");
         res = await tryFetch(fallbackOwnerId, fallbackTesterId);
       }
 
@@ -285,7 +230,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
         return;
       }
 
-      console.log("✅ RequestMessageBubble: Token gefunden:", res.data.token);
+
 
       const url = `${window.location.origin}/activate/${res.data.token}`;
       setRedeemUrl(url);
@@ -293,7 +238,11 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
       try {
         const img = await QRCode.toDataURL(url);
         setQrDataUrl(img);
-        console.log("✅ RequestMessageBubble: QR Code generiert");
+
+        // 👋 Scroll to bottom when QR is ready
+        setTimeout(() => {
+          props.scrollToBottom?.();
+        }, 100);
       } catch (e: any) {
         console.error("❌ RequestMessageBubble: QR generation error:", e);
         setQrError(e?.message ?? t("chatRequestMessageBubble.qrGenerateFailed"));

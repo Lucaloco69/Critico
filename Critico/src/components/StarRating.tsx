@@ -38,13 +38,13 @@ export default function StarRating(props: StarRatingProps) {
       <For each={Array.from({ length: maxStars() })}>
         {(_, index) => {
           const starIndex = index();
-          const diff = props.rating - starIndex;
-
-          let filling: number;
-          if (diff >= 1) filling = 1;
-          else if (diff >= 0.75) filling = 1;
-          else if (diff >= 0.25) filling = 0.5;
-          else filling = 0;
+          const filling = () => {
+            const diff = props.rating - starIndex;
+            if (diff >= 1) return 1;
+            if (diff >= 0.75) return 1;
+            if (diff >= 0.25) return 0.5;
+            return 0;
+          };
 
           return (
             <div class={`relative ${sizeClass()}`} aria-hidden="true">
@@ -58,7 +58,7 @@ export default function StarRating(props: StarRatingProps) {
 
               <div
                 class="absolute overflow-hidden top-0 left-0 h-full transition-all duration-200"
-                style={`width: ${filling * 100}%`}
+                style={`width: ${filling() * 100}%`}
               >
                 <svg
                   class={`${sizeClass()} drop-shadow-md`}

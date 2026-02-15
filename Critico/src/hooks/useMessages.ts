@@ -4,9 +4,10 @@ import { supabase } from "../lib/supabaseClient";
 import sessionStore, { isLoggedIn } from "../lib/sessionStore";
 import { badgeStore } from "../lib/badgeStore";
 import { messagesStore } from "../lib/messagesStore";
-import { ChatPreview } from "~/types/chat";
+import { ChatPreview } from "../types/chat";
 import { RealtimePostgresChangesPayload, REALTIME_SUBSCRIBE_STATES } from '@supabase/supabase-js';
-
+import { formatChatTime } from "../lib/dateUtils";
+import { VALID_CHAT_MESSAGE_TYPES, MESSAGE_TYPES } from "../types/messages";
 
 let globalMessagesChannel: any = null;
 let reloadTimeout: any = null;
@@ -19,21 +20,22 @@ export function useMessages() {
 
   // ✅ Verwende globalen Store statt lokale Signals
   const { filteredChats } = messagesStore;
-  
+
   const [searchQuery, setSearchQuery] = createSignal("");
-  const [loading, setLoading] = createSignal(true);
+  // ✅ FIX: Nur laden, wenn Store leer ist, sonst sofort anzeigen
+  const [loading, setLoading] = createSignal(messagesStore.chats().length === 0);
   const [currentUserId, setCurrentUserId] = createSignal<number | null>(null);
 
 
   const { setDirectMessageCount } = badgeStore;
 
 
-  console.log("🏗️ useMessages: Hook wird initialisiert");
+
 
 
   onMount(async () => {
     console.log("🚀 useMessages.onMount START");
-    
+
     if (!isLoggedIn() || !sessionStore.user) {
       console.log("❌ useMessages.onMount: Nicht eingeloggt, redirect zu /login");
       navigate("/login");
@@ -53,28 +55,30 @@ export function useMessages() {
         console.log("✅ useMessages.onMount: User gefunden:", userData.id);
         setCurrentUserId(userData.id);
         loadChatsDebounced(userData.id);
-        
+
         if (!globalMessagesChannel) {
           setupRealtime(userData.id);
         }
       }
     } catch (err) {
       console.error("❌ useMessages.onMount ERROR:", err);
-    } finally {
+      // Im Fehlerfall müssen wir loading auch ausschalten, da loadChats nicht aufgerufen wird
       setLoading(false);
-      console.log("✅ useMessages.onMount COMPLETE");
     }
+    // finally block entfernt, da setLoading(false) in loadChats passiert
+    console.log("✅ useMessages.onMount COMPLETE");
   });
 
 
   createEffect(() => {
     const path = location.pathname;
     const userId = currentUserId();
-    
+
     console.log("🔄 useMessages.createEffect (pathname):", { path, userId });
-    
+
     if (path === "/messages" && userId) {
       console.log("🔄 useMessages: Zurück zur Messages-Seite, lade Chats neu");
+      // Background refresh - loading state bleibt false wenn wir schon daten haben
       loadChatsDebounced(userId);
     }
   });
@@ -93,10 +97,10 @@ export function useMessages() {
 
   const setupRealtime = (userId: number) => {
     console.log("🔌 useMessages.setupRealtime START for user:", userId);
-    
+
     globalMessagesChannel = supabase.channel(`messages-list-user-${userId}`, {
       config: {
-        broadcast: { 
+        broadcast: {
           self: true,
           ack: true
         }
@@ -115,15 +119,14 @@ export function useMessages() {
         },
         (payload: RealtimePostgresChangesPayload<any>) => {
           console.log("🔔 useMessages: INSERT Event (received)", payload);
-          
-          if (["direct", "request", "request_qr_ready", "request_accepted", "request_declined"].includes(payload.new.message_type)) {
-            console.log("✅ useMessages: Relevante Message empfangen, reload!");
-            
-            if (reloadTimeout) clearTimeout(reloadTimeout);
-            reloadTimeout = setTimeout(() => {
-              loadChatsDebounced(userId);
-            }, 300);
-          }
+
+
+          console.log("✅ useMessages: Relevante Message empfangen, reload!");
+
+          if (reloadTimeout) clearTimeout(reloadTimeout);
+          reloadTimeout = setTimeout(() => {
+            loadChatsDebounced(userId);
+          }, 300);
         }
       )
       .on(
@@ -136,15 +139,14 @@ export function useMessages() {
         },
         (payload: RealtimePostgresChangesPayload<any>) => {
           console.log("🔔 useMessages: INSERT Event (sent)", payload);
-          
-          if (["direct", "request", "request_qr_ready", "request_accepted", "request_declined"].includes(payload.new.message_type)) {
-            console.log("✅ useMessages: Eigene Message gesendet, reload!");
-            
-            if (reloadTimeout) clearTimeout(reloadTimeout);
-            reloadTimeout = setTimeout(() => {
-              loadChatsDebounced(userId);
-            }, 300);
-          }
+
+
+          console.log("✅ useMessages: Eigene Message gesendet, reload!");
+
+          if (reloadTimeout) clearTimeout(reloadTimeout);
+          reloadTimeout = setTimeout(() => {
+            loadChatsDebounced(userId);
+          }, 300);
         }
       )
       .on(
@@ -156,13 +158,13 @@ export function useMessages() {
         },
         (payload: RealtimePostgresChangesPayload<any>) => {
           console.log("🔔 useMessages: UPDATE Event", payload);
-          
+
           if (
             (payload.new.sender_id === userId || payload.new.receiver_id === userId) &&
-            ["direct", "request", "request_qr_ready", "request_accepted", "request_declined"].includes(payload.new.message_type)
+            VALID_CHAT_MESSAGE_TYPES.includes(payload.new.message_type)
           ) {
             console.log("✅ useMessages: Relevantes UPDATE, reload!");
-            
+
             if (reloadTimeout) clearTimeout(reloadTimeout);
             reloadTimeout = setTimeout(() => {
               loadChatsDebounced(userId);
@@ -175,9 +177,9 @@ export function useMessages() {
         { event: "message_updated" },
         (payload: { payload: { messageId: number; chatId: number } }) => {
           console.log("🔔🔔🔔 useMessages: BROADCAST empfangen:", payload);
-          
+
           console.log("✅ useMessages: Broadcast empfangen, reload Chats!");
-          
+
           if (reloadTimeout) clearTimeout(reloadTimeout);
           reloadTimeout = setTimeout(() => {
             loadChatsDebounced(userId);
@@ -191,7 +193,7 @@ export function useMessages() {
           channelName: `messages-list-user-${userId}`,
           timestamp: new Date().toISOString()
         });
-        
+
         if (status === REALTIME_SUBSCRIBE_STATES.SUBSCRIBED) {
           console.log("✅✅✅ useMessages: REALTIME CHANNEL AKTIV!");
         } else if (status === REALTIME_SUBSCRIBE_STATES.CLOSED) {
@@ -200,19 +202,19 @@ export function useMessages() {
           console.error("❌❌❌ useMessages: REALTIME CHANNEL ERROR:", err);
         }
       });
-    
+
     console.log("✅ useMessages.setupRealtime COMPLETE");
   };
 
 
   const loadChatsDebounced = (userId: number) => {
     console.log("🔄 loadChatsDebounced called for user:", userId);
-    
+
     if (loadChatsTimeout) {
       console.log("⏭️ Canceling previous loadChats call");
       clearTimeout(loadChatsTimeout);
     }
-    
+
     loadChatsTimeout = setTimeout(() => {
       loadChats(userId);
     }, 100);
@@ -222,7 +224,7 @@ export function useMessages() {
   const loadChats = async (userId: number) => {
     console.log("📥 Loading chats for user:", userId);
     const startTime = Date.now();
-    
+
     try {
       const { data: userChats, error: chatsError } = await supabase
         .from("Chat_Participants")
@@ -280,7 +282,7 @@ export function useMessages() {
         }
 
         const partner = participants[0].User as any;
-        
+
         if (!partner || !partner.id) {
           console.warn(`⚠️ Chat ${chatId}: Partner User ist null oder gelöscht, überspringe`);
           continue;
@@ -305,7 +307,7 @@ export function useMessages() {
 
         const unreadCount = (unreadMessages || []).length;
         totalUnreadCount += unreadCount;
-        
+
         messagesStore.setUnreadCount(chatId, unreadCount);
 
         const hasUnreadRequest = (unreadMessages || []).some(
@@ -327,7 +329,7 @@ export function useMessages() {
         });
       }
 
-      chatPreviews.sort((a, b) => 
+      chatPreviews.sort((a, b) =>
         new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
       );
 
@@ -366,6 +368,9 @@ export function useMessages() {
       console.log(`✅ Loaded ${chatPreviews.length} chats (${totalUnreadCount} unread) in ${duration}ms`);
     } catch (err) {
       console.error("❌ Error loading chats:", err);
+    } finally {
+      // ✅ WICHTIG: Loading erst false, wenn alles fertig ist
+      setLoading(false);
     }
   };
 
@@ -373,11 +378,11 @@ export function useMessages() {
   const handleSearchChange = (value: string | ((prev: string) => string)) => {
     const query = typeof value === 'function' ? value(searchQuery()) : value;
     setSearchQuery(query);
-    
+
     console.log("🔍 useMessages.handleSearchChange:", query);
-    
+
     const currentChats = messagesStore.chats();
-    
+
     if (!query || query.trim() === "") {
       messagesStore.setFilteredChats([...currentChats]);
     } else {
@@ -390,35 +395,12 @@ export function useMessages() {
   };
 
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) {
-      return date.toLocaleTimeString("de-DE", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } else if (diffDays === 1) {
-      return "Gestern";
-    } else if (diffDays < 7) {
-      return date.toLocaleDateString("de-DE", { weekday: "short" });
-    } else {
-      return date.toLocaleDateString("de-DE", {
-        day: "2-digit",
-        month: "2-digit",
-      });
-    }
-  };
-
 
   return {
     filteredChats,
     searchQuery,
     setSearchQuery: handleSearchChange,
     loading,
-    formatTime,
+    formatTime: formatChatTime,
   };
 }

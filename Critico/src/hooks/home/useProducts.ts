@@ -102,16 +102,52 @@ export function useProducts(trustlevel: Accessor<number>) {
       });
 
       console.log("✅ HOME: Products loaded:", transformedProducts.length);
-      console.log("📊 HOME: First 3 products with stars:", 
-        transformedProducts.slice(0, 3).map(p => ({ 
-          id: p.id, 
-          name: p.name, 
-          stars: p.stars 
+      console.log("📊 HOME: First 3 products with stars:",
+        transformedProducts.slice(0, 3).map(p => ({
+          id: p.id,
+          name: p.name,
+          stars: p.stars
         }))
       );
 
+      // ✅ FETCH RATINGS MANUALLY (Workaround for RLS issue)
+      console.log("🌟 HOME: Fetching ratings manually...");
+      const productIds = transformedProducts.map(p => p.id);
+
+      const { data: ratingsData, error: ratingsError } = await supabase
+        .from("Messages")
+        .select("product_id, stars")
+        .in("product_id", productIds)
+        .eq("message_type", "product")
+        .not("stars", "is", null);
+
+      if (ratingsError) {
+        console.error("❌ HOME: Failed to fetch ratings:", ratingsError);
+      } else {
+        // Group ratings by product
+        const ratingsMap = new Map<number, number[]>();
+        (ratingsData || []).forEach((r: any) => {
+          if (!ratingsMap.has(r.product_id)) ratingsMap.set(r.product_id, []);
+          ratingsMap.get(r.product_id)?.push(r.stars);
+        });
+
+        // Compute averages and override stars
+        transformedProducts.forEach(p => {
+          const productRatings = ratingsMap.get(p.id);
+          if (productRatings && productRatings.length > 0) {
+            const total = productRatings.reduce((sum, r) => sum + r, 0);
+            const avg = total / productRatings.length;
+            const rounded = Math.round(avg * 10) / 10;
+
+            // Only override if different (or if we trust calc more than DB which we do)
+            p.stars = rounded;
+            console.log(`⭐ HOME: Validated stars for ${p.id}: ${rounded} (${productRatings.length} ratings)`);
+          }
+        });
+      }
+
       setProducts(transformedProducts);
-      
+
     } catch (err) {
       console.error("❌ HOME: Fehler beim Laden der Produkte:", err);
     } finally {
@@ -124,9 +160,48 @@ export function useProducts(trustlevel: Accessor<number>) {
     loadProducts();
   });
 
+  const refreshProductRating = async (productId: number) => {
+    try {
+      console.log(`🔄 HOME: Recalculating rating for product ${productId}...`);
+
+      const { data: messages } = await supabase
+        .from("Messages")
+        .select("stars")
+        .eq("product_id", productId)
+        .eq("message_type", "product")
+        .not("stars", "is", null);
+
+      if (messages && messages.length > 0) {
+        // Compute average
+        const total = messages.reduce((sum, m) => sum + (m.stars || 0), 0);
+        const avg = total / messages.length;
+        const rounded = Math.round(avg * 10) / 10;
+
+        console.log(`📊 HOME: New average for ${productId}: ${avg} (rounded: ${rounded}) from ${messages.length} ratings`);
+
+        // Optimistically update local store
+        setProducts(
+          (p) => p.id === productId,
+          "stars",
+          rounded
+        );
+
+        // Try to persist to DB (might fail due to RLS, but we tried)
+        supabase.from("Product").update({ stars: rounded }).eq("id", productId).then(({ error }) => {
+          if (error) console.error("❌ HOME: DB Update failed (likely RLS):", error.message);
+          else console.log("✅ HOME: DB Updated successfully");
+        });
+
+      }
+    } catch (err) {
+      console.error("❌ HOME: Error refreshing rating:", err);
+    }
+  };
+
   return {
-    products, // ✅ DIREKT den Store returnen!
+    products,
     loading,
     loadProducts,
+    refreshProductRating, // ✅ Exposed
   };
 }

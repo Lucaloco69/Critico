@@ -11,21 +11,11 @@ interface MessagesListProps {
   formatTime: (dateString: string) => string;
   onAcceptRequest?: (messageId: number, senderId: number, productId: number) => Promise<void>;
   onDeclineRequest?: (messageId: number) => Promise<void>;
+  scrollToBottom: () => void;
 }
 
-export function MessagesList(props: MessagesListProps) {
-  createEffect(() => {
-    const msgs = props.messages();
-    
-    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("🧾 MessagesList createEffect TRIGGERED");
-    console.log("   Messages Count:", msgs.length);
-    console.log("   Loading:", props.loading());
-    console.log("   First message:", msgs[0]?.id);
-    console.log("   Last message:", msgs[msgs.length - 1]?.id, msgs[msgs.length - 1]?.content.substring(0, 30));
-    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  });
 
+export function MessagesList(props: MessagesListProps) {
   return (
     <main ref={props.setMainContainerRef} class="flex-1 overflow-y-auto">
       <Show when={props.loading()}>
@@ -48,8 +38,6 @@ export function MessagesList(props: MessagesListProps) {
               const isOwn = message.sender_id === props.currentUserId();
               const perMessageOwnerId: number | null = message.product?.owner_id ?? null;
 
-              console.log("💬 Rendering message:", message.id, message.content.substring(0, 20));
-
               return (
                 <MessageBubble
                   message={message}
@@ -59,6 +47,7 @@ export function MessagesList(props: MessagesListProps) {
                   productOwnerId={perMessageOwnerId}
                   onAcceptRequest={props.onAcceptRequest}
                   onDeclineRequest={props.onDeclineRequest}
+                  scrollToBottom={props.scrollToBottom}
                 />
               );
             }}

@@ -17,6 +17,7 @@ export default function Chat() {
     handleDeclineRequest,
     formatTime,
     setMainContainerRef,
+    scrollToBottom,
   } = useChat();
 
   return (
@@ -31,6 +32,7 @@ export default function Chat() {
         formatTime={formatTime}
         onAcceptRequest={handleAcceptRequest}
         onDeclineRequest={handleDeclineRequest}
+        scrollToBottom={scrollToBottom}
       />
 
       <MessageInput
