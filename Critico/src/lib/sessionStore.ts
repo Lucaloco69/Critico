@@ -100,7 +100,11 @@ const loadDbUser = async (authId: string) => {
     }
 
     // ✅ 2. localStorage Cache Check
-    const cachedUserId = localStorage.getItem(`user_id_${authId}`);
+    let cachedUserId: string | null = null;
+    if (typeof window !== 'undefined') {
+      cachedUserId = localStorage.getItem(`user_id_${authId}`);
+    }
+
     if (cachedUserId) {
       const userId = Number(cachedUserId);
       userIdCache[authId] = userId;
@@ -150,12 +154,14 @@ const loadDbUser = async (authId: string) => {
 
     // ✅ 4. Cache überall
     userIdCache[authId] = data.id;
-    localStorage.setItem(`user_id_${authId}`, String(data.id));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`user_id_${authId}`, String(data.id));
 
-    try {
-      localStorage.setItem('user_id_cache', JSON.stringify(userIdCache));
-    } catch (err) {
-      console.warn("⚠️ Failed to save cache:", err);
+      try {
+        localStorage.setItem('user_id_cache', JSON.stringify(userIdCache));
+      } catch (err) {
+        console.warn("⚠️ Failed to save cache:", err);
+      }
     }
 
     setSessionStore({
@@ -194,14 +200,16 @@ export const clearSession = async () => {
   hadValidSession = false; // ✅ NEU: Reset bei explizitem Logout
 
   // ✅ Alle Caches löschen
-  localStorage.removeItem("pendingActivateToken");
   userIdCache = {};
 
-  Object.keys(localStorage).forEach(key => {
-    if (key.startsWith('user_id_')) {
-      localStorage.removeItem(key);
-    }
-  });
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem("pendingActivateToken");
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('user_id_')) {
+        localStorage.removeItem(key);
+      }
+    });
+  }
 
   await supabase.auth.signOut();
 
@@ -218,7 +226,7 @@ export const checkSession = async (timeoutMs = 5000): Promise<boolean> => {
 
   checkSessionPromise = (async () => {
     try {
-      const storedToken = localStorage.getItem('supabase.auth.token');
+      const storedToken = typeof window !== 'undefined' ? localStorage.getItem('supabase.auth.token') : null;
 
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Session check timeout')), timeoutMs)
@@ -227,15 +235,12 @@ export const checkSession = async (timeoutMs = 5000): Promise<boolean> => {
       const sessionPromise = supabase.auth.getSession();
 
       // Race against timeout
+      console.log("🔍 checkSession: Starting race...");
       const { data, error } = await Promise.race([sessionPromise, timeoutPromise]);
+      console.log("🔍 checkSession: Race finished", { hasData: !!data, error });
 
       if (error) {
         console.error("❌ checkSession error:", error);
-        // Don't clearAll() immediately on network error/timeout, keep optimistic state?
-        // But if it's an AuthApiError usually it means invalid.
-        // Let's safe-guard: only clear if it's NOT a timeout/network error?
-        // Actually, getSession usually returns data: { session: null } if no session.
-        // Error implies something broken.
         return false;
       }
 
@@ -337,10 +342,19 @@ export const initAuthListener = async () => {
       }
 
       if (event === 'SIGNED_OUT') {
+        console.warn("⚠️ AuthListener: SIGNED_OUT event received!");
         clearAll();
         hadValidSession = false;
         userIdCache = {};
-        localStorage.removeItem("pendingActivateToken");
+
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem("pendingActivateToken");
+          Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('user_id_')) {
+              localStorage.removeItem(key);
+            }
+          });
+        }
 
         window.location.href = "/login";
         return;

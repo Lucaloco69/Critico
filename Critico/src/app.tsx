@@ -1,16 +1,16 @@
 import { Router, Route } from '@solidjs/router';
 import { Suspense, onMount, onCleanup } from 'solid-js';
-import { Home } from './routes/home';
+import { Home } from './routes/Home';
 import Login from './routes/login';
 import Signup from './routes/signup';
 import Profile from './routes/profile';
-import CreateProduct from './routes/createProduct';
+import CreateProduct from './routes/CreateProduct';
 import ProductDetails from './routes/ProductDetail';
-import Requests from './routes/requests';
-import Chat from './routes/chat';
-import Messages from './routes/messages';
+import Requests from './routes/Requests';
+import Chat from './routes/Chat';
+import Messages from './routes/Messages';
 import PublicProfile from './routes/PublicProfile';
-import Activate from './routes/activate';
+import Activate from './routes/Activate';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { initAuthListener, startSessionHealthCheck } from './lib/sessionStore';
 
