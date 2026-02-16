@@ -12,6 +12,7 @@ import StatsCards from "../components/profile/StatsCard";
 import ProgressBar from "../components/profile/ProgressBar";
 import ProductGrid from "../components/profile/ProductGrid";
 import { t } from "../lib/i18n";
+import { BackButton } from "../components/ui/BackButton";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -33,29 +34,17 @@ export default function Profile() {
     }
   };
 
+  // ... existing code ...
+
   return (
     <div class="min-h-screen bg-gray-50 dark:bg-linear-to-br dark:from-gray-900 dark:via-slate-900 dark:to-gray-950">
       <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="flex items-center justify-between mb-6">
-          <button
+          <BackButton
             onClick={() => navigate("/home")}
+            label={t("profile.back")}
             class="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            {t("profile.back")}
-          </button>
+          />
 
           <button
             onClick={handleLogout}

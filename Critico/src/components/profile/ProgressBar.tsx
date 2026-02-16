@@ -20,7 +20,7 @@ export default function ProgressBar(props: ProgressBarProps) {
   return (
     <div class="rounded-2xl bg-white dark:bg-gray-800 shadow-md p-6">
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-medium text-gray-400">{t("profileProgressBar.title")}</h3>
+        <h2 class="text-sm font-medium text-gray-400">{t("profileProgressBar.title")}</h2>
         <span class="text-sm font-semibold text-white">{progressPct()}%</span>
       </div>
 

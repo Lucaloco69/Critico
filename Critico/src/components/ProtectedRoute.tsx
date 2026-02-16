@@ -2,6 +2,7 @@
 import { Component, JSX, Show, createEffect, createSignal, onMount } from 'solid-js';
 import { useNavigate, useLocation } from '@solidjs/router';
 import { isLoggedIn, checkSession, hadValidSessionBefore } from '../lib/sessionStore';
+import { t } from '../lib/i18n';
 
 interface ProtectedRouteProps {
   children: JSX.Element;
@@ -66,7 +67,7 @@ export const ProtectedRoute: Component<ProtectedRouteProps> = (props) => {
         <div class="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
           <div class="text-center">
             <div class="w-16 h-16 mx-auto border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
-            <p class="mt-4 text-gray-600 dark:text-gray-400">Überprüfe Anmeldung...</p>
+            <p class="mt-4 text-gray-600 dark:text-gray-400">{t("protectedRoute.checking")}</p>
           </div>
         </div>
       }

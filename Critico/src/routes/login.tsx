@@ -106,7 +106,7 @@ export default function Login() {
         <div class="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
       </div>
     }>
-      <div class="flex items-center justify-center min-h-[90vh] bg-linear-to-br from-sky-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+      <main class="flex items-center justify-center min-h-[90vh] bg-linear-to-br from-sky-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
         <div class="w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 rounded-2xl shadow-xl">
           <div class="text-center">
             <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-linear-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-lg">
@@ -121,7 +121,7 @@ export default function Login() {
             </div>
 
             <h1 class="text-3xl font-bold text-gray-900 dark:text-white">{t("login.title")}</h1>
-            <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{t("login.subtitle")}</p>
+            <p class="mt-2 text-sm text-gray-700 dark:text-gray-300">{t("login.subtitle")}</p>
           </div>
 
           <form class="space-y-5" onSubmit={handleLogin}>
@@ -170,14 +170,14 @@ export default function Login() {
             </button>
           </form>
 
-          <p class="text-sm text-center text-gray-600 dark:text-gray-400">
+          <p class="text-sm text-center text-gray-700 dark:text-gray-300">
             {t("login.noAccount")}{" "}
-            <A href="/signup" class="font-semibold text-sky-600 hover:text-sky-500 transition-colors">
+            <A href="/signup" class="font-semibold text-sky-700 hover:text-sky-600 transition-colors">
               {t("login.signup")}
             </A>
           </p>
         </div>
-      </div>
+      </main>
     </Show>
   );
 }

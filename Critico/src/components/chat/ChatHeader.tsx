@@ -22,6 +22,8 @@ const trustBadgeClass = (tl: number) => {
   return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200";
 };
 
+import { BackButton } from "../ui/BackButton";
+
 export function ChatHeader(props: ChatHeaderProps) {
   const navigate = useNavigate();
   const tl = () => props.chatPartner()?.trustlevel ?? null;
@@ -29,14 +31,7 @@ export function ChatHeader(props: ChatHeaderProps) {
   return (
     <header class="bg-white dark:bg-gray-800 shadow-md flex-shrink-0">
       <div class="max-w-5xl mx-auto px-4 py-4 flex items-center gap-4">
-        <button
-          onClick={() => navigate(-1)}
-          class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-        >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
+        <BackButton />
 
         <Show when={props.chatPartner()}>
           {/* Klick auf Chatpartner -> /profile/:id */}

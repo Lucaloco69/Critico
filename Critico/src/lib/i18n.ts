@@ -29,11 +29,13 @@ export type Dictionary = i18n.Flatten<RawDictionary>;
 
 const dictionaries: Record<Locale, RawDictionary> = { de, en };
 
-const stored = (localStorage.getItem("locale") as Locale | null) ?? "de";
+const stored = (typeof window !== 'undefined' ? localStorage.getItem("locale") as Locale | null : null) ?? "de";
 export const [locale, _setLocale] = createSignal<Locale>(stored);
 
 export const setLocale = (l: Locale) => {
-  localStorage.setItem("locale", l);
+  if (typeof window !== 'undefined') {
+    localStorage.setItem("locale", l);
+  }
   _setLocale(l);
 };
 

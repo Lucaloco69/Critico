@@ -85,9 +85,9 @@ export function ChatPreviewItem(props: ChatPreviewItemProps) {
 
       <div class="flex-1 min-w-0">
         <div class="flex items-baseline justify-between mb-1">
-          <h3 class="font-semibold text-gray-900 dark:text-white truncate">
+          <h2 class="font-semibold text-gray-900 dark:text-white truncate">
             {props.chat.partnerName} {props.chat.partnerSurname}
-          </h3>
+          </h2>
           <span class="text-xs text-gray-500 dark:text-gray-400 ml-2 flex-shrink-0">
             {props.formatTime(props.chat.lastMessageTime)}
           </span>

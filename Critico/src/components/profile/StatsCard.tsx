@@ -22,14 +22,14 @@ export default function StatsCards(props: StatsCardsProps) {
             </svg>
           </div>
 
-          <h3 class="text-sm font-medium text-gray-400 mb-1">{t("profileStatsCards.expTitle")}</h3>
+          <h2 class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">{t("profileStatsCards.expTitle")}</h2>
 
           <p class="text-3xl font-bold text-white mb-1">
             {u.trustlevel >= 5 ? `${u.exp}` : `${u.exp} / ${u.expNext}`}
-            <span class="text-lg text-gray-400 ml-1">{t("profileStatsCards.expUnit")}</span>
+            <span class="text-lg text-gray-600 dark:text-gray-400 ml-1">{t("profileStatsCards.expUnit")}</span>
           </p>
 
-          <p class="text-xs text-gray-500">
+          <p class="text-xs text-gray-600 dark:text-gray-400">
             {u.trustlevel >= 5
               ? t("profileStatsCards.reviewsOnly", { count: u.reviewCount })
               : t("profileStatsCards.reviewsProgress", { count: u.reviewCount, total: u.reviewsNext })}
@@ -52,7 +52,7 @@ export default function StatsCards(props: StatsCardsProps) {
             </svg>
           </div>
 
-          <h3 class="text-sm font-medium text-gray-400 mb-1">{t("profileStatsCards.writtenReviewsTitle")}</h3>
+          <h2 class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">{t("profileStatsCards.writtenReviewsTitle")}</h2>
           <p class="text-4xl font-bold text-white">{u.reviewCount}</p>
         </div>
       </div>

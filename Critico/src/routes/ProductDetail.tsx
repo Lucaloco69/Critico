@@ -7,6 +7,8 @@ import Modal from "../components/Modal";
 import { isLoggedIn } from "../lib/sessionStore";
 import { useProductDetail } from "../hooks/useProductDetail";
 import { useRealtimeProductDetail } from "../hooks/useRealtimeProductDetail";
+import { t } from "../lib/i18n";
+import { BackButton } from "../components/ui/BackButton";
 
 export default function ProductDetail() {
   const params = useParams();
@@ -35,17 +37,14 @@ export default function ProductDetail() {
 
   });
 
+  // ... existing code ...
   return (
     <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <Modal modal={modal} onClose={closeModal} onAction={handleModalAction} />
 
       <header class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-          <button onClick={() => navigate(-1)} class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
+          <BackButton />
           <A href="/home" class="text-2xl font-bold text-sky-600 dark:text-sky-400">
             Critico
           </A>

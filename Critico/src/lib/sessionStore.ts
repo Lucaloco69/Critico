@@ -27,13 +27,16 @@ let lastAuthTime: number = 0;
 
 
 // Lade Cache beim Start aus localStorage
-try {
-  const cachedData = localStorage.getItem('user_id_cache');
-  if (cachedData) {
-    userIdCache = JSON.parse(cachedData);
+// Lade Cache beim Start aus localStorage (nur Client-Side)
+if (typeof window !== 'undefined') {
+  try {
+    const cachedData = localStorage.getItem('user_id_cache');
+    if (cachedData) {
+      userIdCache = JSON.parse(cachedData);
+    }
+  } catch (err) {
+    console.warn("⚠️ Failed to load user ID cache:", err);
   }
-} catch (err) {
-  console.warn("⚠️ Failed to load user ID cache:", err);
 }
 
 

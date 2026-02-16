@@ -85,7 +85,7 @@ export function ProductCard(props: ProductCardProps) {
           </h3>
 
           <Show when={props.product.price !== null}>
-            <span class="text-sm font-semibold text-sky-600 dark:text-sky-400 tabular-nums whitespace-nowrap">
+            <span class="text-sm font-semibold text-sky-700 dark:text-sky-400 tabular-nums whitespace-nowrap">
               {Number(props.product.price).toFixed(2)} €
             </span>
           </Show>
@@ -95,7 +95,7 @@ export function ProductCard(props: ProductCardProps) {
           when={hasRating()}
           fallback={
             <div class="flex items-center gap-2 h-5">
-              <span class="text-xs text-gray-400 dark:text-gray-500 italic">
+              <span class="text-xs text-gray-600 dark:text-gray-400 italic">
                 {t("productCard.noRating")}
               </span>
             </div>
@@ -109,7 +109,7 @@ export function ProductCard(props: ProductCardProps) {
           </div>
         </Show>
 
-        <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 leading-relaxed min-h-[2.5rem]">
+        <p class="text-sm text-gray-700 dark:text-gray-400 line-clamp-2 leading-relaxed min-h-[2.5rem]">
           {props.product.description}
         </p>
 
@@ -117,13 +117,13 @@ export function ProductCard(props: ProductCardProps) {
           <div class="flex flex-wrap gap-1.5 pt-1">
             <For each={props.product.tags?.slice(0, 2)}>
               {(tag) => (
-                <span class="px-2.5 py-1 bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 text-xs rounded-full font-medium">
+                <span class="px-2.5 py-1 bg-sky-100 dark:bg-sky-900 text-sky-800 dark:text-sky-300 text-xs rounded-full font-medium">
                   {getTranslatedTagName(tag.name)}
                 </span>
               )}
             </For>
             <Show when={props.product.tags!.length > 2}>
-              <span class="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs rounded-full font-medium">
+              <span class="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400 text-xs rounded-full font-medium">
                 +{props.product.tags!.length - 2}
               </span>
             </Show>
