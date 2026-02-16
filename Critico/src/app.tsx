@@ -1,33 +1,36 @@
 import { Router, Route } from '@solidjs/router';
 import { Suspense, onMount, onCleanup } from 'solid-js';
-import { Home } from './routes/Home';
-import Login from './routes/Login';
-import Signup from './routes/Signup';
-import Profile from './routes/Profile';
-import CreateProduct from './routes/CreateProduct';
+import { Home } from './routes/home';
+import Login from './routes/login';
+import Signup from './routes/signup';
+import Profile from './routes/profile';
+import CreateProduct from './routes/createProduct';
 import ProductDetails from './routes/ProductDetail';
-import Requests from './routes/Requests';
-import Chat from './routes/Chat';
-import Messages from './routes/Messages';
+import Requests from './routes/requests';
+import Chat from './routes/chat';
+import Messages from './routes/messages';
 import PublicProfile from './routes/PublicProfile';
-import Activate from './routes/Activate';
+import Activate from './routes/activate';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { initAuthListener, startSessionHealthCheck } from './lib/sessionStore';
 
-function App() {
+function App(props: { url?: string }) {
   onMount(async () => {
-
     try {
-      await initAuthListener();
-      const cleanup = startSessionHealthCheck();
-      onCleanup(cleanup);
+      const subscription = await initAuthListener();
+      const cleanupHealthCheck = startSessionHealthCheck();
+
+      onCleanup(() => {
+        cleanupHealthCheck();
+        subscription?.unsubscribe();
+      });
     } catch (err) {
       console.error("❌ Failed to initialize auth:", err);
     }
   });
 
   return (
-    <Router>
+    <Router url={props.url}>
       <Suspense fallback={
         <div class="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
           <div class="text-center">

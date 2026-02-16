@@ -103,17 +103,17 @@ export default function ProductInfo(props: ProductInfoProps) {
       </Show>
 
       <div class="mb-6">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
           {t("productInfo.descriptionTitle")}
-        </h3>
+        </h2>
         <p class="text-gray-700 dark:text-gray-300 leading-relaxed">{props.product.description}</p>
       </div>
 
       <Show when={props.product.tags && props.product.tags.length > 0}>
         <div class="mb-6">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">
             {t("productInfo.categoriesTitle")}
-          </h3>
+          </h2>
           <div class="flex flex-wrap gap-2">
             <For each={props.product.tags}>
               {(tag) => (

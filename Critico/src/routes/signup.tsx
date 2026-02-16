@@ -85,7 +85,7 @@ export default function Signup() {
   };
 
   return (
-    <div class="flex items-center justify-center min-h-[90vh] bg-linear-to-br from-sky-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+    <main class="flex items-center justify-center min-h-[90vh] bg-linear-to-br from-sky-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
       <div class="w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 rounded-2xl shadow-xl">
         <div class="text-center">
           <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-linear-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-lg">
@@ -102,7 +102,7 @@ export default function Signup() {
           <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
             {t("signup.title")}
           </h1>
-          <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          <p class="mt-2 text-sm text-gray-700 dark:text-gray-300">
             {t("signup.subtitle")}
           </p>
         </div>
@@ -167,7 +167,7 @@ export default function Signup() {
               required
               minlength="6"
             />
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
               {t("signup.passwordHint")}
             </p>
           </div>
@@ -210,13 +210,13 @@ export default function Signup() {
           </button>
         </form>
 
-        <p class="text-sm text-center text-gray-600 dark:text-gray-400">
+        <p class="text-sm text-center text-gray-700 dark:text-gray-300">
           {t("signup.alreadyAccount")}{" "}
-          <A href="/login" class="font-semibold text-sky-600 hover:text-sky-500 transition-colors">
+          <A href="/login" class="font-semibold text-sky-700 hover:text-sky-600 transition-colors">
             {t("signup.login")}
           </A>
         </p>
       </div>
-    </div>
+    </main>
   );
 }

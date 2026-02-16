@@ -343,7 +343,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
                   <button
                     type="button"
                     onClick={handleCopyLink}
-                    class="flex-1 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    class="flex-1 px-3 py-2 bg-amber-700 hover:bg-amber-800 text-white rounded-lg text-sm font-medium transition-colors"
                   >
                     {t("chatRequestMessageBubble.copyLink")}
                   </button>

@@ -14,12 +14,12 @@ export default function ProductGrid(props: ProductGridProps) {
     <div class="rounded-2xl bg-white dark:bg-gray-800 shadow-md p-6">
       <div class="flex items-center justify-between mb-6">
         <div>
-          <h2 class="text-xl font-bold text-white">{t("profileProductGrid.title")}</h2>
-          <p class="text-sm text-gray-400 mt-0.5">{t("profileProductGrid.subtitle")}</p>
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white">{t("profileProductGrid.title")}</h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mt-0.5">{t("profileProductGrid.subtitle")}</p>
         </div>
 
-        <div class="px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
-          <span class="text-sm font-medium text-gray-300">
+        <div class="px-3 py-1.5 rounded-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
             {t("profileProductGrid.totalCount", { count: props.products().length })}
           </span>
         </div>
