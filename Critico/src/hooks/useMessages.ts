@@ -130,14 +130,29 @@ export function useMessages() {
           event: "UPDATE",
           schema: "public",
           table: "Messages",
+          filter: `receiver_id=eq.${userId}`,
         },
         (payload: RealtimePostgresChangesPayload<any>) => {
-
-          if (
-            (payload.new.sender_id === userId || payload.new.receiver_id === userId) &&
-            VALID_CHAT_MESSAGE_TYPES.includes(payload.new.message_type)
-          ) {
-
+          // Only reload if it's a valid chat message type
+          if (payload.new && VALID_CHAT_MESSAGE_TYPES.includes(payload.new.message_type)) {
+            if (reloadTimeout) clearTimeout(reloadTimeout);
+            reloadTimeout = setTimeout(() => {
+              loadChatsDebounced(userId);
+            }, 300);
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "Messages",
+          filter: `sender_id=eq.${userId}`,
+        },
+        (payload: RealtimePostgresChangesPayload<any>) => {
+          // Only reload if it's a valid chat message type
+          if (payload.new && VALID_CHAT_MESSAGE_TYPES.includes(payload.new.message_type)) {
             if (reloadTimeout) clearTimeout(reloadTimeout);
             reloadTimeout = setTimeout(() => {
               loadChatsDebounced(userId);

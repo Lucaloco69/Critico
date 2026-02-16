@@ -23,6 +23,7 @@ export default function ProductDetail() {
     currentUserId,
     canComment,
     checkingPermission,
+    hasRequested,
     modal,
     closeModal,
     handleModalAction,
@@ -70,6 +71,7 @@ export default function ProductDetail() {
                   product={product()!}
                   commentsCount={comments().filter((c) => c.stars !== null).length}
                   currentUserId={currentUserId()}
+                  hasRequested={hasRequested()}
                   onRequestTest={handleRequestTest}
                   onContact={handleContact}
                 />

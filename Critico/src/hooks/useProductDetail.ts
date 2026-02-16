@@ -54,6 +54,7 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
 
   const [canComment, setCanComment] = createSignal(false);
   const [checkingPermission, setCheckingPermission] = createSignal(true);
+  const [hasRequested, setHasRequested] = createSignal(false);
 
   const [modal, setModal] = createSignal<ModalState>(emptyModal);
 
@@ -85,6 +86,45 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
       if (error) return false;
       return !!data;
     } catch {
+      return false;
+    }
+  };
+
+  const checkIfRequested = async (userId: number, pid: number): Promise<boolean> => {
+    try {
+      // Check for request messages
+      const { data: messageData, error: messageError } = await supabase
+        .from("Messages")
+        .select("id")
+        .eq("sender_id", userId)
+        .eq("product_id", pid)
+        .in("message_type", ["request", "request_accepted"])
+        .limit(1);
+
+      if (messageError) {
+        console.error("Error checking messages:", messageError);
+      }
+
+      if (messageData && messageData.length > 0) {
+        return true;
+      }
+
+      // Also check if user has been activated (has comment permission)
+      const { data: permissionData, error: permissionError } = await supabase
+        .from("ProductComments_User")
+        .select("user_id")
+        .eq("user_id", userId)
+        .eq("product_id", pid)
+        .limit(1);
+
+      if (permissionError) {
+        console.error("Error checking permissions:", permissionError);
+        return false;
+      }
+
+      return !!permissionData && permissionData.length > 0;
+    } catch (err) {
+      console.error("Error in checkIfRequested:", err);
       return false;
     }
   };
@@ -230,6 +270,23 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
       const ok = await checkCommentPermission(uid, pid);
       setCanComment(ok);
       setCheckingPermission(false);
+    })();
+  });
+
+  // Check if user has already requested
+  createEffect(() => {
+    const uid = currentUserId();
+    const pid = productId();
+    const prod = product(); // Add dependency on product to trigger refresh
+
+    if (typeof uid !== "number" || !pid || Number.isNaN(pid)) {
+      setHasRequested(false);
+      return;
+    }
+
+    (async () => {
+      const requested = await checkIfRequested(uid, pid);
+      setHasRequested(requested);
     })();
   });
 
@@ -565,6 +622,7 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     currentUserId,
     canComment,
     checkingPermission,
+    hasRequested,
     modal,
     showModal,
     closeModal,

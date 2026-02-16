@@ -1,14 +1,12 @@
 export const dict = {
-  review_singular: "review",
-  review_plural: "reviews",
-
   seller: "Seller",
-  yourProfile: "Your profile",
-  viewProfile: "View profile",
-
+  yourProfile: "Your Profile",
+  viewProfile: "View Profile",
   descriptionTitle: "Description",
   categoriesTitle: "Categories",
-
-  requestTest: "Request a test",
-  contactSeller: "Contact seller",
-};
+  requestTest: "Request Test",
+  alreadyRequested: "Already Requested",
+  contactSeller: "Contact Seller",
+  review_singular: "Review",
+  review_plural: "Reviews",
+} as const;

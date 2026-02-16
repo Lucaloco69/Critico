@@ -1,7 +1,7 @@
 import { createEffect, createSignal, Show } from "solid-js";
 import { useNavigate, useParams, A } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
-import { isLoggedIn } from "../lib/sessionStore";
+import { checkSession } from "../lib/sessionStore";
 
 export default function Activate() {
   const params = useParams();
@@ -27,10 +27,15 @@ export default function Activate() {
           return;
         }
 
+        // ✅ Async session check - wait for verification
+        const sessionValid = await checkSession();
+
         // Prüfe ob User eingeloggt ist
-        if (!isLoggedIn()) {
-          // Speichere Token für nach dem Login (jetzt type-safe)
-          localStorage.setItem("pendingActivateToken", token);
+        if (!sessionValid) {
+          // Speichere Token für nach dem Login
+          if (typeof window !== 'undefined') {
+            localStorage.setItem("pendingActivateToken", token);
+          }
           // WICHTIG: replace: true, damit diese Seite nicht im Verlauf bleibt
           navigate("/login", { replace: true });
           return;
@@ -48,18 +53,25 @@ export default function Activate() {
         setSuccess(true);
 
         // Entferne den gespeicherten Token (falls vorhanden)
-        localStorage.removeItem("pendingActivateToken");
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem("pendingActivateToken");
+        }
 
-        // Automatische Weiterleitung nach 2 Sekunden zur Produktseite
-        // WICHTIG: replace: true entfernt die Activate-Seite aus dem Verlauf
+        // Show success message for 2 seconds, then navigate
+        // Navigate to home with replace to remove activation page from history
         setTimeout(() => {
-          navigate(`/product/${prodId}`, { replace: true });
+          navigate("/home", { replace: true });
+          setTimeout(() => {
+            navigate(`/product/${prodId}`);
+          }, 100);
         }, 2000);
 
       } catch (e: any) {
         setError(e?.message ?? "Aktivierung fehlgeschlagen.");
         // Bei Fehler auch Token entfernen
-        localStorage.removeItem("pendingActivateToken");
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem("pendingActivateToken");
+        }
       } finally {
         setLoading(false);
       }
@@ -70,13 +82,15 @@ export default function Activate() {
 
   const handleGoToProduct = () => {
     if (productId()) {
-      // WICHTIG: replace: true
-      navigate(`/product/${productId()}`, { replace: true });
+      // Navigate to home with replace, then to product
+      navigate("/home", { replace: true });
+      setTimeout(() => {
+        navigate(`/product/${productId()}`);
+      }, 100);
     }
   };
 
   const handleGoHome = () => {
-    // WICHTIG: replace: true
     navigate("/home", { replace: true });
   };
 
