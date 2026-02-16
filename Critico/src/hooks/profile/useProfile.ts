@@ -48,10 +48,7 @@ export function useProfile() {
 
   createEffect(() => {
     const load = async () => {
-      if (!isLoggedIn()) {
-        navigate("/login", { replace: true });
-        return;
-      }
+
 
       try {
         setLoading(true);

@@ -11,6 +11,13 @@ export default defineConfig({
     }),
     vite: {
         plugins: [tailwindcss()],
+        build: {
+            minify: 'esbuild',
+            chunkSizeWarningLimit: 1000,
+            esbuild: {
+                drop: ['console', 'debugger'],
+            },
+        },
     },
     output: 'server',
 });

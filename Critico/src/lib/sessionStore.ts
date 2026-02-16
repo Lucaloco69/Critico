@@ -207,83 +207,97 @@ export const clearSession = async () => {
 };
 
 
-export const checkSession = async (timeoutMs = 5000) => {
-  try {
+// ✅ Dedupe Promise für checkSession
+let checkSessionPromise: Promise<boolean> | null = null;
 
-    const storedToken = localStorage.getItem('supabase.auth.token');
+export const checkSession = async (timeoutMs = 5000): Promise<boolean> => {
+  if (checkSessionPromise) return checkSessionPromise;
 
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Session check timeout')), timeoutMs)
-    );
+  checkSessionPromise = (async () => {
+    try {
+      const storedToken = localStorage.getItem('supabase.auth.token');
 
-    const sessionPromise = supabase.auth.getSession();
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Session check timeout')), timeoutMs)
+      );
 
-    const { data, error } = await Promise.race([sessionPromise, timeoutPromise]);
+      const sessionPromise = supabase.auth.getSession();
 
+      // Race against timeout
+      const { data, error } = await Promise.race([sessionPromise, timeoutPromise]);
 
-    if (error) {
-      clearAll();
-      return false;
-    }
-
-
-    if (!data.session) {
-      clearAll();
-      return false;
-    }
-
-    const expiresAt = data.session.expires_at;
-    const now = Math.floor(Date.now() / 1000);
-    const timeUntilExpiry = expiresAt ? expiresAt - now : 0;
-
-    // Token abgelaufen? → Refresh
-    if (expiresAt && expiresAt <= now) {
-      console.warn("⚠️ Token expired, refreshing...");
-
-      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-
-      if (refreshError || !refreshData.session) {
-        console.error("❌ Refresh failed:", refreshError);
-        clearAll();
-        await supabase.auth.signOut();
+      if (error) {
+        console.error("❌ checkSession error:", error);
+        // Don't clearAll() immediately on network error/timeout, keep optimistic state?
+        // But if it's an AuthApiError usually it means invalid.
+        // Let's safe-guard: only clear if it's NOT a timeout/network error?
+        // Actually, getSession usually returns data: { session: null } if no session.
+        // Error implies something broken.
         return false;
       }
 
-      setBaseSession(refreshData.session, refreshData.session.user);
-      loadDbUser(refreshData.session.user.id).catch(() => { });
-      return true;
-    }
+      if (!data.session) {
+        console.warn("⚠️ checkSession: No session found");
+        // Only clear if we really got a response saying "no session"
+        clearAll();
+        return false;
+      }
 
+      const expiresAt = data.session.expires_at;
+      const now = Math.floor(Date.now() / 1000);
+      const timeUntilExpiry = expiresAt ? expiresAt - now : 0;
 
-    // Token läuft bald ab? → Refresh
-    if (timeUntilExpiry < 300) {
-      console.warn("⚠️ Token expires soon, refreshing...");
-
-      try {
+      // Token abgelaufen? → Refresh
+      if (expiresAt && expiresAt <= now) {
+        console.warn("⚠️ Token expired, refreshing...");
         const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
 
-        if (!refreshError && refreshData.session) {
-          setBaseSession(refreshData.session, refreshData.session.user);
-          loadDbUser(refreshData.session.user.id).catch(() => { });
-          return true;
+        if (refreshError || !refreshData.session) {
+          console.error("❌ Refresh failed:", refreshError);
+          clearAll();
+          // Force signout to clean up invalid state
+          await supabase.auth.signOut();
+          return false;
         }
-      } catch (err) {
-        console.warn("⚠️ Prophylactic refresh failed");
+
+        setBaseSession(refreshData.session, refreshData.session.user);
+        loadDbUser(refreshData.session.user.id).catch(() => { });
+        return true;
       }
+
+      // Token läuft bald ab? → Refresh
+      if (timeUntilExpiry < 300) {
+        // Prophylactic refresh
+        try {
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          if (!refreshError && refreshData.session) {
+            setBaseSession(refreshData.session, refreshData.session.user);
+            loadDbUser(refreshData.session.user.id).catch(() => { });
+            return true;
+          }
+        } catch (err) {
+          console.warn("⚠️ Prophylactic refresh failed", err);
+        }
+      }
+
+      // Token gültig
+      setBaseSession(data.session, data.session.user);
+      loadDbUser(data.session.user.id).catch(() => { });
+      return true;
+
+    } catch (err) {
+      console.error("❌ SESSION CHECK Error:", err);
+      // On timeout or exception:
+      // DO NOT clearAll() or signOut().
+      // Assume optimistic session is valid for now to prevent redirect loop on slow net.
+      // If it's truly invalid, the realtime subscription or next request will fail.
+      return false;
+    } finally {
+      checkSessionPromise = null;
     }
+  })();
 
-
-    // Token gültig
-    setBaseSession(data.session, data.session.user);
-    loadDbUser(data.session.user.id).catch(() => { });
-
-    return true;
-  } catch (err) {
-    console.error("❌ SESSION CHECK Error:", err);
-    clearAll();
-    await supabase.auth.signOut().catch(() => { });
-    return false;
-  }
+  return checkSessionPromise;
 };
 
 

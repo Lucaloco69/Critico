@@ -1,4 +1,4 @@
-import { createSignal, createEffect, Accessor } from "solid-js";
+import { createSignal, createEffect, Accessor, batch } from "solid-js";
 import { createStore } from "solid-js/store";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -33,10 +33,17 @@ const maxPriceForTrustlevel = (tl: number) => {
 export function useProducts(trustlevel: Accessor<number>) {
   const [products, setProducts] = createStore<Product[]>([]);
   const [loading, setLoading] = createSignal(true);
+  const [hasMore, setHasMore] = createSignal(true);
+  const [page, setPage] = createSignal(0);
+  const LIMIT = 8; // Load 8 items initially
 
-  const loadProducts = async () => {
+  const loadProducts = async (reset = false) => {
     try {
       setLoading(true);
+
+      const currentPage = reset ? 0 : page();
+      const from = currentPage * LIMIT;
+      const to = from + LIMIT - 1;
 
       const maxPrice = maxPriceForTrustlevel(trustlevel());
 
@@ -62,9 +69,16 @@ export function useProducts(trustlevel: Accessor<number>) {
           )
         `)
         .lte("price", maxPrice)
-        .order("id", { ascending: false });
+        .order("id", { ascending: false })
+        .range(from, to);
 
       if (productsError) throw productsError;
+
+      if (productsData && productsData.length < LIMIT) {
+        setHasMore(false);
+      } else {
+        setHasMore(true);
+      }
 
       const transformedProducts = (productsData || []).map((p: any) => {
         const allImages: string[] = [];
@@ -90,52 +104,76 @@ export function useProducts(trustlevel: Accessor<number>) {
         return transformed;
       });
 
-      const productIds = transformedProducts.map(p => p.id);
-
-      const { data: ratingsData, error: ratingsError } = await supabase
-        .from("Messages")
-        .select("product_id, stars")
-        .in("product_id", productIds)
-        .eq("message_type", "product")
-        .not("stars", "is", null);
-
-      if (ratingsError) {
-        console.error("❌ HOME: Failed to fetch ratings:", ratingsError);
+      if (reset) {
+        setProducts(transformedProducts);
+        setPage(1);
       } else {
-        // Group ratings by product
-        const ratingsMap = new Map<number, number[]>();
-        (ratingsData || []).forEach((r: any) => {
-          if (!ratingsMap.has(r.product_id)) ratingsMap.set(r.product_id, []);
-          ratingsMap.get(r.product_id)?.push(r.stars);
-        });
-
-        // Compute averages and override stars
-        transformedProducts.forEach(p => {
-          const productRatings = ratingsMap.get(p.id);
-          if (productRatings && productRatings.length > 0) {
-            const total = productRatings.reduce((sum, r) => sum + r, 0);
-            const avg = total / productRatings.length;
-            const rounded = Math.round(avg * 10) / 10;
-
-            // Only override if different (or if we trust calc more than DB which we do)
-            p.stars = rounded;
-          }
-        });
+        setProducts([...products, ...transformedProducts]);
+        setPage(p => p + 1);
       }
 
-      setProducts(transformedProducts);
+      // ------------------------------------------------------------------
+      // PERF: Release UI thread immediately so images can start loading!
+      // ------------------------------------------------------------------
+      setLoading(false);
+
+      const productIds = transformedProducts.map((p) => p.id);
+
+      if (productIds.length > 0) {
+        const { data: ratingsData, error: ratingsError } = await supabase
+          .from("Messages")
+          .select("product_id, stars")
+          .in("product_id", productIds)
+          .eq("message_type", "product")
+          .not("stars", "is", null);
+
+        if (ratingsError) {
+          console.error("❌ HOME: Failed to fetch ratings:", ratingsError);
+        } else {
+          // Group ratings by product
+          const ratingsMap = new Map<number, number[]>();
+          (ratingsData || []).forEach((r: any) => {
+            if (!ratingsMap.has(r.product_id)) ratingsMap.set(r.product_id, []);
+            ratingsMap.get(r.product_id)?.push(r.stars);
+          });
+
+          // Compute averages and override stars
+          batch(() => {
+            transformedProducts.forEach((p) => {
+              const productRatings = ratingsMap.get(p.id);
+              if (productRatings && productRatings.length > 0) {
+                const total = productRatings.reduce((sum, r) => sum + r, 0);
+                const avg = total / productRatings.length;
+                const rounded = Math.round(avg * 10) / 10;
+
+                // Update store granularly
+                setProducts(
+                  (storedProduct) => storedProduct.id === p.id,
+                  "stars",
+                  rounded
+                );
+              }
+            });
+          });
+        }
+      }
 
     } catch (err) {
       console.error("❌ HOME: Fehler beim Laden der Produkte:", err);
-    } finally {
-      setLoading(false);
+      setLoading(false); // Ensure loading is cleared on error
     }
   };
 
   createEffect(() => {
     trustlevel();
-    loadProducts();
+    loadProducts(true); // Initial load (reset)
   });
+
+  const loadMore = () => {
+    if (!loading() && hasMore()) {
+      loadProducts(false);
+    }
+  };
 
   const refreshProductRating = async (productId: number) => {
     try {
@@ -176,7 +214,9 @@ export function useProducts(trustlevel: Accessor<number>) {
   return {
     products,
     loading,
-    loadProducts,
+    loadProducts: () => loadProducts(true), // Default to reset when called manually
+    loadMore,
+    hasMore,
     refreshProductRating, // ✅ Exposed
   };
 }

@@ -33,21 +33,16 @@ export function useMessages() {
 
 
 
-  onMount(async () => {
-
-    if (!isLoggedIn() || !sessionStore.user) {
-      navigate("/login");
-      return;
-    }
-
+  createEffect(async () => {
+    const currentUser = sessionStore.user;
+    if (!isLoggedIn() || !currentUser) return;
 
     try {
       const { data: userData } = await supabase
         .from("User")
         .select("id")
-        .eq("auth_id", sessionStore.user.id)
+        .eq("auth_id", currentUser.id)
         .single();
-
 
       if (userData) {
         setCurrentUserId(userData.id);
@@ -58,7 +53,7 @@ export function useMessages() {
         }
       }
     } catch (err) {
-      console.error("❌ useMessages.onMount ERROR:", err);
+      console.error("❌ useMessages ERROR:", err);
       setLoading(false);
     }
   });
@@ -164,10 +159,19 @@ export function useMessages() {
       .subscribe((status: string, err?: Error) => {
 
         if (status === REALTIME_SUBSCRIBE_STATES.SUBSCRIBED) {
+          // Connected
         } else if (status === REALTIME_SUBSCRIBE_STATES.CLOSED) {
-          console.error("❌❌❌ useMessages: REALTIME CHANNEL GESCHLOSSEN!");
+          console.warn("⚠️ useMessages: Realtime channel closed. Attempting reconnect...");
+          // Try to reconnect after 2s
+          setTimeout(() => {
+            if (currentUserId()) setupRealtime(currentUserId()!);
+          }, 2000);
         } else if (status === REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR) {
-          console.error("❌❌❌ useMessages: REALTIME CHANNEL ERROR:", err);
+          console.error("❌ useMessages: Realtime channel error:", err);
+          // Try to reconnect after 5s
+          setTimeout(() => {
+            if (currentUserId()) setupRealtime(currentUserId()!);
+          }, 5000);
         }
       });
 

@@ -1,7 +1,7 @@
 import { A } from "@solidjs/router";
 import { Show, For, createEffect, createMemo } from "solid-js";
 import StarRating from "./StarRating";
-import { getOptimizedImageUrl } from "../lib/imageOptimizer";
+import { getOptimizedImageUrl, getSrcSet } from "../lib/imageOptimizer";
 import { t } from "../lib/i18n";
 
 
@@ -64,12 +64,16 @@ export function ProductCard(props: ProductCardProps) {
           >
             <img
               src={getOptimizedImageUrl(props.product.picture, 500)}
+              srcset={getSrcSet(props.product.picture)}
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
               alt={imgAlt()}
               loading={props.priority ? "eager" : "lazy"}
               decoding={props.priority ? "sync" : "async"}
               // @ts-ignore
               fetchpriority={props.priority ? "high" : "auto"}
               onError={(e) => (e.currentTarget.src = props.product.picture!)}
+              width="500"
+              height="500"
               class="w-full h-full object-contain p-3 group-hover:scale-110 transition-transform duration-500 ease-out"
               style="filter: brightness(1.05) contrast(1.08) saturate(1.05);"
             />

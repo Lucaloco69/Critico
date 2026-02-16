@@ -32,11 +32,7 @@ export function useCreateProduct() {
   const [success, setSuccess] = createSignal("");
 
   // Prüfe Login
-  createEffect(() => {
-    if (!isLoggedIn()) {
-      navigate("/login", { replace: true });
-    }
-  });
+
 
   // ✅ FIXED: Lade alle verfügbaren Tags beim Mount
   onMount(async () => {

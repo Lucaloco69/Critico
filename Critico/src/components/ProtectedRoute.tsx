@@ -10,11 +10,21 @@ interface ProtectedRouteProps {
 export const ProtectedRoute: Component<ProtectedRouteProps> = (props) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [checking, setChecking] = createSignal(true);
+
+  // ✅ OPTIMISTIC CHECK: Wenn wir einen Token im Storage haben, gehen wir davon aus, dass wir eingeloggt sind.
+  // Das erlaubt sofortiges Rendering der geschützten Route (z.B. Home), während im Hintergrund verifiziert wird.
+  const hasPotentialSession = () => !!localStorage.getItem('supabase.auth.token');
+
+  const [checking, setChecking] = createSignal(!isLoggedIn() && !hasPotentialSession());
   const [checkedOnce, setCheckedOnce] = createSignal(false);
 
   onMount(async () => {
-    await performCheck();
+    // Wenn wir optimistisch rendern (Token da, aber noch nicht verifiziert), checken wir trotzdem im Hintergrund
+    if (hasPotentialSession() && !isLoggedIn()) {
+      await performCheck();
+    } else if (!isLoggedIn()) {
+      await performCheck();
+    }
     setCheckedOnce(true);
   });
 
@@ -29,28 +39,39 @@ export const ProtectedRoute: Component<ProtectedRouteProps> = (props) => {
   });
 
   const performCheck = async () => {
-
-    setChecking(true);
+    // Nur Spinner zeigen, wenn wir KEINE Vermutung auf Session haben
+    if (!hasPotentialSession() && !isLoggedIn()) {
+      setChecking(true);
+    }
 
     try {
-      const hasSession = await checkSession(3000);
-
+      // Erhöhe Timeout auf 5s für langsamere Verbindungen
+      const hasSession = await checkSession(5000); // War 3000
 
       if (!hasSession) {
+        // ✅ NEU: Wenn checkSession fehlschlägt (z.B. Timeout), aber der Token noch da ist,
+        // gehen wir von einem Netzwerkproblem aus und lassen den User drin (Optimistic).
+        // Wenn der Token wirklich ungültig wäre, hätte checkSession() ihn via signOut() gelöscht.
+        if (hasPotentialSession()) {
+          console.warn("⚠️ Session check failed/timed out, but token persists. Allowing optimistic access.");
+          setChecking(false);
+          return;
+        }
+
         // ✅ Hatte je eine gültige Session? → Session expired, kein redirectTo
         if (hadValidSessionBefore()) {
-
           navigate('/login', { replace: true });
         } else {
           // Noch nie eingeloggt → redirectTo speichern
           const fullPath = location.pathname + location.search;
           const redirectTo = encodeURIComponent(fullPath);
-
-
           navigate(`/login?redirectTo=${redirectTo}`, { replace: true });
         }
       } else {
+        // Session bestätigt
+        setChecking(false);
       }
+
     } catch (err) {
       console.error("❌ PROTECTED: Session check failed:", err);
       navigate('/login', { replace: true });
@@ -71,7 +92,12 @@ export const ProtectedRoute: Component<ProtectedRouteProps> = (props) => {
         </div>
       }
     >
-      <Show when={isLoggedIn()} fallback={null}>
+      {/* 
+          ✅ Render:
+          1. Wenn wir bereits sicher eingeloggt sind (isLoggedIn)
+          2. ODER wenn wir einen Token haben und optimistisch rendern (hasPotentialSession)
+      */}
+      <Show when={isLoggedIn() || hasPotentialSession()} fallback={null}>
         {props.children}
       </Show>
     </Show>

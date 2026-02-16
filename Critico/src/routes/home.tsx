@@ -13,7 +13,7 @@ export function Home() {
   const navigate = useNavigate();
 
   const { userId, trustlevel } = useCurrentUser();
-  const { products, loading, loadProducts, refreshProductRating } = useProducts(trustlevel);
+  const { products, loading, loadProducts, refreshProductRating, loadMore, hasMore } = useProducts(trustlevel);
   const { tags } = useTags();
 
   // ✅ FIX: products ist Store, wrap als Accessor!
@@ -40,8 +40,13 @@ export function Home() {
       />
 
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex-grow w-full">
-        <div class="pb-10 sm:pb-12 lg:pb-16">
-          <ProductGrid products={filteredProducts} loading={loading} />
+        <div class="pb-5 sm:pb-5 lg:pb-5">
+          <ProductGrid
+            products={filteredProducts}
+            loading={loading}
+            loadMore={loadMore}
+            hasMore={hasMore}
+          />
         </div>
       </div>
 

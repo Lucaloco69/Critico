@@ -97,10 +97,10 @@ export function useChat() {
   };
 
 
-  onMount(async () => {
-
-    if (!isLoggedIn() || !sessionStore.user) {
-      navigate("/login");
+  createEffect(async () => {
+    const currentUser = sessionStore.user;
+    if (!isLoggedIn() || !currentUser || !params.partnerId) {
+      setLoading(false);
       return;
     }
 
@@ -110,7 +110,7 @@ export function useChat() {
       const { data: userData } = await supabase
         .from("User")
         .select("id")
-        .eq("auth_id", sessionStore.user.id)
+        .eq("auth_id", currentUser.id)
         .single();
 
       if (!userData) {
@@ -128,6 +128,7 @@ export function useChat() {
         return;
       }
 
+      // Load partner data
       const { data: partnerData } = await supabase
         .from("User")
         .select("id, name, surname, picture, trustlevel")
@@ -135,7 +136,6 @@ export function useChat() {
         .single();
 
       if (partnerData) {
-        // Cast to compatible type since DB result involves generic types
         setChatPartner(partnerData as ChatPartner);
       }
 
@@ -155,7 +155,7 @@ export function useChat() {
       setLoading(false);
 
     } catch (err) {
-      console.error("❌ useChat.onMount ERROR:", err);
+      console.error("❌ useChat ERROR:", err);
       setLoading(false);
     }
   });
