@@ -1,5 +1,6 @@
 import { Show } from "solid-js";
 import type { ModalState } from "../hooks/useProductDetail";
+import { t } from "../lib/i18n";
 
 interface ModalProps {
   modal: () => ModalState;
@@ -86,7 +87,7 @@ export default function Modal(props: ModalProps) {
                     onClick={props.onClose}
                     class="w-full px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold transition-colors"
                   >
-                    Verstanden
+                    {t("modal.understood")}
                   </button>
                 </Show>
               </div>
