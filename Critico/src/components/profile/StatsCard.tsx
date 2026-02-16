@@ -12,7 +12,7 @@ export default function StatsCards(props: StatsCardsProps) {
 
   return (
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-      <div class="relative overflow-hidden rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md p-6 hover:border-white/20 transition-colors">
+      <div class="relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 shadow-md p-6 transition-colors">
         <div class="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl" />
 
         <div class="relative">
@@ -37,7 +37,7 @@ export default function StatsCards(props: StatsCardsProps) {
         </div>
       </div>
 
-      <div class="relative overflow-hidden rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md p-6 hover:border-white/20 transition-colors">
+      <div class="relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 shadow-md p-6 transition-colors">
         <div class="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 rounded-full blur-3xl" />
 
         <div class="relative">

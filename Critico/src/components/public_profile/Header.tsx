@@ -10,9 +10,9 @@ export default function Header(props: Props) {
   const u = () => props.user;
 
   return (
-    <section class="relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
+    <section class="relative overflow-hidden rounded-3xl bg-white dark:bg-gray-800 shadow-md">
       {/* Dezentere Top-Area */}
-      <div class="relative h-24 bg-gradient-to-r from-sky-600 via-blue-700 to-indigo-700">
+      <div class="relative h-24 bg-linear-to-r from-sky-600 via-blue-700 to-indigo-700">
         <div class="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.9),transparent_40%),radial-gradient(circle_at_80%_30%,rgba(255,255,255,0.55),transparent_45%)]" />
       </div>
 

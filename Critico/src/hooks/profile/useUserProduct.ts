@@ -5,7 +5,7 @@ import { roundStars } from "../../lib/publicProfileUtils";
 interface ProductListRow {
   id: number;
   name: string;
-  beschreibung: string | null;
+  description: string | null;
   price: number | null;
   owner_id: number;
   stars: number | null;
@@ -19,9 +19,11 @@ interface ProductListRow {
 export type ProductCard = {
   id: number;
   name: string;
+  description: string;
   price: number | null;
   stars: number;
   picture: string | null;
+  owner_id: number;
 };
 
 export function useUserProducts(userId: Accessor<number | undefined>) {
@@ -43,7 +45,7 @@ export function useUserProducts(userId: Accessor<number | undefined>) {
             `
             id,
             name,
-            beschreibung,
+            description:beschreibung,
             price,
             owner_id,
             stars,
@@ -71,9 +73,11 @@ export function useUserProducts(userId: Accessor<number | undefined>) {
           return {
             id: p.id,
             name: p.name,
+            description: p.description ?? "",
             price: p.price,
             stars: 0, // Temp default
             picture: firstImg,
+            owner_id: p.owner_id,
           };
         });
 

@@ -20,7 +20,7 @@ export function useProductFilters(products: Accessor<Product[]>) {
     // Filter nach Suchbegriff
     if (query) {
       filtered = filtered.filter(
-        (p) => p.name.toLowerCase().includes(query) || p.beschreibung?.toLowerCase().includes(query)
+        (p) => p.name.toLowerCase().includes(query) || p.description?.toLowerCase().includes(query)
       );
     }
 

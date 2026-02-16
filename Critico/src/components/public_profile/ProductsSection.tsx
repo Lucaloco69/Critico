@@ -1,11 +1,11 @@
 import { For, Show } from "solid-js";
-import type { ProductCard } from "../../routes/PublicProfile";
-import ProductCardItem from "./ProductCard";
 import { t } from "../../lib/i18n";
+import { ProductCard } from "../../components/ProductCard";
+import type { ProductCard as ProductCardType } from "../../routes/PublicProfile";
 
-export default function ProductsSection(props: { products: ProductCard[]; productsLoading: boolean }) {
+export default function ProductsSection(props: { products: ProductCardType[]; productsLoading: boolean }) {
   return (
-    <section class="rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-7 shadow-lg">
+    <section class="rounded-3xl bg-white dark:bg-gray-800 shadow-md p-6 sm:p-7">
       <div class="flex items-start justify-between gap-4">
         <div>
           <h2 class="text-xl font-bold text-white">{t("publicProfileProductsSection.title")}</h2>
@@ -34,7 +34,7 @@ export default function ProductsSection(props: { products: ProductCard[]; produc
           }
         >
           <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            <For each={props.products}>{(p) => <ProductCardItem product={p} />}</For>
+            <For each={props.products}>{(p, i) => <ProductCard product={p} priority={i() < 4} />}</For>
           </div>
         </Show>
       </Show>

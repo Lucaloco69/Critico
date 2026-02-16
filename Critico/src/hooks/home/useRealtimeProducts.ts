@@ -18,18 +18,15 @@ export function useRealtimeProducts(
     const setupChannel = () => {
       // CLEANUP: If we have an existing channel, remove it first to be safe
       if (globalHomeProductsChannel) {
-        console.log("🧹 HOME REALTIME: Cleanup matched channel before setup");
         supabase.removeChannel(globalHomeProductsChannel);
         globalHomeProductsChannel = null;
       }
 
-      console.log("🚀 HOME REALTIME: Setup for Products, User:", uid);
       const channelName = `home-products-user-${uid}`;
 
       // DOUBLE CHECK: Remove any lingering channel with same name from client specific registry
       const existing = supabase.getChannels().find(ch => ch.topic === channelName);
       if (existing) {
-        console.log("🗑️ HOME REALTIME: Removing lingering channel found in client");
         supabase.removeChannel(existing);
       }
 
@@ -40,9 +37,7 @@ export function useRealtimeProducts(
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "Product" },
           (payload) => {
-            console.log("🔔 HOME REALTIME: New product:", payload.new.name);
             setTimeout(() => {
-              console.log("🔄 HOME REALTIME: Reloading products (new product)...");
               onProductsChange();
             }, 200);
           }
@@ -61,10 +56,8 @@ export function useRealtimeProducts(
             const shouldReload = pending || oldStars !== newStars || (newStars !== undefined && oldStars === undefined);
 
             if (shouldReload) {
-              console.log(`✅ HOME REALTIME: Reload for product ${productId}`, { pending, oldStars, newStars });
               if (pending) pendingProductUpdates.delete(productId);
               setTimeout(() => {
-                console.log("🔄 HOME REALTIME: Reloading products...");
                 onProductsChange();
               }, 200);
             }
@@ -75,9 +68,7 @@ export function useRealtimeProducts(
           "postgres_changes",
           { event: "DELETE", schema: "public", table: "Product" },
           (payload) => {
-            console.log("🔔 HOME REALTIME: Product deleted:", payload.old.id);
             setTimeout(() => {
-              console.log("🔄 HOME REALTIME: Reloading products (delete)...");
               onProductsChange();
             }, 200);
           }
@@ -88,7 +79,6 @@ export function useRealtimeProducts(
           { event: "INSERT", schema: "public", table: "Messages" },
           (payload) => {
             if (payload.new.message_type === "product" && payload.new.stars != null) {
-              console.log("🔔 HOME REALTIME: New rating (Comment) for product:", payload.new.product_id);
 
               // Add to pending updates
               const pid = Number(payload.new.product_id);
@@ -97,7 +87,6 @@ export function useRealtimeProducts(
               // Fallback: If product update doesn't come
               setTimeout(() => {
                 if (pendingProductUpdates.has(pid)) {
-                  console.log("⚠️ HOME REALTIME: Product UPDATE missing, fallback reload");
                   pendingProductUpdates.delete(pid);
                   if (onProductCommentAdded) onProductCommentAdded(pid);
                   else onProductsChange();
@@ -107,10 +96,8 @@ export function useRealtimeProducts(
           }
         )
         .subscribe((status, err) => {
-          console.log(`📡 HOME REALTIME: Channel Status: ${status}`);
 
           if (status === "SUBSCRIBED") {
-            console.log("✅ HOME REALTIME: Connected!");
           } else if (status === "TIMED_OUT" || status === "CHANNEL_ERROR") {
             console.error(`❌ HOME REALTIME: Channel failed (${status}). Retrying in 5s...`);
             if (globalHomeProductsChannel) {
@@ -122,16 +109,36 @@ export function useRealtimeProducts(
         });
     };
 
-    setupChannel();
-
-    onCleanup(() => {
-      console.log("🧹 HOME REALTIME: Cleanup (effect)");
+    const cleanupChannel = () => {
       if (retryTimeout) clearTimeout(retryTimeout);
       if (globalHomeProductsChannel) {
         supabase.removeChannel(globalHomeProductsChannel);
         globalHomeProductsChannel = null;
-        pendingProductUpdates.clear();
       }
+    };
+
+    // ✅ BFCache Support
+    const onPageHide = () => {
+      cleanupChannel();
+    };
+
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        // Restore connection if page is restored from cache
+        setupChannel();
+      }
+    };
+
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("pageshow", onPageShow);
+
+    setupChannel();
+
+    onCleanup(() => {
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("pageshow", onPageShow);
+      cleanupChannel();
+      pendingProductUpdates.clear();
     });
   });
 }

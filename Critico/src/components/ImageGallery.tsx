@@ -1,4 +1,5 @@
 import { createSignal, For, Show } from "solid-js";
+import { getOptimizedImageUrl } from "../lib/imageOptimizer";
 
 interface ImageGalleryProps {
   images: string[];
@@ -10,14 +11,14 @@ export default function ImageGallery(props: ImageGalleryProps) {
 
   // ✅ Loop nach vorne (mit Wrap-around)
   const nextImage = () => {
-    setCurrentImageIndex((prev) => 
+    setCurrentImageIndex((prev) =>
       prev < props.images.length - 1 ? prev + 1 : 0  // ✅ Zurück zu 0 wenn am Ende
     );
   };
 
   // ✅ Loop nach hinten (mit Wrap-around)
   const prevImage = () => {
-    setCurrentImageIndex((prev) => 
+    setCurrentImageIndex((prev) =>
       prev > 0 ? prev - 1 : props.images.length - 1  // ✅ Zum letzten Bild wenn am Anfang
     );
   };
@@ -36,8 +37,13 @@ export default function ImageGallery(props: ImageGalleryProps) {
       {/* Hauptbild */}
       <div class="relative aspect-square bg-gray-50 dark:bg-gray-900 rounded-lg overflow-hidden">
         <img
-          src={props.images[currentImageIndex()]}
+          src={getOptimizedImageUrl(props.images[currentImageIndex()], 1200)}
           alt={`${props.productName} - Bild ${currentImageIndex() + 1}`}
+          loading="eager"
+          decoding="sync"
+          // @ts-ignore
+          fetchpriority="high"
+          onError={(e) => (e.currentTarget.src = props.images[currentImageIndex()])}
           class="w-full h-full object-contain"
         />
 
@@ -74,20 +80,21 @@ export default function ImageGallery(props: ImageGalleryProps) {
             {(url, index) => (
               <button
                 onClick={() => setCurrentImageIndex(index())}
-                class={`flex-shrink-0 transition-all ${
-                  currentImageIndex() === index()
-                    ? "scale-105"
-                    : "scale-100 opacity-60 hover:opacity-100"
-                }`}
+                class={`flex-shrink-0 transition-all ${currentImageIndex() === index()
+                  ? "scale-105"
+                  : "scale-100 opacity-60 hover:opacity-100"
+                  }`}
               >
-                <div class={`w-20 h-20 rounded-md overflow-hidden ${
-                  currentImageIndex() === index()
-                    ? "ring-3 ring-sky-500 shadow-lg"
-                    : "ring-2 ring-gray-300 dark:ring-gray-600 hover:ring-sky-400"
-                }`}>
+                <div class={`w-20 h-20 rounded-md overflow-hidden ${currentImageIndex() === index()
+                  ? "ring-3 ring-sky-500 shadow-lg"
+                  : "ring-2 ring-gray-300 dark:ring-gray-600 hover:ring-sky-400"
+                  }`}>
                   <img
-                    src={url}
+                    src={getOptimizedImageUrl(url, 200)}
                     alt={`Thumbnail ${index() + 1}`}
+                    loading="lazy"
+                    decoding="async"
+                    onError={(e) => (e.currentTarget.src = url)}
                     class="w-full h-full object-cover"
                   />
                 </div>

@@ -29,7 +29,7 @@ export function Home() {
   };
 
   return (
-    <div class="min-h-screen bg-gray-50 dark:bg-gradient-to-br dark:from-gray-900 dark:via-slate-900 dark:to-gray-950">
+    <div class="min-h-screen flex flex-col bg-gray-50 dark:bg-gradient-to-br dark:from-gray-900 dark:via-slate-900 dark:to-gray-950">
       <HomeHeader
         tags={tags}
         selectedTags={selectedTags}
@@ -39,11 +39,19 @@ export function Home() {
         onCreateProduct={handleCreateProduct}
       />
 
-      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex-grow w-full">
         <div class="pb-10 sm:pb-12 lg:pb-16">
           <ProductGrid products={filteredProducts} loading={loading} />
         </div>
       </div>
+
+      <footer class="mt-auto py-8 border-t border-gray-200 dark:border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 flex justify-center">
+          <a href="/impressum" target="_self" class="text-sm text-gray-500 hover:text-sky-500 transition-colors">
+            Impressum
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -1,13 +1,14 @@
 import { A } from "@solidjs/router";
 import { Show, For, createEffect, createMemo } from "solid-js";
 import StarRating from "./StarRating";
+import { getOptimizedImageUrl } from "../lib/imageOptimizer";
 import { t } from "../lib/i18n";
 
 
 interface Product {
   id: number;
   name: string;
-  beschreibung: string;
+  description: string;
   picture: string | null;
   owner_id: number;
   stars: number | null;
@@ -18,6 +19,7 @@ interface Product {
 
 interface ProductCardProps {
   product: Product;
+  priority?: boolean;
 }
 
 
@@ -48,7 +50,7 @@ export function ProductCard(props: ProductCardProps) {
       href={`/product/${props.product.id}`}
       class="group bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-2xl transition-all overflow-hidden hover:-translate-y-1 duration-300"
     >
-      <div class="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 p-3">
+      <div class="relative bg-linear-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 p-3">
         <div class="aspect-square bg-white dark:bg-gray-900 rounded-lg overflow-hidden shadow-sm">
           <Show
             when={props.product.picture}
@@ -61,16 +63,19 @@ export function ProductCard(props: ProductCardProps) {
             }
           >
             <img
-              src={props.product.picture!}
+              src={getOptimizedImageUrl(props.product.picture, 500)}
               alt={imgAlt()}
-              loading="lazy"
-              decoding="async"
+              loading={props.priority ? "eager" : "lazy"}
+              decoding={props.priority ? "sync" : "async"}
+              // @ts-ignore
+              fetchpriority={props.priority ? "high" : "auto"}
+              onError={(e) => (e.currentTarget.src = props.product.picture!)}
               class="w-full h-full object-contain p-3 group-hover:scale-110 transition-transform duration-500 ease-out"
               style="filter: brightness(1.05) contrast(1.08) saturate(1.05);"
             />
           </Show>
         </div>
-        <div class="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-lg"></div>
+        <div class="absolute inset-0 bg-linear-to-t from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-lg"></div>
       </div>
 
       <div class="p-4 space-y-2.5">
@@ -105,7 +110,7 @@ export function ProductCard(props: ProductCardProps) {
         </Show>
 
         <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 leading-relaxed min-h-[2.5rem]">
-          {props.product.beschreibung}
+          {props.product.description}
         </p>
 
         <Show when={props.product.tags && props.product.tags.length > 0}>

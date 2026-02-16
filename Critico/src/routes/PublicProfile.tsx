@@ -35,7 +35,7 @@ export type UserProfileComputed = UserProfileBase & {
 interface ProductListRow {
   id: number;
   name: string;
-  beschreibung: string | null;
+  description: string | null;
   price: number | null;
   owner_id: number;
   stars: number | null;
@@ -49,9 +49,11 @@ interface ProductListRow {
 export type ProductCard = {
   id: number;
   name: string;
+  description: string;
   price: number | null;
   stars: number;
   picture: string | null;
+  owner_id: number;
 };
 
 export default function PublicProfile() {
@@ -74,7 +76,7 @@ export default function PublicProfile() {
           `
             id,
             name,
-            beschreibung,
+            description:beschreibung,
             price,
             owner_id,
             stars,
@@ -95,9 +97,11 @@ export default function PublicProfile() {
       const mapped: ProductCard[] = (data ?? []).map((p) => ({
         id: p.id,
         name: p.name,
+        description: p.description ?? "",
         price: p.price,
         stars: 0, // Temp default
         picture: firstProductImage(p.product_images),
+        owner_id: p.owner_id,
       }));
 
       const productIds = mapped.map((p) => p.id);
@@ -191,8 +195,8 @@ export default function PublicProfile() {
   });
 
   return (
-    <div class="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-950">
-      <header class="sticky top-0 z-50 bg-white/5 backdrop-blur-md border-b border-white/10">
+    <div class="min-h-screen bg-gray-50 dark:bg-linear-to-br dark:from-gray-900 dark:via-slate-900 dark:to-gray-950">
+      <header class="sticky top-0 z-50 bg-gray-900/80 backdrop-blur-md border-b border-white/30">
         <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <A href="/home" class="text-2xl font-bold text-sky-400 hover:text-sky-300 transition-colors">
             Critico

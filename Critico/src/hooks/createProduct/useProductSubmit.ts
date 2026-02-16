@@ -5,7 +5,7 @@ import sessionStore from "../../lib/sessionStore";
 
 export function useProductSubmit(
   name: Accessor<string>,
-  beschreibung: Accessor<string>,
+  description: Accessor<string>,
   price: Accessor<string>,
   selectedFiles: Accessor<File[]>,
   selectedTags: Accessor<number[]>,
@@ -34,14 +34,14 @@ export function useProductSubmit(
 
       if (userError) throw userError;
       if (!userData) throw new Error("Benutzer nicht gefunden");
-      
+
       const userId = userData.id;
       const pictureUrls: string[] = [];
 
       // 2. Alle Bilder hochladen
       if (selectedFiles().length > 0) {
         setUploading(true);
-        
+
         for (const file of selectedFiles()) {
           const fileExt = file.name.split(".").pop();
           const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
@@ -59,7 +59,7 @@ export function useProductSubmit(
 
           pictureUrls.push(publicUrl);
         }
-        
+
         setUploading(false);
       }
 
@@ -68,7 +68,7 @@ export function useProductSubmit(
         .from("Product")
         .insert({
           name: name(),
-          beschreibung: beschreibung(),
+          beschreibung: description(),
           price: price() ? parseFloat(price()) : null,
           owner_id: userId,
         })
@@ -110,7 +110,7 @@ export function useProductSubmit(
       }
 
       setSuccess("Produkt erfolgreich erstellt!");
-      
+
       setTimeout(() => {
         navigate("/home", { replace: true });
       }, 1500);

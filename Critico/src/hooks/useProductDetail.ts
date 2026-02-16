@@ -7,7 +7,7 @@ import { t } from "../lib/i18n";
 interface ProductDB {
   id: number;
   name: string;
-  beschreibung: string;
+  description: string;
   price: number | null;
   owner_id: number;
   stars: number;
@@ -97,7 +97,7 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     return {
       id: db.id,
       name: db.name,
-      beschreibung: db.beschreibung,
+      description: db.description,
       price: db.price,
       picture: images[0] || null,
       images,
@@ -131,27 +131,29 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
 
       const { data: productData, error: productError } = await supabase
         .from("Product")
-        .select(
-          `
+        .select(`
+          *,
+          description:beschreibung,
+
+            id,
+          name,
+          beschreibung,
+          price,
+          owner_id,
+          stars,
+          User!Product_owner_id_fkey(
             id,
             name,
-            beschreibung,
-            price,
-            owner_id,
-            stars,
-            User!Product_owner_id_fkey (
-              id,
-              name,
-              surname,
-              email,
-              picture,
-              trustlevel
-            ),
-            Product_Tags (
-              Tags ( id, name )
-            ),
-            product_images ( id, image_url, order_index )
-          `
+            surname,
+            email,
+            picture,
+            trustlevel
+          ),
+          Product_Tags(
+            Tags(id, name)
+          ),
+          product_images(id, image_url, order_index)
+            `
         )
         .eq("id", pid)
         .single<ProductDB>();
@@ -174,18 +176,18 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
         .select(
           `
             id,
-            content,
-            stars,
-            created_at,
-            sender_id,
-            message_type,
-            sender:User!Messages_sender_id_fkey (
-              id,
-              name,
-              surname,
-              picture,
-              trustlevel
-            )
+          content,
+          stars,
+          created_at,
+          sender_id,
+          message_type,
+          sender: User!Messages_sender_id_fkey(
+            id,
+            name,
+            surname,
+            picture,
+            trustlevel
+          )
           `
         )
         .eq("product_id", pid)
@@ -268,7 +270,7 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
             event: "INSERT",
             schema: "public",
             table: "Messages",
-            filter: `product_id=eq.${pid}`,
+            filter: `product_id = eq.${pid}`,
           },
           (payload: any) => {
             if (payload.new?.message_type !== "product") return;
@@ -279,19 +281,19 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
                 .select(
                   `
                     id,
-                    content,
-                    stars,
-                    created_at,
-                    sender_id,
-                    message_type,
-                    sender:User!Messages_sender_id_fkey (
-                      id,
-                      name,
-                      surname,
-                      picture,
-                      trustlevel
-                    )
-                  `
+          content,
+          stars,
+          created_at,
+          sender_id,
+          message_type,
+          sender: User!Messages_sender_id_fkey(
+            id,
+            name,
+            surname,
+            picture,
+            trustlevel
+          )
+          `
                 )
                 .eq("id", payload.new.id)
                 .eq("message_type", "product")
@@ -326,7 +328,7 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
 
           if (status === "SUBSCRIBED") {
           } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-            console.error(`❌ REALTIME: Channel failed (${status}). Retrying in 5s...`);
+            console.error(`❌ REALTIME: Channel failed(${status}).Retrying in 5s...`);
             if (channel) {
               supabase.removeChannel(channel);
               channel = null;

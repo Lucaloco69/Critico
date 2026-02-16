@@ -1,0 +1,116 @@
+---
+export const prerender = true;
+import "../index.css";
+
+// Static Site Generation (SSG) Impressum
+// Styling matches the main application (Dark/Light mode)
+---
+
+<html lang="de" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Critico - Impressum</title>
+  </head>
+  <body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen font-sans selection:bg-sky-500/30 selection:text-sky-200">
+    
+    <!-- Background Gradient similar to App -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none -z-10">
+        <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-purple-500/10 blur-[100px]"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-sky-500/10 blur-[100px]"></div>
+    </div>
+
+    <div class="max-w-3xl mx-auto px-6 py-12 sm:py-20">
+      
+      <!-- Header -->
+      <div class="text-center mb-12 space-y-4">
+        <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-600">
+          Critico
+        </h1>
+        <p class="text-lg text-gray-600 dark:text-gray-400 font-medium">
+          Impressum & Rechtliche Hinweise
+        </p>
+      </div>
+
+      <!-- Main Card -->
+      <main class="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+        
+        <div class="h-2 bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-500"></div>
+
+        <div class="p-8 sm:p-12 space-y-10">
+            
+            <!-- Section 1 -->
+            <section class="space-y-4">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                    <span class="p-2 rounded-lg bg-sky-500/10 text-sky-500">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                    </span>
+                    Angaben gemäß § 5 TMG
+                </h2>
+                <div class="pl-11 text-gray-600 dark:text-gray-300 leading-relaxed">
+                    <p class="font-medium text-gray-900 dark:text-white">Max Mustermann</p>
+                    <p>Musterstraße 1</p>
+                    <p>12345 Musterstadt</p>
+                </div>
+            </section>
+
+            <hr class="border-gray-200 dark:border-gray-800" />
+
+            <!-- Section 2 -->
+            <section class="space-y-4">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                    <span class="p-2 rounded-lg bg-indigo-500/10 text-indigo-500">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                    </span>
+                    Kontakt
+                </h2>
+                <div class="pl-11 text-gray-600 dark:text-gray-300 space-y-1">
+                    <p>
+                        <span class="w-20 inline-block text-gray-400">Telefon:</span>
+                        <a href="tel:+49123445566" class="hover:text-sky-400 transition-colors">+49 (0) 123 44 55 66</a>
+                    </p>
+                    <p>
+                        <span class="w-20 inline-block text-gray-400">E-Mail:</span>
+                        <a href="mailto:info@critico.example.com" class="hover:text-sky-400 transition-colors">info@critico.example.com</a>
+                    </p>
+                </div>
+            </section>
+
+            <hr class="border-gray-200 dark:border-gray-800" />
+
+            <!-- Section 3 -->
+            <section class="space-y-4">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                    <span class="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+                    </span>
+                    Tech Stack Hinweis
+                </h2>
+                <div class="pl-11 bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-100 dark:border-gray-700/50">
+                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                        Diese Seite wird vollständig <strong>statisch generiert (SSG)</strong> und ohne JavaScript-Hydration ausgeliefert, um maximale Performance und SEO-Optimierung zu gewährleisten. Der Rest der Anwendung nutzt <strong>SSR (Server-Side Rendering)</strong> für dynamische Inhalte.
+                    </p>
+                </div>
+            </section>
+
+        </div>
+      </main>
+
+      <!-- Footer -->
+      <div class="mt-12 text-center">
+        <a 
+            href="/home" 
+            target="_self"
+            class="group inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium shadow-lg shadow-gray-200/50 dark:shadow-black/20 hover:shadow-xl hover:-translate-y-0.5 transition-all border border-gray-100 dark:border-gray-700"
+        >
+          <svg class="w-4 h-4 text-sky-500 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+          Zurück zur Anwendung
+        </a>
+        <p class="mt-6 text-sm text-gray-400">
+            &copy; {new Date().getFullYear()} Critico. Alle Rechte vorbehalten.
+        </p>
+      </div>
+
+    </div>
+  </body>
+</html>

@@ -4,7 +4,6 @@
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
     "target": "ESNext",
-
     // Modules
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
@@ -12,14 +11,17 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "noEmit": true,
-
     // Path Aliases
     "paths": {
-      "~/*": ["./src/*"]
+      "~/*": [
+        "./src/*"
+      ]
     },
-
     // Type Checking & Safety
     "strict": true,
-    "types": ["vite/client"]
+    "types": [
+      "vite/client",
+      "astro/client"
+    ]
   }
 }

@@ -13,18 +13,18 @@ export function useCreateProduct() {
 
   // Form state
   const [name, setName] = createSignal("");
-  const [beschreibung, setBeschreibung] = createSignal("");
+  const [description, setDescription] = createSignal("");
   const [price, setPrice] = createSignal("");
-  
+
   // Image state
   const [selectedFiles, setSelectedFiles] = createSignal<File[]>([]);
   const [previewUrls, setPreviewUrls] = createSignal<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = createSignal(0);
-  
+
   // Tags state
   const [availableTags, setAvailableTags] = createSignal<Tag[]>([]);
   const [selectedTags, setSelectedTags] = createSignal<number[]>([]);
-  
+
   // UI state
   const [loading, setLoading] = createSignal(false);
   const [uploading, setUploading] = createSignal(false);
@@ -56,7 +56,7 @@ export function useCreateProduct() {
   return {
     // State
     name,
-    beschreibung,
+    description,
     price,
     selectedFiles,
     previewUrls,
@@ -67,10 +67,10 @@ export function useCreateProduct() {
     uploading,
     error,
     success,
-    
+
     // Setters
     setName,
-    setBeschreibung,
+    setDescription,
     setPrice,
     setSelectedFiles,
     setPreviewUrls,

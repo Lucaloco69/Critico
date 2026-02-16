@@ -6,7 +6,7 @@ export default function StatsGrid(props: { user: UserProfileComputed; productsCo
 
   return (
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
+      <div class="rounded-2xl bg-white dark:bg-gray-800 shadow-md p-5">
         <div class="flex items-center gap-3">
           <div class="h-11 w-11 rounded-xl bg-yellow-500/15 border border-yellow-400/20 grid place-items-center">
             <svg class="h-6 w-6 text-yellow-300" fill="currentColor" viewBox="0 0 20 20">
@@ -20,7 +20,7 @@ export default function StatsGrid(props: { user: UserProfileComputed; productsCo
         </div>
       </div>
 
-      <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
+      <div class="rounded-2xl bg-white dark:bg-gray-800 shadow-md p-5">
         <div class="flex items-center gap-3">
           <div class="h-11 w-11 rounded-xl bg-sky-500/15 border border-sky-400/20 grid place-items-center">
             <svg class="h-6 w-6 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">

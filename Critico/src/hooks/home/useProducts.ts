@@ -5,7 +5,7 @@ import { supabase } from "../../lib/supabaseClient";
 export interface Product {
   id: number;
   name: string;
-  beschreibung: string;
+  description: string;
   picture: string | null;
   owner_id: number;
   stars: number | null;
@@ -45,7 +45,7 @@ export function useProducts(trustlevel: Accessor<number>) {
         .select(`
           id,
           name,
-          beschreibung,
+          description:beschreibung,
           price,
           owner_id,
           stars,
@@ -79,7 +79,7 @@ export function useProducts(trustlevel: Accessor<number>) {
         const transformed = {
           id: p.id,
           name: p.name,
-          beschreibung: p.beschreibung,
+          description: p.description || p.beschreibung,
           price: p.price ?? null,
           picture: allImages[0] || null,
           owner_id: p.owner_id,

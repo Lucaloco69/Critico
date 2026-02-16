@@ -33,7 +33,7 @@ export default function ProductInfo(props: ProductInfoProps) {
   // Helper: Tag-Name übersetzen
   const getTranslatedTagName = (tagName: string): string => {
     const key = tagName.toLowerCase().trim();
-    
+
     try {
       return t(`tags.${key}` as any);
     } catch {
@@ -106,7 +106,7 @@ export default function ProductInfo(props: ProductInfoProps) {
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
           {t("productInfo.descriptionTitle")}
         </h3>
-        <p class="text-gray-700 dark:text-gray-300 leading-relaxed">{props.product.beschreibung}</p>
+        <p class="text-gray-700 dark:text-gray-300 leading-relaxed">{props.product.description}</p>
       </div>
 
       <Show when={props.product.tags && props.product.tags.length > 0}>

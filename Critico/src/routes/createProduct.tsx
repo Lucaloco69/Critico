@@ -13,7 +13,7 @@ import { t } from "../lib/i18n";
 export default function CreateProduct() {
   const {
     name,
-    beschreibung,
+    description,
     price,
     selectedFiles,
     previewUrls,
@@ -25,7 +25,7 @@ export default function CreateProduct() {
     error,
     success,
     setName,
-    setBeschreibung,
+    setDescription,
     setPrice,
     setSelectedFiles,
     setPreviewUrls,
@@ -48,7 +48,7 @@ export default function CreateProduct() {
 
   const { handleSubmit } = useProductSubmit(
     name,
-    beschreibung,
+    description,
     price,
     selectedFiles,
     selectedTags,
@@ -88,8 +88,8 @@ export default function CreateProduct() {
               setName={setName}
               price={price}
               setPrice={setPrice}
-              beschreibung={beschreibung}
-              setBeschreibung={setBeschreibung}
+              description={description}
+              setDescription={setDescription}
             />
 
             <TagSelector

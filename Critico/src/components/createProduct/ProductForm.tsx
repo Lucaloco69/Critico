@@ -6,8 +6,8 @@ interface ProductFormProps {
   setName: Setter<string>;
   price: Accessor<string>;
   setPrice: Setter<string>;
-  beschreibung: Accessor<string>;
-  setBeschreibung: Setter<string>;
+  description: Accessor<string>;
+  setDescription: Setter<string>;
 }
 
 export default function ProductForm(props: ProductFormProps) {
@@ -61,13 +61,13 @@ export default function ProductForm(props: ProductFormProps) {
       </div>
 
       <div>
-        <label for="beschreibung" class={labelBase}>
+        <label for="description" class={labelBase}>
           {t("createProductForm.descriptionLabel")}
         </label>
         <textarea
-          id="beschreibung"
-          value={props.beschreibung()}
-          onInput={(e) => props.setBeschreibung(e.currentTarget.value)}
+          id="description"
+          value={props.description()}
+          onInput={(e) => props.setDescription(e.currentTarget.value)}
           placeholder={t("createProductForm.descriptionPlaceholder")}
           rows={4}
           required

@@ -14,8 +14,8 @@ export default function Header(props: Props) {
   const u = () => props.user();
 
   return (
-    <section class="rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-2xl overflow-hidden">
-      <div class="h-32 bg-gradient-to-r from-sky-600 via-blue-700 to-indigo-700" />
+    <section class="rounded-2xl bg-white dark:bg-gray-800 shadow-md overflow-hidden">
+      <div class="h-32 bg-linear-to-r from-sky-600 via-blue-700 to-indigo-700" />
 
       <div class="px-6 sm:px-8 pb-8 pt-6">
         <div class="flex flex-col sm:flex-row sm:items-start gap-5 sm:gap-6">
