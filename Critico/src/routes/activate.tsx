@@ -1,7 +1,8 @@
 import { createEffect, createSignal, Show } from "solid-js";
 import { useNavigate, useParams, A } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
-import { isLoggedIn } from "../lib/sessionStore";
+import { checkSession } from "../lib/sessionStore";
+import { t } from "../lib/i18n";
 
 export default function Activate() {
   const params = useParams();
@@ -22,15 +23,20 @@ export default function Activate() {
 
         // Prüfe ob Token existiert
         if (!token) {
-          setError("Kein Token gefunden.");
+          setError(t("activate.noToken"));
           setLoading(false);
           return;
         }
 
+        // ✅ Async session check - wait for verification
+        const sessionValid = await checkSession();
+
         // Prüfe ob User eingeloggt ist
-        if (!isLoggedIn()) {
-          // Speichere Token für nach dem Login (jetzt type-safe)
-          localStorage.setItem("pendingActivateToken", token);
+        if (!sessionValid) {
+          // Speichere Token für nach dem Login
+          if (typeof window !== 'undefined') {
+            localStorage.setItem("pendingActivateToken", token);
+          }
           // WICHTIG: replace: true, damit diese Seite nicht im Verlauf bleibt
           navigate("/login", { replace: true });
           return;
@@ -48,18 +54,25 @@ export default function Activate() {
         setSuccess(true);
 
         // Entferne den gespeicherten Token (falls vorhanden)
-        localStorage.removeItem("pendingActivateToken");
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem("pendingActivateToken");
+        }
 
-        // Automatische Weiterleitung nach 2 Sekunden zur Produktseite
-        // WICHTIG: replace: true entfernt die Activate-Seite aus dem Verlauf
+        // Show success message for 2 seconds, then navigate
+        // Navigate to home with replace to remove activation page from history
         setTimeout(() => {
-          navigate(`/product/${prodId}`, { replace: true });
+          navigate("/home", { replace: true });
+          setTimeout(() => {
+            navigate(`/product/${prodId}`);
+          }, 100);
         }, 2000);
 
       } catch (e: any) {
-        setError(e?.message ?? "Aktivierung fehlgeschlagen.");
+        setError(e?.message ?? t("activate.failedTitle"));
         // Bei Fehler auch Token entfernen
-        localStorage.removeItem("pendingActivateToken");
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem("pendingActivateToken");
+        }
       } finally {
         setLoading(false);
       }
@@ -70,13 +83,15 @@ export default function Activate() {
 
   const handleGoToProduct = () => {
     if (productId()) {
-      // WICHTIG: replace: true
-      navigate(`/product/${productId()}`, { replace: true });
+      // Navigate to home with replace, then to product
+      navigate("/home", { replace: true });
+      setTimeout(() => {
+        navigate(`/product/${productId()}`);
+      }, 100);
     }
   };
 
   const handleGoHome = () => {
-    // WICHTIG: replace: true
     navigate("/home", { replace: true });
   };
 
@@ -87,10 +102,10 @@ export default function Activate() {
           <div class="flex flex-col items-center gap-4">
             <div class="w-16 h-16 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
             <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
-              Aktivierung läuft…
+              {t("activate.activatingTitle")}
             </h2>
             <p class="text-gray-600 dark:text-gray-300 text-center">
-              Bitte warte einen Moment
+              {t("activate.activatingText")}
             </p>
           </div>
         </Show>
@@ -103,7 +118,7 @@ export default function Activate() {
               </svg>
             </div>
             <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
-              Aktivierung fehlgeschlagen
+              {t("activate.failedTitle")}
             </h1>
             <p class="text-sm text-red-600 dark:text-red-400 text-center mb-4">
               {error()}
@@ -112,7 +127,7 @@ export default function Activate() {
               onClick={handleGoHome}
               class="px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-semibold transition-colors shadow-lg"
             >
-              Zur Startseite
+              {t("activate.goToHome")}
             </button>
           </div>
         </Show>
@@ -125,20 +140,20 @@ export default function Activate() {
               </svg>
             </div>
             <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
-              Erfolgreich aktiviert! ✨
+              {t("activate.successTitle")}
             </h1>
             <p class="text-gray-600 dark:text-gray-300 text-center">
-              Du kannst jetzt dieses Produkt bewerten und kommentieren.
+              {t("activate.successText")}
             </p>
             <p class="text-sm text-gray-500 dark:text-gray-400">
-              Du wirst gleich weitergeleitet...
+              {t("activate.redirectingText")}
             </p>
 
             <button
               onClick={handleGoToProduct}
               class="w-full py-3 px-4 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all font-semibold"
             >
-              Jetzt zum Produkt
+              {t("activate.goToProduct")}
             </button>
           </div>
         </Show>
