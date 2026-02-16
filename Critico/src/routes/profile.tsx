@@ -27,14 +27,12 @@ export default function Profile() {
 
   const handleLogout = async () => {
     try {
-      // ✅ clearSession navigiert automatisch zu /login OHNE Parameter
       await clearSession();
     } catch (err) {
       console.error("❌ Logout error:", err);
     }
   };
 
-  // ... existing code ...
 
   return (
     <div class="min-h-screen bg-gray-50 dark:bg-linear-to-br dark:from-gray-900 dark:via-slate-900 dark:to-gray-950">

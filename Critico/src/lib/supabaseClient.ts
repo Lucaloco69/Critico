@@ -16,7 +16,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
     flowType: 'implicit',
   },
-  // ✅ REALTIME CONFIG
   realtime: {
     params: {
       eventsPerSecond: 10,

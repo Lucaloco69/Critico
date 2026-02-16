@@ -24,7 +24,6 @@ interface ProductCardProps {
 
 
 export function ProductCard(props: ProductCardProps) {
-  // ✅ Mache stars reaktiv
   const stars = createMemo(() => props.product.stars);
   const hasRating = createMemo(() => {
     const s = stars();
@@ -34,7 +33,6 @@ export function ProductCard(props: ProductCardProps) {
 
   const imgAlt = () => props.product.name?.trim() || t("productCard.imageAltFallback");
 
-  // Helper: Tag-Name übersetzen
   const getTranslatedTagName = (tagName: string): string => {
     const key = tagName.toLowerCase().trim();
 
@@ -48,7 +46,7 @@ export function ProductCard(props: ProductCardProps) {
   return (
     <A
       href={`/product/${props.product.id}`}
-      class="group bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-2xl transition-all overflow-hidden hover:-translate-y-1 duration-300"
+      class="group bg-gradient-to-br from-gray-700 to-gray-800 border-2 border-white/20 rounded-xl shadow-xl hover:shadow-2xl hover:border-sky-400/50 transition-all overflow-hidden hover:-translate-y-1 duration-300"
     >
       <div class="relative bg-linear-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 p-3">
         <div class="aspect-square bg-white dark:bg-gray-900 rounded-lg overflow-hidden shadow-sm">
@@ -69,7 +67,6 @@ export function ProductCard(props: ProductCardProps) {
               alt={imgAlt()}
               loading={props.priority ? "eager" : "lazy"}
               decoding={props.priority ? "sync" : "async"}
-              // @ts-ignore
               fetchpriority={props.priority ? "high" : "auto"}
               onError={(e) => (e.currentTarget.src = props.product.picture!)}
               width="500"

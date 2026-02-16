@@ -9,17 +9,16 @@ interface ImageGalleryProps {
 export default function ImageGallery(props: ImageGalleryProps) {
   const [currentImageIndex, setCurrentImageIndex] = createSignal(0);
 
-  // ✅ Loop nach vorne (mit Wrap-around)
+  //  Loop nach vorne (mit Wrap-around)
   const nextImage = () => {
     setCurrentImageIndex((prev) =>
-      prev < props.images.length - 1 ? prev + 1 : 0  // ✅ Zurück zu 0 wenn am Ende
+      prev < props.images.length - 1 ? prev + 1 : 0  //  Zurück zu 0 wenn am Ende
     );
   };
 
-  // ✅ Loop nach hinten (mit Wrap-around)
   const prevImage = () => {
     setCurrentImageIndex((prev) =>
-      prev > 0 ? prev - 1 : props.images.length - 1  // ✅ Zum letzten Bild wenn am Anfang
+      prev > 0 ? prev - 1 : props.images.length - 1  //  Zum letzten Bild wenn am Anfang
     );
   };
 

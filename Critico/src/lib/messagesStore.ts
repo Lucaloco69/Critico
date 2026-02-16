@@ -1,16 +1,14 @@
 import { createSignal } from "solid-js";
 import { supabase } from "./supabaseClient";
 import { ChatPreview } from "~/types/chat";
-import type { Message } from "~/types/messages"; // ✅ Import Message type from types
+import type { Message } from "~/types/messages"; // 
 
 
 const [unreadCounts, setUnreadCounts] = createSignal<Record<number, number>>({});
 
-// ✅ Globale Chats Signals
 const [chats, setChats] = createSignal<ChatPreview[]>([]);
 const [filteredChats, setFilteredChats] = createSignal<ChatPreview[]>([]);
 
-// ✅ NEU: Globale Chat Messages Signal
 const [chatMessages, setChatMessages] = createSignal<Message[]>([]);
 
 
@@ -18,7 +16,7 @@ export const messagesStore = {
   unreadCounts,
   chats,
   filteredChats,
-  chatMessages, // ✅ NEU
+  chatMessages,
 
   setUnreadCount(chatId: number, count: number) {
     setUnreadCounts(prev => ({ ...prev, [chatId]: count }));
@@ -41,14 +39,12 @@ export const messagesStore = {
     setFilteredChats(newChats);
   },
 
-  // ✅ NEU: Setter für Chat Messages
   setChatMessages(newMessages: Message[]) {
     setChatMessages(newMessages);
   },
 
   addMessage(message: Message) {
     setChatMessages((prev) => {
-      // Avoid duplicates
       if (prev.some((m) => m.id === message.id)) return prev;
       return [...prev, message];
     });
@@ -84,7 +80,6 @@ export const messagesStore = {
 
       this.clearUnreadCount(chatId);
 
-      // Optimistically update local state
       setChatMessages((prev) =>
         prev.map(m => m.receiver_id === userId ? { ...m, read: true } : m)
       );

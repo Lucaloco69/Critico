@@ -1,11 +1,11 @@
 import { For } from "solid-js";
-import { t } from "../lib/i18n"; // Pfad ggf. anpassen
+import { t } from "../lib/i18n";
 
 interface StarRatingProps {
   rating: number;
   maxStars?: number;
   size?: "sm" | "md" | "lg";
-  ariaLabel?: string; // optional override
+  ariaLabel?: string;
 }
 
 export default function StarRating(props: StarRatingProps) {

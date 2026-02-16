@@ -30,7 +30,6 @@ export function useUserProducts(userId: Accessor<number | undefined>) {
   const [products, setProducts] = createSignal<ProductCard[]>([]);
   const [loading, setLoading] = createSignal(false);
 
-  // ✅ Initial Load
   createEffect(() => {
     const uid = userId();
     if (!uid) return;
@@ -75,13 +74,12 @@ export function useUserProducts(userId: Accessor<number | undefined>) {
             name: p.name,
             description: p.description ?? "",
             price: p.price,
-            stars: 0, // Temp default
+            stars: 0,
             picture: firstImg,
             owner_id: p.owner_id,
           };
         });
 
-        // ✅ FETCH RATINGS FROM MESSAGES (Client-side calc)
         const productIds = mapped.map((p) => p.id);
         if (productIds.length > 0) {
           const { data: ratingsData } = await supabase
@@ -122,7 +120,6 @@ export function useUserProducts(userId: Accessor<number | undefined>) {
     void loadProducts();
   });
 
-  // ✅ REALTIME: Sterne Updates
   createEffect(() => {
     const uid = userId();
     if (!uid) return;

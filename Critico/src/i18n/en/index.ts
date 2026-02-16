@@ -38,10 +38,6 @@ import { dict as tags } from "./tags";
 import { dict as filterDropdown } from "./filterDropdown";
 import { dict as activate } from "./activate";
 
-
-
-
-// WICHTIG: Datei heißt useProductDetail.ts, aber Namespace wird zu "productDetail"
 import { dict as productDetail } from "./useProductDetail";
 import { dict as protectedRoute } from "./protectedRoute";
 import { dict as impressum } from "./impressum";

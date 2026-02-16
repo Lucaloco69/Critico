@@ -90,7 +90,6 @@ export function useRealtimeMessages(userId: Accessor<number | null>) {
       setTimeout(() => clearInterval(checkUserAndSetup), 10000);
     }
 
-    // ✅ BFCache Support
     const onPageHide = () => {
       cleanupChannel();
     };

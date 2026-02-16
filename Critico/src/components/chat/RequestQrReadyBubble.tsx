@@ -6,8 +6,8 @@ import { t } from "../../lib/i18n";
 
 type Props = {
   productId: number;
-  testerUserId: number; // senderId aus der ursprünglichen request
-  ownerUserId: number; // productOwnerId
+  testerUserId: number;
+  ownerUserId: number;
 };
 
 export default function RequestQrReadyBubble(props: Props) {
@@ -29,7 +29,6 @@ export default function RequestQrReadyBubble(props: Props) {
     if (!isOwner()) return;
 
     (async () => {
-      // Token-Row holen (RLS soll sicherstellen: nur Owner darf das)
       const { data, error } = await supabase
         .from("ProductCommentTokens")
         .select("token, redeemed_at")
@@ -65,7 +64,6 @@ export default function RequestQrReadyBubble(props: Props) {
         });
         setQrUrl(qr);
       } catch (qrError) {
-        console.error(t("chatRequestQrReadyBubble.qrGeneratingFailedLog"), qrError);
         setErr(t("chatRequestQrReadyBubble.qrCreateFailed"));
       }
     })();
@@ -80,7 +78,6 @@ export default function RequestQrReadyBubble(props: Props) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (e) {
-      console.error(t("chatRequestQrReadyBubble.copyFailedLog"), e);
     }
   };
 

@@ -18,11 +18,9 @@ export function useMessages() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ Verwende globalen Store statt lokale Signals
   const { filteredChats } = messagesStore;
 
   const [searchQuery, setSearchQuery] = createSignal("");
-  // ✅ FIX: Nur laden, wenn Store leer ist, sonst sofort anzeigen
   const [loading, setLoading] = createSignal(messagesStore.chats().length === 0);
   const [currentUserId, setCurrentUserId] = createSignal<number | null>(null);
 
@@ -133,7 +131,6 @@ export function useMessages() {
           filter: `receiver_id=eq.${userId}`,
         },
         (payload: RealtimePostgresChangesPayload<any>) => {
-          // Only reload if it's a valid chat message type
           if (payload.new && VALID_CHAT_MESSAGE_TYPES.includes(payload.new.message_type)) {
             if (reloadTimeout) clearTimeout(reloadTimeout);
             reloadTimeout = setTimeout(() => {
@@ -151,7 +148,6 @@ export function useMessages() {
           filter: `sender_id=eq.${userId}`,
         },
         (payload: RealtimePostgresChangesPayload<any>) => {
-          // Only reload if it's a valid chat message type
           if (payload.new && VALID_CHAT_MESSAGE_TYPES.includes(payload.new.message_type)) {
             if (reloadTimeout) clearTimeout(reloadTimeout);
             reloadTimeout = setTimeout(() => {
@@ -174,16 +170,12 @@ export function useMessages() {
       .subscribe((status: string, err?: Error) => {
 
         if (status === REALTIME_SUBSCRIBE_STATES.SUBSCRIBED) {
-          // Connected
         } else if (status === REALTIME_SUBSCRIBE_STATES.CLOSED) {
-          console.warn("⚠️ useMessages: Realtime channel closed. Attempting reconnect...");
-          // Try to reconnect after 2s
           setTimeout(() => {
             if (currentUserId()) setupRealtime(currentUserId()!);
           }, 2000);
         } else if (status === REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR) {
           console.error("❌ useMessages: Realtime channel error:", err);
-          // Try to reconnect after 5s
           setTimeout(() => {
             if (currentUserId()) setupRealtime(currentUserId()!);
           }, 5000);
@@ -260,14 +252,12 @@ export function useMessages() {
           .neq("user_id", userId);
 
         if (!participants || participants.length === 0) {
-          console.warn(`⚠️ Chat ${chatId}: Keine Partner gefunden`);
           continue;
         }
 
         const partner = participants[0].User as any;
 
         if (!partner || !partner.id) {
-          console.warn(`⚠️ Chat ${chatId}: Partner User ist null oder gelöscht, überspringe`);
           continue;
         }
 
@@ -329,7 +319,6 @@ export function useMessages() {
       }
 
 
-      // ✅ Verwende globalen Store
       messagesStore.setChats(chatPreviews);
       messagesStore.setFilteredChats(filtered);
       setDirectMessageCount(totalUnreadCount);
@@ -338,7 +327,6 @@ export function useMessages() {
     } catch (err) {
       console.error("❌ Error loading chats:", err);
     } finally {
-      // ✅ WICHTIG: Loading erst false, wenn alles fertig ist
       setLoading(false);
     }
   };

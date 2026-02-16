@@ -14,9 +14,8 @@ export default function Login() {
   const [error, setError] = createSignal("");
 
   const [savedRedirectTo, setSavedRedirectTo] = createSignal<string>("/home");
-  const [mounted, setMounted] = createSignal(false); // ✅ NEU!
+  const [mounted, setMounted] = createSignal(false);
 
-  // ✅ 1. onMount: Parse redirectTo
   onMount(() => {
     const qs = new URLSearchParams(location.search);
     const encoded = qs.get("redirectTo");
@@ -38,7 +37,6 @@ export default function Login() {
       localStorage.removeItem("pendingActivateToken");
     }
 
-    // ✅ 2. Dann check ob schon eingeloggt
     setMounted(true);
 
     if (isLoggedIn()) {
@@ -77,7 +75,6 @@ export default function Login() {
         user: data.user,
       });
 
-      // ✅ Nach erfolgreichem Login: Redirect
       const target = savedRedirectTo();
       const pendingToken = localStorage.getItem("pendingActivateToken");
 
@@ -99,7 +96,6 @@ export default function Login() {
     }
   };
 
-  // ✅ Nur UI rendern wenn mounted
   return (
     <Show when={mounted()} fallback={
       <div class="flex items-center justify-center min-h-[90vh]">

@@ -10,7 +10,7 @@ interface MessageBubbleProps {
   isOwn: boolean;
   formatTime: (dateString: string) => string;
 
-  // Owner pro Message (aus message.product?.owner_id)
+
   productOwnerId?: number | null;
   currentUserId?: number | null;
 
@@ -31,7 +31,6 @@ export function MessageBubble(props: MessageBubbleProps) {
   });
 
   const shouldShowOwnerButtons = createMemo(() => {
-    // Buttons nur für originale Request + Owner des Produkts + nicht eigene Nachricht
     return props.message.message_type === MESSAGE_TYPES.REQUEST && isOwner() && !props.isOwn;
   });
 

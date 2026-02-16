@@ -33,12 +33,10 @@ export default function ProductDetail() {
 
   } = useProductDetail(productId, navigate);
 
-  // ✅ NEU: Realtime Updates für Product + Comments
   useRealtimeProductDetail(productId, () => {
 
   });
 
-  // ... existing code ...
   return (
     <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <Modal modal={modal} onClose={closeModal} onAction={handleModalAction} />

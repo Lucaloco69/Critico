@@ -5,7 +5,7 @@ import type { ProductCard as ProductCardType } from "../../routes/PublicProfile"
 
 export default function ProductsSection(props: { products: ProductCardType[]; productsLoading: boolean }) {
   return (
-    <section class="rounded-3xl bg-white dark:bg-gray-800 shadow-md p-6 sm:p-7">
+    <section class="rounded-3xl bg-gradient-to-br from-gray-800 to-gray-800/80 border-2 border-white/20 shadow-lg p-6 sm:p-7">
       <div class="flex items-start justify-between gap-4">
         <div>
           <h2 class="text-xl font-bold text-white">{t("publicProfileProductsSection.title")}</h2>

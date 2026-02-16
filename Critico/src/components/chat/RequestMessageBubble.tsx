@@ -36,7 +36,7 @@ interface RequestMessageBubbleProps {
 export function RequestMessageBubble(props: RequestMessageBubbleProps) {
   const [processing, setProcessing] = createSignal(false);
 
-  // QR state (owner-only)
+
   const [redeemUrl, setRedeemUrl] = createSignal<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = createSignal<string | null>(null);
   const [qrError, setQrError] = createSignal<string | null>(null);
@@ -45,13 +45,13 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
 
   const tl = () => props.message.sender?.trustlevel ?? null;
 
-  // ✅ WICHTIG: Mache message_type reaktiv
+
   const messageType = createMemo(() => {
     const type = props.message.message_type;
     return type;
   });
 
-  // Status flags - nutze das Memo
+
   const isPending = () => messageType() === MESSAGE_TYPES.REQUEST;
   const isQrReady = () => messageType() === MESSAGE_TYPES.REQUEST_QR_READY;
   const isAccepted = () => messageType() === MESSAGE_TYPES.REQUEST_ACCEPTED;
@@ -146,7 +146,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
     try {
       await props.onAccept(props.message.id, props.message.sender_id, props.message.product_id);
     } catch (err) {
-      console.error("❌ RequestMessageBubble: handleAccept ERROR:", err);
     } finally {
       setProcessing(false);
     }
@@ -158,7 +157,6 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
     try {
       await props.onDecline(props.message.id);
     } catch (err) {
-      console.error("❌ RequestMessageBubble: handleDecline ERROR:", err);
     } finally {
       setProcessing(false);
     }
@@ -174,13 +172,13 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
         await navigator.clipboard.writeText(props.message.content);
       }
     } catch {
-      // ignore
+
     }
   };
 
   const handlePrint = () => window.print();
 
-  // Owner-only: Token laden & QR generieren
+
   createEffect(() => {
     const show = shouldShowQr();
     const d = derived();
@@ -219,14 +217,11 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
       }
 
       if (res.error) {
-        console.error("❌ RequestMessageBubble: Token fetch error:", res.error);
         setQrError(res.error.message);
         return;
       }
 
       if (!res.data?.token) {
-        console.warn("⚠️ RequestMessageBubble: No token found");
-        setQrError(t("chatRequestMessageBubble.noTokenFound"));
         return;
       }
 
@@ -239,12 +234,11 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
         const img = await QRCode.toDataURL(url);
         setQrDataUrl(img);
 
-        // 👋 Scroll to bottom when QR is ready
+
         setTimeout(() => {
           props.scrollToBottom?.();
         }, 100);
       } catch (e: any) {
-        console.error("❌ RequestMessageBubble: QR generation error:", e);
         setQrError(e?.message ?? t("chatRequestMessageBubble.qrGenerateFailed"));
       }
     })();
@@ -253,7 +247,7 @@ export function RequestMessageBubble(props: RequestMessageBubbleProps) {
   return (
     <div class={`flex ${props.isOwn ? "justify-end" : "justify-start"}`}>
       <div class={`flex gap-2 max-w-[70%] ${props.isOwn ? "flex-row-reverse" : ""}`}>
-        {/* ✅ Avatar Container - KOMPLETT ISOLIERT */}
+        {/*  Avatar Container - KOMPLETT ISOLIERT */}
         <div class="flex-shrink-0 self-end mb-1">
           <div class="relative w-8 h-8">
             <Show

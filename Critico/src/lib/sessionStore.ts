@@ -12,22 +12,18 @@ interface SessionData {
 }
 
 
-// ✅ In-Memory Cache für schnelle Lookups
 let userIdCache: { [authId: string]: number } = {};
 
 
-// ✅ NEU: Track ob je eine gültige Session existierte
 let hadValidSession = false;
 
 
-// ✅ Debounce Tracker für Auth Events
 let authCheckTimeout: any = null;
 let lastAuthEvent: string = "";
 let lastAuthTime: number = 0;
 
 
-// Lade Cache beim Start aus localStorage
-// Lade Cache beim Start aus localStorage (nur Client-Side)
+
 if (typeof window !== 'undefined') {
   try {
     const cachedData = localStorage.getItem('user_id_cache');
@@ -35,7 +31,6 @@ if (typeof window !== 'undefined') {
       userIdCache = JSON.parse(cachedData);
     }
   } catch (err) {
-    console.warn("⚠️ Failed to load user ID cache:", err);
   }
 }
 
@@ -51,7 +46,7 @@ const [sessionStore, setSessionStore] = createStore<SessionData>({
 export const isLoggedIn = createMemo(() => !!sessionStore.session);
 export const currentUserId = createMemo(() => sessionStore.userId);
 export const currentUsername = createMemo(() => sessionStore.username);
-export const hadValidSessionBefore = () => hadValidSession; // ✅ NEU: Export
+export const hadValidSessionBefore = () => hadValidSession;
 
 
 export const getSession = () => ({
@@ -78,7 +73,7 @@ const setBaseSession = (session: Session | null, user?: User | null) => {
     return;
   }
 
-  hadValidSession = true; // ✅ NEU: Merke dass wir eine Session hatten
+  hadValidSession = true;
 
   setSessionStore({
     session,
@@ -90,7 +85,6 @@ const setBaseSession = (session: Session | null, user?: User | null) => {
 const loadDbUser = async (authId: string) => {
   try {
 
-    // ✅ 1. In-Memory Cache Check (instant)
     if (userIdCache[authId]) {
       setSessionStore({
         userId: userIdCache[authId],
@@ -99,7 +93,6 @@ const loadDbUser = async (authId: string) => {
       return;
     }
 
-    // ✅ 2. localStorage Cache Check
     let cachedUserId: string | null = null;
     if (typeof window !== 'undefined') {
       cachedUserId = localStorage.getItem(`user_id_${authId}`);
@@ -115,7 +108,6 @@ const loadDbUser = async (authId: string) => {
     const startTime = Date.now();
 
 
-    // ✅ 3. DB Query mit 2 Sekunden Timeout
     const timeoutPromise = new Promise<{ data: null; error: null }>((resolve) =>
       setTimeout(() => {
         const elapsed = Date.now() - startTime;
@@ -152,7 +144,6 @@ const loadDbUser = async (authId: string) => {
     }
 
 
-    // ✅ 4. Cache überall
     userIdCache[authId] = data.id;
     if (typeof window !== 'undefined') {
       localStorage.setItem(`user_id_${authId}`, String(data.id));
@@ -160,7 +151,6 @@ const loadDbUser = async (authId: string) => {
       try {
         localStorage.setItem('user_id_cache', JSON.stringify(userIdCache));
       } catch (err) {
-        console.warn("⚠️ Failed to save cache:", err);
       }
     }
 
@@ -197,9 +187,8 @@ export const setSession = (data: Partial<SessionData>) => {
 export const clearSession = async () => {
   clearAll();
 
-  hadValidSession = false; // ✅ NEU: Reset bei explizitem Logout
+  hadValidSession = false;
 
-  // ✅ Alle Caches löschen
   userIdCache = {};
 
   if (typeof window !== 'undefined') {
@@ -213,12 +202,10 @@ export const clearSession = async () => {
 
   await supabase.auth.signOut();
 
-  // ✅ Wichtig: window.location.href entfernt alle URL Parameter
   window.location.href = "/login";
 };
 
 
-// ✅ Dedupe Promise für checkSession
 let checkSessionPromise: Promise<boolean> | null = null;
 
 export const checkSession = async (timeoutMs = 5000): Promise<boolean> => {
@@ -234,7 +221,6 @@ export const checkSession = async (timeoutMs = 5000): Promise<boolean> => {
 
       const sessionPromise = supabase.auth.getSession();
 
-      // Race against timeout
       console.log("🔍 checkSession: Starting race...");
       const { data, error } = await Promise.race([sessionPromise, timeoutPromise]);
       console.log("🔍 checkSession: Race finished", { hasData: !!data, error });
@@ -246,7 +232,6 @@ export const checkSession = async (timeoutMs = 5000): Promise<boolean> => {
 
       if (!data.session) {
         console.warn("⚠️ checkSession: No session found");
-        // Only clear if we really got a response saying "no session"
         clearAll();
         return false;
       }
@@ -255,15 +240,12 @@ export const checkSession = async (timeoutMs = 5000): Promise<boolean> => {
       const now = Math.floor(Date.now() / 1000);
       const timeUntilExpiry = expiresAt ? expiresAt - now : 0;
 
-      // Token abgelaufen? → Refresh
       if (expiresAt && expiresAt <= now) {
-        console.warn("⚠️ Token expired, refreshing...");
         const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
 
         if (refreshError || !refreshData.session) {
           console.error("❌ Refresh failed:", refreshError);
           clearAll();
-          // Force signout to clean up invalid state
           await supabase.auth.signOut();
           return false;
         }
@@ -273,9 +255,7 @@ export const checkSession = async (timeoutMs = 5000): Promise<boolean> => {
         return true;
       }
 
-      // Token läuft bald ab? → Refresh
       if (timeUntilExpiry < 300) {
-        // Prophylactic refresh
         try {
           const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
           if (!refreshError && refreshData.session) {
@@ -284,21 +264,15 @@ export const checkSession = async (timeoutMs = 5000): Promise<boolean> => {
             return true;
           }
         } catch (err) {
-          console.warn("⚠️ Prophylactic refresh failed", err);
         }
       }
 
-      // Token gültig
       setBaseSession(data.session, data.session.user);
       loadDbUser(data.session.user.id).catch(() => { });
       return true;
 
     } catch (err) {
       console.error("❌ SESSION CHECK Error:", err);
-      // On timeout or exception:
-      // DO NOT clearAll() or signOut().
-      // Assume optimistic session is valid for now to prevent redirect loop on slow net.
-      // If it's truly invalid, the realtime subscription or next request will fail.
       return false;
     } finally {
       checkSessionPromise = null;
@@ -316,7 +290,6 @@ export const initAuthListener = async () => {
   const {
     data: { subscription },
   } = supabase.auth.onAuthStateChange(async (event, session) => {
-    // ✅ DEBOUNCE: Verhindere doppelte Events
     const now = Date.now();
     if (event === lastAuthEvent && (now - lastAuthTime) < 200) {
       return;
@@ -325,12 +298,10 @@ export const initAuthListener = async () => {
     lastAuthEvent = event;
     lastAuthTime = now;
 
-    // ✅ Clear previous timeout
     if (authCheckTimeout) {
       clearTimeout(authCheckTimeout);
     }
 
-    // ✅ Debounce: Warte 100ms bevor Processing
     authCheckTimeout = setTimeout(async () => {
 
       if (event === 'TOKEN_REFRESHED') {
@@ -367,7 +338,7 @@ export const initAuthListener = async () => {
 
       setBaseSession(session, session.user);
       loadDbUser(session.user.id).catch(() => { });
-    }, 100); // ✅ 100ms debounce
+    }, 100);
   });
 
   return subscription;

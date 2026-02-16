@@ -17,7 +17,6 @@ export function Home() {
   const { products, loading, loadProducts, refreshProductRating, loadMore, hasMore } = useProducts(trustlevel);
   const { tags } = useTags();
 
-  // ✅ FIX: products ist Store, wrap als Accessor!
   const { selectedTags, setSelectedTags, searchQuery, setSearchQuery, filteredProducts } =
     useProductFilters(() => products);
 

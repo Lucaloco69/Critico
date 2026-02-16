@@ -43,23 +43,12 @@ Die Geschäftslogik, Datenbankstruktur und Architektur wurden manuell entwickelt
 npm install
 ```
 
-### Schritt 2: Umgebungsvariablen konfigurieren
-
-Erstelle eine `.env` Datei im Root-Verzeichnis mit folgenden Variablen:
-
-```env
-PUBLIC_SUPABASE_URL=your_supabase_url
-PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
-
-### Schritt 3: Production Build erstellen und starten
+### Schritt 2: Production Build erstellen und starten
 
 ```bash
 npm run build
 node dist/server/entry.mjs
 ```
-
-Die Anwendung läuft dann auf `http://localhost:4322`
 
 ## Verfügbare Scripts
 

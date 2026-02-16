@@ -92,7 +92,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
 
   const checkIfRequested = async (userId: number, pid: number): Promise<boolean> => {
     try {
-      // Check for request messages
       const { data: messageData, error: messageError } = await supabase
         .from("Messages")
         .select("id")
@@ -109,7 +108,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
         return true;
       }
 
-      // Also check if user has been activated (has comment permission)
       const { data: permissionData, error: permissionError } = await supabase
         .from("ProductComments_User")
         .select("user_id")
@@ -253,7 +251,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     }
   };
 
-  // Permission effect
   createEffect(() => {
     const uid = currentUserId();
     const pid = productId();
@@ -273,11 +270,10 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     })();
   });
 
-  // Check if user has already requested
   createEffect(() => {
     const uid = currentUserId();
     const pid = productId();
-    const prod = product(); // Add dependency on product to trigger refresh
+    const prod = product();
 
     if (typeof uid !== "number" || !pid || Number.isNaN(pid)) {
       setHasRequested(false);
@@ -290,7 +286,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     })();
   });
 
-  // Load product + comments (initial)
   createEffect(() => {
     const pid = productId();
     if (!pid || Number.isNaN(pid)) return;
@@ -304,7 +299,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     })();
   });
 
-  // ✅ Realtime comments
   createEffect(() => {
     const pid = productId();
     if (!pid || Number.isNaN(pid)) return;
@@ -313,7 +307,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     let retryTimeout: any;
 
     const setupChannel = () => {
-      // Clean up previous channel if exists
       if (channel) {
         supabase.removeChannel(channel);
         channel = null;
@@ -403,7 +396,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     });
   });
 
-  // Actions
   const handleRequestTest = async () => {
     if (!isLoggedIn()) return navigate("/login");
 
@@ -511,7 +503,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     }
 
     try {
-      // Permission check
       const ok = await checkCommentPermission(uid, pid);
 
       if (!ok) {
@@ -520,7 +511,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
         return;
       }
 
-      // Check for existing comment
       const { data: existingComments, error: commentCheckError } = await supabase
         .from("Messages")
         .select("id")
@@ -534,7 +524,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
       }
 
       if (existingComments && existingComments.length > 0) {
-        console.warn("⚠️ Comment prevented: User already commented on this product");
         showModal(
           "warning",
           t("productDetail.modal.alreadyCommentedTitle"),
@@ -543,7 +532,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
         return;
       }
 
-      // Chat check/create
       const { data: existingChat, error: chatSelectError } = await supabase
         .from("Chats")
         .select("id")
@@ -572,7 +560,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
         chatId = newChat.id;
       }
 
-      // Build insert data
       const insertData: Record<string, unknown> = {
         content,
         sender_id: uid,
@@ -583,7 +570,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
       };
       if (stars > 0) insertData.stars = stars;
 
-      // Insert message
       const { error: insertError, data: insertedData } = await supabase
         .from("Messages")
         .insert(insertData)
@@ -603,7 +589,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
         throw insertError;
       }
 
-      // Reload comments manually
       await loadComments(pid);
     } catch (err: any) {
       console.error("❌ SUBMIT COMMENT ERROR:", err);

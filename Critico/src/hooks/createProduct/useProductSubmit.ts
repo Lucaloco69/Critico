@@ -25,7 +25,6 @@ export function useProductSubmit(
     try {
       if (!sessionStore.user) throw new Error("Nicht eingeloggt");
 
-      // 1. User-ID aus DB holen
       const { data: userData, error: userError } = await supabase
         .from("User")
         .select("id")
@@ -38,7 +37,6 @@ export function useProductSubmit(
       const userId = userData.id;
       const pictureUrls: string[] = [];
 
-      // 2. Alle Bilder hochladen
       if (selectedFiles().length > 0) {
         setUploading(true);
 
@@ -63,7 +61,6 @@ export function useProductSubmit(
         setUploading(false);
       }
 
-      // 3. Produkt in DB erstellen
       const { data: productData, error: productError } = await supabase
         .from("Product")
         .insert({
@@ -77,7 +74,6 @@ export function useProductSubmit(
 
       if (productError) throw productError;
 
-      // 4. Bilder in Product_Images speichern
       if (pictureUrls.length > 0) {
         const imageInserts = pictureUrls.map((url, index) => ({
           product_id: productData.id,
@@ -95,7 +91,6 @@ export function useProductSubmit(
         }
       }
 
-      // 5. Tags verknüpfen
       if (selectedTags().length > 0) {
         const tagInserts = selectedTags().map((tagId) => ({
           product_id: productData.id,

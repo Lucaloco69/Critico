@@ -32,12 +32,7 @@ export function useChatSubscription(chatId: () => number | null, userId: () => n
                 async (payload: RealtimePostgresChangesPayload<Message>) => {
                     const newMessage = payload.new as Message;
 
-                    // If we sent it (optimistic update handled locally), we might want to skip or update
-                    // But since we use upsertMessage, it should be fine to update the temporary ID or confirm it.
-                    // Ideally, the backend would return the real ID.
 
-                    // For now, let's just fetch the full message details because payload might miss joins (sender, product)
-                    // Realtime payload acts as a trigger.
                     const { data, error } = await supabase
                         .from("Messages")
                         .select(`
@@ -58,7 +53,6 @@ export function useChatSubscription(chatId: () => number | null, userId: () => n
                         .single();
 
                     if (data && !error) {
-                        // Convert to Message type compatible (handle potential nulls from join)
                         messagesStore.upsertMessage(data as unknown as Message);
                         if (data.sender_id !== currentUserId) {
                             messagesStore.markChatAsRead(currentChatId, currentUserId);
@@ -77,7 +71,6 @@ export function useChatSubscription(chatId: () => number | null, userId: () => n
                 async (payload: RealtimePostgresChangesPayload<Message>) => {
                     const updatedMessage = payload.new as Message;
 
-                    // Fetch full details again to be safe with relations
                     const { data, error } = await supabase
                         .from("Messages")
                         .select(`
@@ -109,7 +102,6 @@ export function useChatSubscription(chatId: () => number | null, userId: () => n
                     const { messageId, chatId: updatedChatId } = payload.payload;
 
                     if (updatedChatId === currentChatId) {
-                        // Fetch the updated message
                         supabase
                             .from("Messages")
                             .select(`

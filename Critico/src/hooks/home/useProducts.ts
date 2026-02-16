@@ -35,7 +35,7 @@ export function useProducts(trustlevel: Accessor<number>) {
   const [loading, setLoading] = createSignal(true);
   const [hasMore, setHasMore] = createSignal(true);
   const [page, setPage] = createSignal(0);
-  const LIMIT = 10; // Load 10 items initially (2 rows of 5)
+  const LIMIT = 10;
 
   const loadProducts = async (reset = false) => {
     try {
@@ -112,9 +112,6 @@ export function useProducts(trustlevel: Accessor<number>) {
         setPage(p => p + 1);
       }
 
-      // ------------------------------------------------------------------
-      // PERF: Release UI thread immediately so images can start loading!
-      // ------------------------------------------------------------------
       setLoading(false);
 
       const productIds = transformedProducts.map((p) => p.id);
@@ -128,16 +125,13 @@ export function useProducts(trustlevel: Accessor<number>) {
           .not("stars", "is", null);
 
         if (ratingsError) {
-          console.error("❌ HOME: Failed to fetch ratings:", ratingsError);
         } else {
-          // Group ratings by product
           const ratingsMap = new Map<number, number[]>();
           (ratingsData || []).forEach((r: any) => {
             if (!ratingsMap.has(r.product_id)) ratingsMap.set(r.product_id, []);
             ratingsMap.get(r.product_id)?.push(r.stars);
           });
 
-          // Compute averages and override stars
           batch(() => {
             transformedProducts.forEach((p) => {
               const productRatings = ratingsMap.get(p.id);
@@ -146,7 +140,6 @@ export function useProducts(trustlevel: Accessor<number>) {
                 const avg = total / productRatings.length;
                 const rounded = Math.round(avg * 10) / 10;
 
-                // Update store granularly
                 setProducts(
                   (storedProduct) => storedProduct.id === p.id,
                   "stars",
@@ -159,14 +152,13 @@ export function useProducts(trustlevel: Accessor<number>) {
       }
 
     } catch (err) {
-      console.error("❌ HOME: Fehler beim Laden der Produkte:", err);
-      setLoading(false); // Ensure loading is cleared on error
+      setLoading(false);
     }
   };
 
   createEffect(() => {
     trustlevel();
-    loadProducts(true); // Initial load (reset)
+    loadProducts(true);
   });
 
   const loadMore = () => {
@@ -186,37 +178,32 @@ export function useProducts(trustlevel: Accessor<number>) {
         .not("stars", "is", null);
 
       if (messages && messages.length > 0) {
-        // Compute average
         const total = messages.reduce((sum, m) => sum + (m.stars || 0), 0);
         const avg = total / messages.length;
         const rounded = Math.round(avg * 10) / 10;
 
 
-        // Optimistically update local store
         setProducts(
           (p) => p.id === productId,
           "stars",
           rounded
         );
 
-        // Try to persist to DB (might fail due to RLS, but we tried)
         supabase.from("Product").update({ stars: rounded }).eq("id", productId).then(({ error }) => {
-          if (error) console.error("❌ HOME: DB Update failed (likely RLS):", error.message);
 
         });
 
       }
     } catch (err) {
-      console.error("❌ HOME: Error refreshing rating:", err);
     }
   };
 
   return {
     products,
     loading,
-    loadProducts: () => loadProducts(true), // Default to reset when called manually
+    loadProducts: () => loadProducts(true),
     loadMore,
     hasMore,
-    refreshProductRating, // ✅ Exposed
+    refreshProductRating,
   };
 }

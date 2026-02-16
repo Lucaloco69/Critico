@@ -34,7 +34,6 @@ export function useCreateProduct() {
   // Prüfe Login
 
 
-  // ✅ FIXED: Lade alle verfügbaren Tags beim Mount
   onMount(async () => {
     try {
       const { data, error } = await supabase

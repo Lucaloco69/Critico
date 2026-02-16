@@ -21,28 +21,22 @@ export default function Activate() {
         setLoading(true);
         setError("");
 
-        // Prüfe ob Token existiert
         if (!token) {
           setError(t("activate.noToken"));
           setLoading(false);
           return;
         }
 
-        // ✅ Async session check - wait for verification
         const sessionValid = await checkSession();
 
-        // Prüfe ob User eingeloggt ist
         if (!sessionValid) {
-          // Speichere Token für nach dem Login
           if (typeof window !== 'undefined') {
             localStorage.setItem("pendingActivateToken", token);
           }
-          // WICHTIG: replace: true, damit diese Seite nicht im Verlauf bleibt
           navigate("/login", { replace: true });
           return;
         }
 
-        // Token einlösen
         const { data, error: rpcError } = await supabase.rpc("redeem_comment_token", {
           p_token: token,
         });
@@ -53,13 +47,10 @@ export default function Activate() {
         setProductId(prodId);
         setSuccess(true);
 
-        // Entferne den gespeicherten Token (falls vorhanden)
         if (typeof window !== 'undefined') {
           localStorage.removeItem("pendingActivateToken");
         }
 
-        // Show success message for 2 seconds, then navigate
-        // Navigate to home with replace to remove activation page from history
         setTimeout(() => {
           navigate("/home", { replace: true });
           setTimeout(() => {
@@ -69,7 +60,6 @@ export default function Activate() {
 
       } catch (e: any) {
         setError(e?.message ?? t("activate.failedTitle"));
-        // Bei Fehler auch Token entfernen
         if (typeof window !== 'undefined') {
           localStorage.removeItem("pendingActivateToken");
         }
@@ -83,7 +73,6 @@ export default function Activate() {
 
   const handleGoToProduct = () => {
     if (productId()) {
-      // Navigate to home with replace, then to product
       navigate("/home", { replace: true });
       setTimeout(() => {
         navigate(`/product/${productId()}`);

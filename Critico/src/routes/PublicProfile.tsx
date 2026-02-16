@@ -1,4 +1,3 @@
-// src/routes/PublicProfile.tsx
 import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import { A, useParams } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
@@ -8,6 +7,7 @@ import Header from "../components/public_profile/Header";
 import StatsGrid from "../components/public_profile/StatsGrid";
 import ProductsSection from "../components/public_profile/ProductsSection";
 
+import { BackButton } from "../components/ui/BackButton";
 import {
   EXP_PER_REVIEW,
   PRIVATE_MESSAGE_TYPE,
@@ -93,13 +93,12 @@ export default function PublicProfile() {
 
       if (error) throw error;
 
-      // ✅ FETCH RATINGS FROM MESSAGES (Client-side calc)
       const mapped: ProductCard[] = (data ?? []).map((p) => ({
         id: p.id,
         name: p.name,
         description: p.description ?? "",
         price: p.price,
-        stars: 0, // Temp default
+        stars: 0,
         picture: firstProductImage(p.product_images),
         owner_id: p.owner_id,
       }));
@@ -126,7 +125,6 @@ export default function PublicProfile() {
             const avg = total / productRatings.length;
             p.stars = roundStars(avg);
           } else {
-            // Fallback to DB stars if no messages found (e.g. legacy or empty)
             const original = data?.find(d => d.id === p.id)?.stars;
             p.stars = roundStars(original);
           }
@@ -195,20 +193,11 @@ export default function PublicProfile() {
   });
 
   return (
-    <div class="min-h-screen bg-gray-50 dark:bg-linear-to-br dark:from-gray-900 dark:via-slate-900 dark:to-gray-950">
-      <header class="sticky top-0 z-50 bg-gray-900/80 backdrop-blur-md border-b border-white/30">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <A href="/home" class="text-2xl font-bold text-sky-400 hover:text-sky-300 transition-colors">
-            Critico
-          </A>
-
-          <A href="/home" class="px-4 py-2 text-gray-200 hover:bg-white/5 rounded-lg transition-colors border border-white/10">
-            {t("publicProfile.back")}
-          </A>
+    <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div class="max-w-4xl mx-auto px-4 py-8">
+        <div class="flex items-center justify-between mb-6">
+          <BackButton />
         </div>
-      </header>
-
-      <main class="max-w-4xl mx-auto px-4 py-8">
         <Show when={loading()}>
           <div class="flex justify-center items-center py-20">
             <div class="w-12 h-12 border-4 border-sky-400 border-t-transparent rounded-full animate-spin" />
@@ -234,7 +223,7 @@ export default function PublicProfile() {
             );
           })()}
         </Show>
-      </main>
+      </div>
     </div>
   );
 }

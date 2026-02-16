@@ -31,7 +31,6 @@ export default function ProductInfo(props: ProductInfoProps) {
       ? t("productInfo.review_singular")
       : t("productInfo.review_plural");
 
-  // Helper: Tag-Name übersetzen
   const getTranslatedTagName = (tagName: string): string => {
     const key = tagName.toLowerCase().trim();
 
@@ -133,8 +132,8 @@ export default function ProductInfo(props: ProductInfoProps) {
             onClick={props.onRequestTest}
             disabled={props.hasRequested}
             class={`flex-1 px-6 py-3 ${props.hasRequested
-                ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
-                : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+              ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
+              : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
               } text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2`}
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

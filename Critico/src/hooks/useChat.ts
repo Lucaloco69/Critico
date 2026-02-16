@@ -17,7 +17,6 @@ export function useChat() {
   const params = useParams();
   const navigate = useNavigate();
 
-  // ✅ Verwende globalen Store statt lokalem Signal
   const { chatMessages: messages } = messagesStore;
 
   const [newMessage, setNewMessage] = createSignal("");
@@ -30,7 +29,6 @@ export function useChat() {
 
 
 
-  // ✅ Integrate Subscription Hook
   useChatSubscription(chatId, currentUserId);
 
   let mainContainerRef: HTMLElement | undefined;
@@ -64,7 +62,6 @@ export function useChat() {
     const isLoading = loading();
 
     if (!isLoading && msgs.length > 0) {
-      // Use requestAnimationFrame for smoother scrolling
       requestAnimationFrame(() => {
         scrollToBottom();
       });
@@ -81,11 +78,9 @@ export function useChat() {
       .returns<Message[]>();
 
     if (error) {
-      console.error("❌ useChat.loadMessages ERROR:", error);
       return;
     }
 
-    // ✅ Sets initial messages
     messagesStore.setChatMessages(data || []);
 
     const req =
@@ -128,7 +123,6 @@ export function useChat() {
         return;
       }
 
-      // Load partner data
       const { data: partnerData } = await supabase
         .from("User")
         .select("id, name, surname, picture, trustlevel")
@@ -155,7 +149,6 @@ export function useChat() {
       setLoading(false);
 
     } catch (err) {
-      console.error("❌ useChat ERROR:", err);
       setLoading(false);
     }
   });
@@ -174,10 +167,9 @@ export function useChat() {
     setSending(true);
     setNewMessage("");
 
-    // Optimistic Update
     const partnerId = Number(params.partnerId);
     const partner = chatPartner();
-    const tempId = -Date.now(); // Negative ID for temp
+    const tempId = -Date.now();
 
     const optimisticMessage: Message = {
       id: tempId,
@@ -224,20 +216,12 @@ export function useChat() {
       if (error) throw error;
       if (!data) throw new Error("Keine Daten erhalten");
 
-      // Replace optimistic message with real message
-      // Removing the temp message first (or just updating the ID if we had an update mechanism that handled ID changes, which is tricky)
-      // Simpler: Remove temp, Add real. Or simpler: The realtime subscription will likely catch the INSERT event soon.
-      // But we should confirm it here to be fast.
-
-      // Let's remove the optimistic one and add the real one
       const currentMsgs = messages();
       const filtered = currentMsgs.filter(m => m.id !== tempId);
       messagesStore.setChatMessages([...filtered, data as unknown as Message]);
 
     } catch (err) {
-      console.error("❌ useChat.handleSendMessage ERROR:", err);
       alert("Fehler beim Senden der Nachricht.");
-      // Rollback
       const currentMsgs = messages();
       messagesStore.setChatMessages(currentMsgs.filter(m => m.id !== tempId));
       setNewMessage(messageContent);
@@ -266,11 +250,9 @@ export function useChat() {
 
       if (updErr) throw updErr;
 
-      // Optimistic update
       messagesStore.updateMessage({ id: messageId, message_type: "request_qr_ready", read: true } as Message);
 
     } catch (err) {
-      console.error("❌ useChat.handleAcceptRequest ERROR:", err);
       alert("Fehler beim Akzeptieren.");
     }
   };
@@ -284,11 +266,9 @@ export function useChat() {
 
       if (error) throw error;
 
-      // Optimistic update
       messagesStore.updateMessage({ id: messageId, message_type: "request_declined", read: true } as Message);
 
     } catch (err) {
-      console.error("❌ useChat.handleDeclineRequest ERROR:", err);
       alert("Fehler beim Ablehnen.");
     }
   };

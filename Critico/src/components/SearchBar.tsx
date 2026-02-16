@@ -1,5 +1,5 @@
 import { Accessor, Setter } from "solid-js";
-import { t } from "../lib/i18n"; // falls dein SearchBar in src/components liegt, ggf. Pfad anpassen
+import { t } from "../lib/i18n";
 
 interface SearchBarProps {
   searchQuery: Accessor<string>;
