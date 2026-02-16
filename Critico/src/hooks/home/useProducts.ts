@@ -35,7 +35,7 @@ export function useProducts(trustlevel: Accessor<number>) {
   const [loading, setLoading] = createSignal(true);
   const [hasMore, setHasMore] = createSignal(true);
   const [page, setPage] = createSignal(0);
-  const LIMIT = 8; // Load 8 items initially
+  const LIMIT = 10; // Load 10 items initially (2 rows of 5)
 
   const loadProducts = async (reset = false) => {
     try {

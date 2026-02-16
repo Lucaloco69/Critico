@@ -43,36 +43,45 @@ export default function Header(props: Props) {
                 />
               </Show>
 
-              <label class="absolute -bottom-2 -right-2 p-2 bg-sky-500 hover:bg-sky-600 rounded-full cursor-pointer shadow-lg transition-colors focus-within:ring-2 focus-within:ring-sky-400/70">
-                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+              {/* Upload button - shown when no picture */}
+              <Show when={!u()?.picture}>
+                <label class="absolute -bottom-2 -right-2 p-2 bg-sky-500 hover:bg-sky-600 rounded-full cursor-pointer shadow-lg transition-colors focus-within:ring-2 focus-within:ring-sky-400/70">
+                  <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                    />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={props.onFileUpload}
+                    disabled={props.uploading()}
+                    class="hidden"
                   />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={props.onFileUpload}
-                  disabled={props.uploading()}
-                  class="hidden"
-                />
-              </label>
-            </div>
+                </label>
+              </Show>
 
-            <Show when={u()?.picture}>
-              <button
-                type="button"
-                onClick={props.onDelete}
-                disabled={props.uploading()}
-                class="mt-3 w-full sm:w-auto px-3 py-1.5 bg-red-500/90 hover:bg-red-600 disabled:bg-gray-500/60 text-white text-sm rounded-lg transition-colors"
-              >
-                {t("profileHeader.deletePicture")}
-              </button>
-            </Show>
+              {/* Delete button - shown when picture exists, same position as upload */}
+              <Show when={u()?.picture}>
+                <button
+                  type="button"
+                  onClick={props.onDelete}
+                  disabled={props.uploading()}
+                  class="absolute -bottom-2 -right-2 p-2 bg-red-500 hover:bg-red-600 disabled:bg-gray-500/60 rounded-full cursor-pointer shadow-lg transition-colors focus:ring-2 focus:ring-red-400/70"
+                  aria-label={t("profileHeader.deletePicture")}
+                >
+                  <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </Show>
+
+
+            </div>
           </div>
 
           <div class="flex-1 min-w-0 text-center sm:text-left">

@@ -20,6 +20,16 @@
 - **Internationalisierung:** @solid-primitives/i18n
 - **Build Tool:** Vite
 
+## KI-Unterstützung
+
+**Wichtiger Hinweis:** Die UI-Komponenten und das Design dieser Anwendung wurden mit Unterstützung von künstlicher Intelligenz (KI) generiert. Dies umfasst:
+- SolidJS Komponenten
+- Tailwind CSS Styling
+- Layout und Design-Patterns
+- Responsive Design-Implementierungen
+
+Die Geschäftslogik, Datenbankstruktur und Architektur wurden manuell entwickelt und implementiert.
+
 ## Voraussetzungen
 
 - Node.js (Version 18 oder höher)
@@ -31,3 +41,44 @@
 
 ```bash
 npm install
+```
+
+### Schritt 2: Umgebungsvariablen konfigurieren
+
+Erstelle eine `.env` Datei im Root-Verzeichnis mit folgenden Variablen:
+
+```env
+PUBLIC_SUPABASE_URL=your_supabase_url
+PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+### Schritt 3: Production Build erstellen und starten
+
+```bash
+npm run build
+node dist/server/entry.mjs
+```
+
+Die Anwendung läuft dann auf `http://localhost:4322`
+
+## Verfügbare Scripts
+
+- `npm run dev` - Startet den Astro Development Server
+- `npm run build` - Erstellt einen Production Build
+- `npm run preview` - Startet einen lokalen Server für den Production Build
+- `npm run check` - Führt Astro Type-Checking durch
+
+## Projektstruktur
+
+```
+Critico/
+├── src/
+│   ├── components/     # SolidJS UI-Komponenten
+│   ├── routes/         # Seiten-Routen
+│   ├── hooks/          # Custom Hooks
+│   ├── i18n/           # Internationalisierung (DE/EN)
+│   ├── lib/            # Utilities und Supabase Client
+│   └── pages/          # Astro Pages
+├── public/             # Statische Assets
+└── astro.config.mjs    # Astro Konfiguration
+```

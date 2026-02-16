@@ -61,7 +61,7 @@ export function useProfilePicture(
   };
 
   const handleDeletePicture = async () => {
-    if (!user()?.picture || !confirm("Profilbild wirklich löschen?")) return;
+    if (!user()?.picture) return;
 
     setUploading(true);
     setError("");
