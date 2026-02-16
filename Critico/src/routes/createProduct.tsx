@@ -61,17 +61,13 @@ export default function CreateProduct() {
   const { toggleTag } = useTags(selectedTags, setSelectedTags);
 
   return (
-    <div class="min-h-screen bg-gray-50 dark:bg-gradient-to-br dark:from-gray-900 dark:via-slate-900 dark:to-gray-950">
+    <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header />
 
       {/* Page container */}
-      <main class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
+      <main class="max-w-5xl mx-auto px-4 py-6">
         {/* Card */}
-        <div class="bg-white/90 dark:bg-gray-900/60 backdrop-blur-md border border-black/5 dark:border-white/10 rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
-          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-5 sm:mb-6">
-            {t("createProduct.title")}
-          </h1>
-
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden p-4 sm:p-6 lg:p-8">
           <form onSubmit={handleSubmit} class="space-y-5 sm:space-y-6">
             <ImageUpload
               previewUrls={previewUrls}

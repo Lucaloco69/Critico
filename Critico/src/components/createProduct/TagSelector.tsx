@@ -32,7 +32,7 @@ export default function TagSelector(props: TagSelectorProps) {
         {t("createProductTagSelector.label")}
       </label>
 
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-3 max-h-64 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+      <div class="grid grid-cols-4 gap-3 max-h-64 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
         <For each={props.availableTags()}>
           {(tag) => (
             <label class="flex items-center gap-2 cursor-pointer hover:bg-white dark:hover:bg-gray-700 p-2 rounded-lg transition-colors">

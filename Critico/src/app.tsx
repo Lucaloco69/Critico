@@ -1,6 +1,6 @@
 import { Router, Route } from '@solidjs/router';
 import { Suspense, onMount, onCleanup } from 'solid-js';
-import { Home } from './routes/Home';
+import { Home } from './routes/home';
 import Login from './routes/login';
 import Signup from './routes/signup';
 import Profile from './routes/profile';

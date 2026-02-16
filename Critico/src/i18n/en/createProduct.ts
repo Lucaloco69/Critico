@@ -1,3 +1,4 @@
 export const dict = {
-  title: "List item",
+  title: "Create New Product",
+  back: "Back",
 } as const;
