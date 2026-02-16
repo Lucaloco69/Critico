@@ -10,7 +10,7 @@ import Requests from './routes/Requests';
 import Chat from './routes/Chat';
 import Messages from './routes/Messages';
 import PublicProfile from './routes/PublicProfile';
-import Activate from './routes/Activate';
+import Activate from './routes/activate';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { initAuthListener, startSessionHealthCheck } from './lib/sessionStore';
 
