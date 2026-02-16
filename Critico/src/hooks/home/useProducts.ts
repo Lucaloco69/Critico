@@ -36,7 +36,6 @@ export function useProducts(trustlevel: Accessor<number>) {
 
   const loadProducts = async () => {
     try {
-      console.log("🔄 HOME: Loading products...");
       setLoading(true);
 
       const maxPrice = maxPriceForTrustlevel(trustlevel());
@@ -67,9 +66,6 @@ export function useProducts(trustlevel: Accessor<number>) {
 
       if (productsError) throw productsError;
 
-      // ✅ DEBUG: Was kommt von Supabase?
-      console.log("🔍 RAW productsData:", productsData?.slice(0, 2));
-
       const transformedProducts = (productsData || []).map((p: any) => {
         const allImages: string[] = [];
 
@@ -91,27 +87,9 @@ export function useProducts(trustlevel: Accessor<number>) {
           tags: p.Product_Tags?.map((pt: any) => pt.Tags).filter(Boolean) || [],
         };
 
-        // ✅ DEBUG: Log transformation
-        console.log(`🔧 Product ${p.id}:`, {
-          name: p.name,
-          starsRaw: p.stars,
-          starsTransformed: transformed.stars,
-        });
-
         return transformed;
       });
 
-      console.log("✅ HOME: Products loaded:", transformedProducts.length);
-      console.log("📊 HOME: First 3 products with stars:",
-        transformedProducts.slice(0, 3).map(p => ({
-          id: p.id,
-          name: p.name,
-          stars: p.stars
-        }))
-      );
-
-      // ✅ FETCH RATINGS MANUALLY (Workaround for RLS issue)
-      console.log("🌟 HOME: Fetching ratings manually...");
       const productIds = transformedProducts.map(p => p.id);
 
       const { data: ratingsData, error: ratingsError } = await supabase
@@ -141,7 +119,6 @@ export function useProducts(trustlevel: Accessor<number>) {
 
             // Only override if different (or if we trust calc more than DB which we do)
             p.stars = rounded;
-            console.log(`⭐ HOME: Validated stars for ${p.id}: ${rounded} (${productRatings.length} ratings)`);
           }
         });
       }
@@ -162,7 +139,6 @@ export function useProducts(trustlevel: Accessor<number>) {
 
   const refreshProductRating = async (productId: number) => {
     try {
-      console.log(`🔄 HOME: Recalculating rating for product ${productId}...`);
 
       const { data: messages } = await supabase
         .from("Messages")
@@ -177,7 +153,6 @@ export function useProducts(trustlevel: Accessor<number>) {
         const avg = total / messages.length;
         const rounded = Math.round(avg * 10) / 10;
 
-        console.log(`📊 HOME: New average for ${productId}: ${avg} (rounded: ${rounded}) from ${messages.length} ratings`);
 
         // Optimistically update local store
         setProducts(
@@ -189,7 +164,7 @@ export function useProducts(trustlevel: Accessor<number>) {
         // Try to persist to DB (might fail due to RLS, but we tried)
         supabase.from("Product").update({ stars: rounded }).eq("id", productId).then(({ error }) => {
           if (error) console.error("❌ HOME: DB Update failed (likely RLS):", error.message);
-          else console.log("✅ HOME: DB Updated successfully");
+
         });
 
       }

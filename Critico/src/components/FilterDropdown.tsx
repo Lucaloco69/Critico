@@ -34,36 +34,23 @@ export function FilterDropdown(props: FilterDropdownProps) {
     );
   };
 
-  // 🔍 DEBUG: Tag-Name übersetzen
   const getTranslatedTagName = (tagName: string): string => {
     const key = tagName.toLowerCase().trim();
     const fullKey = `tags.${key}`;
-    
-    console.group("🔍 Tag Translation Debug");
-    console.log("Original Tag Name:", tagName);
-    console.log("Normalized Key:", key);
-    console.log("Full i18n Key:", fullKey);
-    console.log("Current Locale:", locale());
-    
+
+
     try {
       const translated = t(fullKey as any);
-      console.log("✅ Translation SUCCESS:", translated);
-      console.groupEnd();
+
       return translated;
     } catch (error) {
-      console.error("❌ Translation FAILED:", error);
-      console.log("→ Fallback to original:", tagName);
-      console.groupEnd();
+
       return tagName;
     }
   };
 
-  // 🔍 DEBUG: Alle Tags beim Mount loggen
   onMount(() => {
-    console.group("🏷️ All Tags in FilterDropdown");
-    console.log("Total tags:", props.tags().length);
-    console.table(props.tags());
-    console.groupEnd();
+
   });
 
   return (

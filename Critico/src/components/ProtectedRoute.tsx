@@ -14,14 +14,6 @@ export const ProtectedRoute: Component<ProtectedRouteProps> = (props) => {
   const [checkedOnce, setCheckedOnce] = createSignal(false);
 
   onMount(async () => {
-    console.log("🔒 PROTECTED ROUTE: Component mounted, checking session...");
-    await performCheck();
-    setCheckedOnce(true);
-  });
-
-  // ✅ Einmaliger Check beim Mount
-  onMount(async () => {
-    console.log("🔒 PROTECTED ROUTE: Component mounted, checking session...");
     await performCheck();
     setCheckedOnce(true);
   });
@@ -30,60 +22,46 @@ export const ProtectedRoute: Component<ProtectedRouteProps> = (props) => {
   createEffect(() => {
     // Trigger bei location change
     location.pathname;
-    
+
     if (checkedOnce()) {
-      console.log("🔄 PROTECTED ROUTE: Route changed, rechecking...");
       performCheck();
     }
   });
 
   const performCheck = async () => {
-    console.log("═══════════════════════════════════════");
-    console.log("🔒 PROTECTED: Checking route:", location.pathname);
-    console.log("🔍 PROTECTED: Current isLoggedIn:", isLoggedIn());
-    
+
     setChecking(true);
-    
+
     try {
       const hasSession = await checkSession(3000);
-      
-      console.log("🔐 PROTECTED: checkSession result:", hasSession);
-      console.log("🔐 PROTECTED: isLoggedIn after check:", isLoggedIn());
-      console.log("🔐 PROTECTED: hadValidSessionBefore:", hadValidSessionBefore());
-      
+
+
       if (!hasSession) {
         // ✅ Hatte je eine gültige Session? → Session expired, kein redirectTo
         if (hadValidSessionBefore()) {
-          console.log("⏱️ PROTECTED: Session expired (had valid session before)");
-          console.log("🚀 PROTECTED: Redirecting to clean login (no redirectTo)...");
-          
+
           navigate('/login', { replace: true });
         } else {
           // Noch nie eingeloggt → redirectTo speichern
           const fullPath = location.pathname + location.search;
           const redirectTo = encodeURIComponent(fullPath);
-          
-          console.log("❌ PROTECTED: Not authenticated (never logged in)");
-          console.log("📦 PROTECTED: Saving path:", fullPath);
-          console.log("🚀 PROTECTED: Redirecting to login with redirectTo...");
-          
+
+
           navigate(`/login?redirectTo=${redirectTo}`, { replace: true });
         }
       } else {
-        console.log("✅ PROTECTED: Authenticated, rendering page");
       }
     } catch (err) {
       console.error("❌ PROTECTED: Session check failed:", err);
       navigate('/login', { replace: true });
     } finally {
       setChecking(false);
-      console.log("═══════════════════════════════════════");
     }
   };
 
   return (
-    <Show 
-      when={!checking()} 
+    <Show
+      when={!checking()}
       fallback={
         <div class="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
           <div class="text-center">

@@ -34,10 +34,8 @@ export function useMessages() {
 
 
   onMount(async () => {
-    console.log("🚀 useMessages.onMount START");
 
     if (!isLoggedIn() || !sessionStore.user) {
-      console.log("❌ useMessages.onMount: Nicht eingeloggt, redirect zu /login");
       navigate("/login");
       return;
     }
@@ -52,7 +50,6 @@ export function useMessages() {
 
 
       if (userData) {
-        console.log("✅ useMessages.onMount: User gefunden:", userData.id);
         setCurrentUserId(userData.id);
         loadChatsDebounced(userData.id);
 
@@ -62,11 +59,8 @@ export function useMessages() {
       }
     } catch (err) {
       console.error("❌ useMessages.onMount ERROR:", err);
-      // Im Fehlerfall müssen wir loading auch ausschalten, da loadChats nicht aufgerufen wird
       setLoading(false);
     }
-    // finally block entfernt, da setLoading(false) in loadChats passiert
-    console.log("✅ useMessages.onMount COMPLETE");
   });
 
 
@@ -74,18 +68,13 @@ export function useMessages() {
     const path = location.pathname;
     const userId = currentUserId();
 
-    console.log("🔄 useMessages.createEffect (pathname):", { path, userId });
-
     if (path === "/messages" && userId) {
-      console.log("🔄 useMessages: Zurück zur Messages-Seite, lade Chats neu");
-      // Background refresh - loading state bleibt false wenn wir schon daten haben
       loadChatsDebounced(userId);
     }
   });
 
 
   onCleanup(() => {
-    console.log("🧹 useMessages.onCleanup");
     if (reloadTimeout) clearTimeout(reloadTimeout);
     if (loadChatsTimeout) clearTimeout(loadChatsTimeout);
     if (globalMessagesChannel) {
@@ -96,7 +85,6 @@ export function useMessages() {
 
 
   const setupRealtime = (userId: number) => {
-    console.log("🔌 useMessages.setupRealtime START for user:", userId);
 
     globalMessagesChannel = supabase.channel(`messages-list-user-${userId}`, {
       config: {
@@ -118,10 +106,6 @@ export function useMessages() {
           filter: `receiver_id=eq.${userId}`,
         },
         (payload: RealtimePostgresChangesPayload<any>) => {
-          console.log("🔔 useMessages: INSERT Event (received)", payload);
-
-
-          console.log("✅ useMessages: Relevante Message empfangen, reload!");
 
           if (reloadTimeout) clearTimeout(reloadTimeout);
           reloadTimeout = setTimeout(() => {
@@ -138,10 +122,6 @@ export function useMessages() {
           filter: `sender_id=eq.${userId}`,
         },
         (payload: RealtimePostgresChangesPayload<any>) => {
-          console.log("🔔 useMessages: INSERT Event (sent)", payload);
-
-
-          console.log("✅ useMessages: Eigene Message gesendet, reload!");
 
           if (reloadTimeout) clearTimeout(reloadTimeout);
           reloadTimeout = setTimeout(() => {
@@ -157,13 +137,11 @@ export function useMessages() {
           table: "Messages",
         },
         (payload: RealtimePostgresChangesPayload<any>) => {
-          console.log("🔔 useMessages: UPDATE Event", payload);
 
           if (
             (payload.new.sender_id === userId || payload.new.receiver_id === userId) &&
             VALID_CHAT_MESSAGE_TYPES.includes(payload.new.message_type)
           ) {
-            console.log("✅ useMessages: Relevantes UPDATE, reload!");
 
             if (reloadTimeout) clearTimeout(reloadTimeout);
             reloadTimeout = setTimeout(() => {
@@ -176,9 +154,6 @@ export function useMessages() {
         "broadcast",
         { event: "message_updated" },
         (payload: { payload: { messageId: number; chatId: number } }) => {
-          console.log("🔔🔔🔔 useMessages: BROADCAST empfangen:", payload);
-
-          console.log("✅ useMessages: Broadcast empfangen, reload Chats!");
 
           if (reloadTimeout) clearTimeout(reloadTimeout);
           reloadTimeout = setTimeout(() => {
@@ -187,15 +162,8 @@ export function useMessages() {
         }
       )
       .subscribe((status: string, err?: Error) => {
-        console.log("📡 useMessages Channel Status:", {
-          status,
-          error: err,
-          channelName: `messages-list-user-${userId}`,
-          timestamp: new Date().toISOString()
-        });
 
         if (status === REALTIME_SUBSCRIBE_STATES.SUBSCRIBED) {
-          console.log("✅✅✅ useMessages: REALTIME CHANNEL AKTIV!");
         } else if (status === REALTIME_SUBSCRIBE_STATES.CLOSED) {
           console.error("❌❌❌ useMessages: REALTIME CHANNEL GESCHLOSSEN!");
         } else if (status === REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR) {
@@ -203,15 +171,12 @@ export function useMessages() {
         }
       });
 
-    console.log("✅ useMessages.setupRealtime COMPLETE");
   };
 
 
   const loadChatsDebounced = (userId: number) => {
-    console.log("🔄 loadChatsDebounced called for user:", userId);
 
     if (loadChatsTimeout) {
-      console.log("⏭️ Canceling previous loadChats call");
       clearTimeout(loadChatsTimeout);
     }
 
@@ -222,7 +187,6 @@ export function useMessages() {
 
 
   const loadChats = async (userId: number) => {
-    console.log("📥 Loading chats for user:", userId);
     const startTime = Date.now();
 
     try {
@@ -345,27 +309,13 @@ export function useMessages() {
         );
       }
 
-      console.log("🔧 Before set:", {
-        currentChatsLength: messagesStore.chats().length,
-        currentFilteredLength: messagesStore.filteredChats().length,
-        newChatsLength: chatPreviews.length,
-        newFilteredLength: filtered.length,
-        firstUnread: chatPreviews[0]?.unreadCount
-      });
 
       // ✅ Verwende globalen Store
       messagesStore.setChats(chatPreviews);
       messagesStore.setFilteredChats(filtered);
       setDirectMessageCount(totalUnreadCount);
 
-      console.log("🔥 DATA SET:", {
-        chatsLength: messagesStore.chats().length,
-        filteredLength: messagesStore.filteredChats().length,
-        firstUnread: messagesStore.filteredChats()[0]?.unreadCount
-      });
-
       const duration = Date.now() - startTime;
-      console.log(`✅ Loaded ${chatPreviews.length} chats (${totalUnreadCount} unread) in ${duration}ms`);
     } catch (err) {
       console.error("❌ Error loading chats:", err);
     } finally {
@@ -378,8 +328,6 @@ export function useMessages() {
   const handleSearchChange = (value: string | ((prev: string) => string)) => {
     const query = typeof value === 'function' ? value(searchQuery()) : value;
     setSearchQuery(query);
-
-    console.log("🔍 useMessages.handleSearchChange:", query);
 
     const currentChats = messagesStore.chats();
 

@@ -128,7 +128,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
 
   const loadProduct = async (pid: number) => {
     try {
-      console.log("🔄 PRODUCT DETAIL: Loading product", pid);
 
       const { data: productData, error: productError } = await supabase
         .from("Product")
@@ -160,7 +159,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
       if (productError || !productData) throw productError;
 
       const transformed = transformProduct(productData);
-      console.log("✅ PRODUCT DETAIL: Product loaded, stars:", transformed.stars);
 
       setProduct(transformed);
     } catch (err) {
@@ -170,7 +168,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
 
   const loadComments = async (pid: number) => {
     try {
-      console.log("🔄 PRODUCT DETAIL: Loading comments for product", pid);
 
       const { data: messagesData } = await supabase
         .from("Messages")
@@ -196,19 +193,16 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
         .order("created_at", { ascending: true });
 
       const list = ((messagesData as MessageRow[] | null) ?? []).map(toComment);
-      console.log("✅ PRODUCT DETAIL: Comments loaded:", list.length);
 
       setComments(list);
 
       const avg = computeAvgStars(list);
-      console.log("📊 PRODUCT DETAIL: Computed average stars:", avg);
 
       if (avg != null) {
         await supabase.from("Product").update({ stars: avg }).eq("id", pid);
 
         setProduct((prev) => {
           if (!prev) return null;
-          console.log("🌟 PRODUCT DETAIL: Updating product stars:", prev.stars, "→", avg);
           return { ...prev, stars: avg };
         });
       }
@@ -232,7 +226,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
 
     (async () => {
       const ok = await checkCommentPermission(uid, pid);
-      console.log("🔐 Permission check result:", ok);
       setCanComment(ok);
       setCheckingPermission(false);
     })();
@@ -267,8 +260,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
         channel = null;
       }
 
-      console.log("🔄 REALTIME: Setting up channel for product", pid);
-
       channel = supabase
         .channel("product-comments-" + pid)
         .on(
@@ -281,8 +272,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
           },
           (payload: any) => {
             if (payload.new?.message_type !== "product") return;
-
-            console.log("🔔 REALTIME: New comment received", payload.new.id);
 
             (async () => {
               const { data: row, error } = await supabase
@@ -315,17 +304,14 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
 
               setComments((prev) => {
                 if (prev.some((c) => c.id === row.id)) {
-                  console.log("⚠️ REALTIME: Comment already exists, skipping");
                   return prev;
                 }
 
                 const next = [...prev, toComment(row)];
-                console.log("✅ REALTIME: Comment added, total:", next.length);
 
                 const avg = computeAvgStars(next);
                 if (avg != null) {
                   const rounded = Math.round(avg * 2) / 2;
-                  console.log("🌟 REALTIME: Updating stars to", rounded);
 
                   supabase.from("Product").update({ stars: rounded }).eq("id", pid);
                   setProduct((p) => (p ? { ...p, stars: rounded } : null));
@@ -337,10 +323,8 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
           }
         )
         .subscribe((status) => {
-          console.log("📡 REALTIME: Channel status:", status);
 
           if (status === "SUBSCRIBED") {
-            console.log("✅ REALTIME: Successfully subscribed to product", pid);
           } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
             console.error(`❌ REALTIME: Channel failed (${status}). Retrying in 5s...`);
             if (channel) {
@@ -355,7 +339,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
     setupChannel();
 
     onCleanup(() => {
-      console.log("🧹 REALTIME: Cleaning up channel for product", pid);
       if (retryTimeout) clearTimeout(retryTimeout);
       if (channel) supabase.removeChannel(channel);
     });
@@ -397,7 +380,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
       const existingRequest = existingRequests?.[0];
 
       if (existingRequest) {
-        console.log("⚠️ Request prevented: Found existing request", existingRequest);
         showModal(
           "info",
           existingRequest.message_type === "request_accepted"
@@ -457,17 +439,12 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
   };
 
   const handleSubmitComment = async (content: string, stars: number) => {
-    console.log("💬 SUBMIT COMMENT: Starting...");
-    console.log("💬 Content:", content);
-    console.log("⭐ Stars:", stars);
 
     if (!isLoggedIn()) return navigate("/login");
 
     const uid = currentUserId();
     const pid = productId();
 
-    console.log("👤 User ID:", uid);
-    console.log("📦 Product ID:", pid);
 
     if (typeof uid !== "number" || !content.trim() || Number.isNaN(pid)) {
       console.error("❌ Invalid data:", { uid, content, pid });
@@ -476,9 +453,7 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
 
     try {
       // Permission check
-      console.log("🔐 Checking comment permission...");
       const ok = await checkCommentPermission(uid, pid);
-      console.log("🔐 Permission result:", ok);
 
       if (!ok) {
         showModal("warning", t("productDetail.modal.noPermissionTitle"), t("productDetail.modal.noPermissionText"));
@@ -487,7 +462,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
       }
 
       // Check for existing comment
-      console.log("🔍 Checking for duplicates...");
       const { data: existingComments, error: commentCheckError } = await supabase
         .from("Messages")
         .select("id")
@@ -511,7 +485,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
       }
 
       // Chat check/create
-      console.log("💬 Checking for existing chat...");
       const { data: existingChat, error: chatSelectError } = await supabase
         .from("Chats")
         .select("id")
@@ -526,9 +499,7 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
       let chatId: number;
       if (existingChat) {
         chatId = existingChat.id;
-        console.log("✅ Using existing chat:", chatId);
       } else {
-        console.log("📝 Creating new chat...");
         const { data: newChat, error: chatError } = await supabase
           .from("Chats")
           .insert({ product_id: pid, created_at: new Date().toISOString() })
@@ -540,7 +511,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
           throw chatError;
         }
         chatId = newChat.id;
-        console.log("✅ Created new chat:", chatId);
       }
 
       // Build insert data
@@ -553,8 +523,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
         created_at: new Date().toISOString(),
       };
       if (stars > 0) insertData.stars = stars;
-
-      console.log("📤 Inserting message:", insertData);
 
       // Insert message
       const { error: insertError, data: insertedData } = await supabase
@@ -575,9 +543,6 @@ export function useProductDetail(productId: () => number, navigate: (to: any) =>
         }
         throw insertError;
       }
-
-      console.log("✅ Comment inserted successfully!");
-      console.log("✅ Inserted data:", insertedData);
 
       // Reload comments manually
       await loadComments(pid);

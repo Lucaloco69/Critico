@@ -26,7 +26,6 @@ export default function Profile() {
 
   const handleLogout = async () => {
     try {
-      console.log("🚪 Logging out from profile...");
       // ✅ clearSession navigiert automatisch zu /login OHNE Parameter
       await clearSession();
     } catch (err) {

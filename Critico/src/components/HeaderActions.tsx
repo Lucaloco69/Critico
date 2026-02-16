@@ -11,7 +11,6 @@ interface HeaderActionsProps {
 export function HeaderActions(props: HeaderActionsProps) {
   createEffect(() => {
     const count = badgeStore.directMessageCount();
-    console.log("🔔 HeaderActions: Badge Count:", count);
   });
 
   return (

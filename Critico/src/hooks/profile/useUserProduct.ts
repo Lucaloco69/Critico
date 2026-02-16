@@ -108,7 +108,6 @@ export function useUserProducts(userId: Accessor<number | undefined>) {
         }
 
         setProducts(mapped);
-        console.log("✅ USER PRODUCTS: Loaded", mapped.length, "products with calculated stars");
       } catch (err) {
         console.error("Fehler beim Laden der Produkte:", err);
       } finally {
@@ -124,8 +123,6 @@ export function useUserProducts(userId: Accessor<number | undefined>) {
     const uid = userId();
     if (!uid) return;
 
-    console.log("🔄 USER PRODUCTS: Setting up realtime for user", uid);
-
     const channel = supabase
       .channel("user-products-" + uid)
       .on(
@@ -137,7 +134,6 @@ export function useUserProducts(userId: Accessor<number | undefined>) {
           filter: `owner_id=eq.${uid}`,
         },
         (payload: any) => {
-          console.log("🔔 USER PRODUCTS: Product updated", payload.new);
 
           const updated = payload.new;
           if (!updated || !updated.id) return;
@@ -146,14 +142,7 @@ export function useUserProducts(userId: Accessor<number | undefined>) {
             return prev.map((p) => {
               if (p.id === updated.id) {
                 const roundedStars = roundStars(updated.stars);
-                console.log(
-                  "🌟 USER PRODUCTS: Updating stars for product",
-                  p.id,
-                  "from",
-                  p.stars,
-                  "to",
-                  roundedStars
-                );
+
                 return { ...p, stars: roundedStars };
               }
               return p;
@@ -164,7 +153,6 @@ export function useUserProducts(userId: Accessor<number | undefined>) {
       .subscribe();
 
     onCleanup(() => {
-      console.log("🧹 USER PRODUCTS: Cleaning up realtime for user", uid);
       supabase.removeChannel(channel);
     });
   });

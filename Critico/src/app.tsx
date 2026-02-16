@@ -10,19 +10,17 @@ import Requests from './routes/requests';
 import Chat from './routes/chat';
 import Messages from './routes/messages';
 import PublicProfile from './routes/PublicProfile';
-import Activate from './routes/activate';
+import Activate from './routes/Activate';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { initAuthListener, startSessionHealthCheck } from './lib/sessionStore';
 
 function App() {
   onMount(async () => {
-    console.log("🚀 App mounted, initializing auth...");
-    
+
     try {
       await initAuthListener();
       const cleanup = startSessionHealthCheck();
       onCleanup(cleanup);
-      console.log("✅ Auth initialized successfully");
     } catch (err) {
       console.error("❌ Failed to initialize auth:", err);
     }

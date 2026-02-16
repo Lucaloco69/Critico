@@ -24,6 +24,3 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-console.log("✅ Supabase client initialized with JWT persistence");
-console.log("📡 Supabase Realtime enabled:", !!supabase.realtime);
-console.log("🔗 Supabase URL:", supabaseUrl);

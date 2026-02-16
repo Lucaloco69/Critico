@@ -27,12 +27,6 @@ export function ProductCard(props: ProductCardProps) {
   const hasRating = createMemo(() => {
     const s = stars();
     const result = s !== null && s !== undefined && s > 0;
-    console.log("🃏 ProductCard hasRating:", {
-      id: props.product.id,
-      name: props.product.name,
-      stars: s,
-      hasRating: result
-    });
     return result;
   });
 
@@ -41,7 +35,7 @@ export function ProductCard(props: ProductCardProps) {
   // Helper: Tag-Name übersetzen
   const getTranslatedTagName = (tagName: string): string => {
     const key = tagName.toLowerCase().trim();
-    
+
     try {
       return t(`tags.${key}` as any);
     } catch {

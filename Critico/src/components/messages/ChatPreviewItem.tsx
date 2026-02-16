@@ -19,12 +19,6 @@ const trustBadgeClass = (tl: number) => {
 
 export function ChatPreviewItem(props: ChatPreviewItemProps) {
   onMount(() => {
-    console.log("🆕 ChatPreviewItem mounted:", {
-      partnerId: props.chat.partnerId,
-      partnerName: props.chat.partnerName,
-      unreadCount: props.chat.unreadCount,
-      lastMessage: props.chat.lastMessage.substring(0, 20)
-    });
   });
 
   const getPreviewText = () => {
@@ -44,12 +38,10 @@ export function ChatPreviewItem(props: ChatPreviewItemProps) {
     if (type === "request_accepted") return "text-green-600 dark:text-green-400 font-semibold";
     if (type === "request_declined") return "text-red-600 dark:text-red-400 font-semibold";
 
-    return props.chat.unreadCount > 0 
-      ? "text-gray-900 dark:text-white font-medium" 
+    return props.chat.unreadCount > 0
+      ? "text-gray-900 dark:text-white font-medium"
       : "text-gray-600 dark:text-gray-400";
   };
-
-  console.log("🔄 ChatPreviewItem render:", props.chat.partnerName, "unread:", props.chat.unreadCount);
 
   return (
     <A

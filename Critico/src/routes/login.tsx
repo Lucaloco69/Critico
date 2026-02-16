@@ -12,7 +12,7 @@ export default function Login() {
   const [password, setPassword] = createSignal("");
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
-  
+
   const [savedRedirectTo, setSavedRedirectTo] = createSignal<string>("/home");
   const [mounted, setMounted] = createSignal(false); // ✅ NEU!
 
@@ -21,17 +21,13 @@ export default function Login() {
     const qs = new URLSearchParams(location.search);
     const encoded = qs.get("redirectTo");
 
-    console.log("🎬 LOGIN MOUNT: Raw redirectTo:", encoded);
-
     if (encoded) {
       try {
         const decoded = decodeURIComponent(encoded);
         if (decoded.startsWith("/")) {
-          console.log("✅ LOGIN MOUNT: Saved redirectTo:", decoded);
           setSavedRedirectTo(decoded);
-          
+
           if (!decoded.includes("/activate/")) {
-            console.log("🗑️ LOGIN MOUNT: Clearing pendingActivateToken (not from activate route)");
             localStorage.removeItem("pendingActivateToken");
           }
         }
@@ -39,30 +35,22 @@ export default function Login() {
         console.error("❌ LOGIN MOUNT: Error decoding redirectTo:", err);
       }
     } else {
-      console.log("🗑️ LOGIN MOUNT: No redirectTo, clearing pendingActivateToken");
       localStorage.removeItem("pendingActivateToken");
     }
 
     // ✅ 2. Dann check ob schon eingeloggt
     setMounted(true);
-    
+
     if (isLoggedIn()) {
       const target = savedRedirectTo();
       const pendingToken = localStorage.getItem("pendingActivateToken");
-      
-      console.log("🔐 LOGIN MOUNT: Already logged in!");
-      console.log("🎯 LOGIN MOUNT: Target:", target);
-      console.log("🎫 LOGIN MOUNT: Pending token:", pendingToken ? "YES" : "NO");
-      
+
       if (pendingToken && target.includes("/activate/")) {
-        console.log("🎫 LOGIN MOUNT: Redirecting to activate with token");
         navigate(target, { replace: true });
       } else {
         if (pendingToken) {
-          console.log("🗑️ LOGIN MOUNT: Clearing irrelevant pendingActivateToken");
           localStorage.removeItem("pendingActivateToken");
         }
-        console.log("🚀 LOGIN MOUNT: Redirecting to:", target);
         navigate(target, { replace: true });
       }
     }
@@ -72,11 +60,6 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     setError("");
-
-    console.log("═══════════════════════════════════════");
-    console.log("🔐 LOGIN: Starting login process...");
-    console.log("📧 LOGIN: Email:", email());
-    console.log("🎯 LOGIN: Target after login:", savedRedirectTo());
 
     try {
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
@@ -89,10 +72,6 @@ export default function Login() {
         throw new Error(t("login.wrongCreds"));
       }
 
-      console.log("✅ LOGIN: Supabase login successful");
-      console.log("👤 LOGIN: User:", data.user.email);
-
-      console.log("💾 LOGIN: Updating session store...");
       setSession({
         session: data.session,
         user: data.user,
@@ -101,23 +80,17 @@ export default function Login() {
       // ✅ Nach erfolgreichem Login: Redirect
       const target = savedRedirectTo();
       const pendingToken = localStorage.getItem("pendingActivateToken");
-      
-      console.log("🎯 LOGIN: Redirecting to:", target);
-      console.log("🎫 LOGIN: Pending token:", pendingToken ? "YES" : "NO");
-      
+
+
       if (pendingToken && target.includes("/activate/")) {
-        console.log("🎫 LOGIN: Redirecting to activate with token");
         navigate(target, { replace: true });
       } else {
         if (pendingToken) {
-          console.log("🗑️ LOGIN: Clearing irrelevant pendingActivateToken");
           localStorage.removeItem("pendingActivateToken");
         }
-        console.log("🚀 LOGIN: Redirecting to:", target);
         navigate(target, { replace: true });
       }
 
-      console.log("═══════════════════════════════════════");
     } catch (err: any) {
       console.error("❌ LOGIN: Login failed:", err);
       setError(err?.message || t("login.failed"));

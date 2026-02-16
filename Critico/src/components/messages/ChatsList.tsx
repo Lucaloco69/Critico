@@ -13,13 +13,6 @@ export interface ChatsListProps {
 export function ChatsList(props: ChatsListProps) {
   createEffect(() => {
     const chats = props.chats();
-    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("🎨 ChatsList createEffect TRIGGERED");
-    console.log("   Chats count:", chats.length);
-    console.log("   First chat:", chats[0]?.partnerName);
-    console.log("   First chat unread:", chats[0]?.unreadCount);
-    console.log("   First chat last message:", chats[0]?.lastMessage?.substring(0, 30));
-    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   });
 
   return (

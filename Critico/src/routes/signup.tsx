@@ -28,7 +28,6 @@ export default function Signup() {
     setError("");
 
     try {
-      console.log("🔐 Starting signup for:", email());
 
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email(),
@@ -50,8 +49,6 @@ export default function Signup() {
         throw new Error(t("signup.userCreationFailed"));
       }
 
-      console.log("✅ Auth user created:", authData.user.id);
-
       const { data: user, error: userError } = await supabase
         .from("User")
         .insert({
@@ -67,8 +64,6 @@ export default function Signup() {
         console.error("❌ User profile creation failed:", userError);
         throw userError;
       }
-
-      console.log("✅ User profile created:", user.id);
 
       setMessage(
         t("signup.successWelcome", { firstName: firstName(), lastName: lastName() })
