@@ -1,5 +1,6 @@
 import { createSignal, createEffect, onCleanup, Accessor } from "solid-js";
 import { supabase } from "../../lib/supabaseClient";
+import { roundStars } from "../../lib/publicProfileUtils";
 
 interface ProductListRow {
   id: number;
@@ -58,27 +59,56 @@ export function useUserProducts(userId: Accessor<number | undefined>) {
 
         if (error) throw error;
 
+        // Initialize mapped products
         const mapped: ProductCard[] = (data ?? []).map((p: ProductListRow) => {
           const firstImg =
             p.product_images && p.product_images.length > 0
               ? p.product_images
-                  .slice()
-                  .sort((a, b) => a.order_index - b.order_index)[0]?.image_url ?? null
+                .slice()
+                .sort((a, b) => a.order_index - b.order_index)[0]?.image_url ?? null
               : null;
-
-          const roundedStars = Math.round((p.stars ?? 0) * 2) / 2;
 
           return {
             id: p.id,
             name: p.name,
             price: p.price,
-            stars: roundedStars,
+            stars: 0, // Temp default
             picture: firstImg,
           };
         });
 
+        // ✅ FETCH RATINGS FROM MESSAGES (Client-side calc)
+        const productIds = mapped.map((p) => p.id);
+        if (productIds.length > 0) {
+          const { data: ratingsData } = await supabase
+            .from("Messages")
+            .select("product_id, stars")
+            .in("product_id", productIds)
+            .eq("message_type", "product")
+            .not("stars", "is", null);
+
+          const ratingsMap = new Map<number, number[]>();
+          (ratingsData || []).forEach((r: any) => {
+            if (!ratingsMap.has(r.product_id)) ratingsMap.set(r.product_id, []);
+            ratingsMap.get(r.product_id)?.push(r.stars);
+          });
+
+          mapped.forEach((p) => {
+            const productRatings = ratingsMap.get(p.id);
+            if (productRatings && productRatings.length > 0) {
+              const total = productRatings.reduce((sum, r) => sum + r, 0);
+              const avg = total / productRatings.length;
+              p.stars = roundStars(avg);
+            } else {
+              // Fallback to DB stars if no messages found
+              const original = data?.find(d => d.id === p.id)?.stars;
+              p.stars = roundStars(original);
+            }
+          });
+        }
+
         setProducts(mapped);
-        console.log("✅ USER PRODUCTS: Loaded", mapped.length, "products");
+        console.log("✅ USER PRODUCTS: Loaded", mapped.length, "products with calculated stars");
       } catch (err) {
         console.error("Fehler beim Laden der Produkte:", err);
       } finally {
@@ -115,7 +145,7 @@ export function useUserProducts(userId: Accessor<number | undefined>) {
           setProducts((prev) => {
             return prev.map((p) => {
               if (p.id === updated.id) {
-                const roundedStars = Math.round((updated.stars ?? 0) * 2) / 2;
+                const roundedStars = roundStars(updated.stars);
                 console.log(
                   "🌟 USER PRODUCTS: Updating stars for product",
                   p.id,

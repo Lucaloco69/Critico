@@ -18,7 +18,7 @@ export const nextExpForLevel = (level: number) => {
   }
 };
 
-export const roundStarsHalf = (stars: number | null | undefined) => Math.round(((stars ?? 0) * 2)) / 2;
+export const roundStars = (stars: number | null | undefined) => Math.round((stars ?? 0) * 10) / 10;
 
 export const firstProductImage = (images?: { image_url: string; order_index: number }[]) => {
   if (!images?.length) return null;

@@ -13,7 +13,7 @@ import {
   PRIVATE_MESSAGE_TYPE,
   firstProductImage,
   nextExpForLevel,
-  roundStarsHalf,
+  roundStars,
 } from "../lib/publicProfileUtils";
 
 export interface UserProfileBase {
@@ -91,13 +91,43 @@ export default function PublicProfile() {
 
       if (error) throw error;
 
+      // ✅ FETCH RATINGS FROM MESSAGES (Client-side calc)
       const mapped: ProductCard[] = (data ?? []).map((p) => ({
         id: p.id,
         name: p.name,
         price: p.price,
-        stars: roundStarsHalf(p.stars),
+        stars: 0, // Temp default
         picture: firstProductImage(p.product_images),
       }));
+
+      const productIds = mapped.map((p) => p.id);
+      if (productIds.length > 0) {
+        const { data: ratingsData } = await supabase
+          .from("Messages")
+          .select("product_id, stars")
+          .in("product_id", productIds)
+          .eq("message_type", "product")
+          .not("stars", "is", null);
+
+        const ratingsMap = new Map<number, number[]>();
+        (ratingsData || []).forEach((r: any) => {
+          if (!ratingsMap.has(r.product_id)) ratingsMap.set(r.product_id, []);
+          ratingsMap.get(r.product_id)?.push(r.stars);
+        });
+
+        mapped.forEach((p) => {
+          const productRatings = ratingsMap.get(p.id);
+          if (productRatings && productRatings.length > 0) {
+            const total = productRatings.reduce((sum, r) => sum + r, 0);
+            const avg = total / productRatings.length;
+            p.stars = roundStars(avg);
+          } else {
+            // Fallback to DB stars if no messages found (e.g. legacy or empty)
+            const original = data?.find(d => d.id === p.id)?.stars;
+            p.stars = roundStars(original);
+          }
+        });
+      }
 
       setProducts(mapped);
     } finally {
