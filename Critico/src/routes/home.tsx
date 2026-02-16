@@ -8,6 +8,7 @@ import { useRealtimeProducts } from "../hooks/home/useRealtimeProducts";
 import { useRealtimeMessages } from "../hooks/home/useRealtimeMessages";
 import HomeHeader from "../components/home/HomeHeader";
 import ProductGrid from "../components/home/ProductGrid";
+import { locale } from "../lib/i18n";
 
 export function Home() {
   const navigate = useNavigate();
@@ -52,7 +53,7 @@ export function Home() {
 
       <footer class="mt-auto py-8 border-t border-gray-200 dark:border-gray-800">
         <div class="max-w-7xl mx-auto px-4 flex justify-center">
-          <a href="/impressum" target="_self" class="text-sm text-gray-500 hover:text-sky-500 transition-colors">
+          <a href={locale() === "en" ? "/impressum-en" : "/impressum"} target="_self" class="text-sm text-gray-500 hover:text-sky-500 transition-colors">
             Impressum
           </a>
         </div>

@@ -1,0 +1,15 @@
+export const dict = {
+    pageTitle: "Critico - Legal Notice",
+    subtitle: "Legal Notice & Information",
+    section1Title: "Information according to § 5 TMG",
+    section1Name: "Max Mustermann",
+    section1Street: "Musterstraße 1",
+    section1City: "12345 Musterstadt",
+    section2Title: "Contact",
+    section2Phone: "Phone:",
+    section2Email: "Email:",
+    section3Title: "Tech Stack Notice",
+    section3Content: "This page is fully <strong>statically generated (SSG)</strong> and delivered without JavaScript hydration to ensure maximum performance and SEO optimization. The rest of the application uses <strong>SSR (Server-Side Rendering)</strong> for dynamic content.",
+    backButton: "Back to Application",
+    copyright: "All rights reserved.",
+} as const;

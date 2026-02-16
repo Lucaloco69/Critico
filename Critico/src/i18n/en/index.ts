@@ -44,6 +44,7 @@ import { dict as activate } from "./activate";
 // WICHTIG: Datei heißt useProductDetail.ts, aber Namespace wird zu "productDetail"
 import { dict as productDetail } from "./useProductDetail";
 import { dict as protectedRoute } from "./protectedRoute";
+import { dict as impressum } from "./impressum";
 
 export const dict = {
   login,
@@ -86,5 +87,6 @@ export const dict = {
   tags,
   filterDropdown,
   activate,
-  protectedRoute
+  protectedRoute,
+  impressum
 } as const;
