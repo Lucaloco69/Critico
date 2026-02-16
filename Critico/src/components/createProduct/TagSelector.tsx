@@ -19,6 +19,13 @@ export default function TagSelector(props: TagSelectorProps) {
     return map;
   });
 
+  const getTranslatedTagName = (tagName: string | undefined): string => {
+    if (!tagName) return "";
+    const key = tagName.toLowerCase().trim();
+    // @ts-ignore
+    return t(`tags.${key}`) || tagName;
+  };
+
   return (
     <div>
       <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
@@ -35,7 +42,7 @@ export default function TagSelector(props: TagSelectorProps) {
                 onChange={() => props.onToggleTag(tag.id)}
                 class="w-4 h-4 rounded accent-sky-600 focus-visible:ring-2 focus-visible:ring-sky-500"
               />
-              <span class="text-sm text-gray-700 dark:text-gray-300 break-words">{tag.name}</span>
+              <span class="text-sm text-gray-700 dark:text-gray-300 break-words">{getTranslatedTagName(tag.name)}</span>
             </label>
           )}
         </For>
@@ -46,7 +53,7 @@ export default function TagSelector(props: TagSelectorProps) {
           <For each={props.selectedTags()}>
             {(tagId) => (
               <span class="px-3 py-1 bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 text-sm rounded-full flex items-center gap-2">
-                {tagById().get(tagId)?.name ?? t("createProductTagSelector.unknownTag", { id: tagId })}
+                {getTranslatedTagName(tagById().get(tagId)?.name) || t("createProductTagSelector.unknownTag", { id: tagId })}
                 <button
                   type="button"
                   onClick={() => props.onToggleTag(tagId)}

@@ -1,0 +1,15 @@
+export const dict = {
+    pageTitle: "Critico - Impressum",
+    subtitle: "Impressum & Rechtliche Hinweise",
+    section1Title: "Angaben gemäß § 5 TMG",
+    section1Name: "Max Mustermann",
+    section1Street: "Musterstraße 1",
+    section1City: "12345 Musterstadt",
+    section2Title: "Kontakt",
+    section2Phone: "Telefon:",
+    section2Email: "E-Mail:",
+    section3Title: "Tech Stack Hinweis",
+    section3Content: "Diese Seite wird vollständig <strong>statisch generiert (SSG)</strong> und ohne JavaScript-Hydration ausgeliefert, um maximale Performance und SEO-Optimierung zu gewährleisten. Der Rest der Anwendung nutzt <strong>SSR (Server-Side Rendering)</strong> für dynamische Inhalte.",
+    backButton: "Zurück zur Anwendung",
+    copyright: "Alle Rechte vorbehalten.",
+} as const;

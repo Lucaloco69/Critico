@@ -3,6 +3,6 @@ export const dict = {
   priceLabel: "Preis",
   descriptionLabel: "Beschreibe deinen Artikel",
 
-  titlePlaceholder: "z.B. SmartGrow Mini - Intelligenter Indoor-Kräutergarten",
+  titlePlaceholder: "z.B. SmartGrow - Intelligenter Kräutergarten",
   descriptionPlaceholder: "z.B. Das System überwacht selbstständig Wasserbedarf...",
 } as const;
