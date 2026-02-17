@@ -22,7 +22,7 @@ const trustBadgeClass = (tl: number) => {
   return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200";
 };
 
-import { BackButton } from "../ui/BackButton";
+import { BackButton } from "../share/BackButton";
 
 export function ChatHeader(props: ChatHeaderProps) {
   const navigate = useNavigate();

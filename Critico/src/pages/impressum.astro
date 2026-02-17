@@ -18,18 +18,16 @@ const t = deDict;
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
       <!-- Header with Critico brand and back button -->
-      <div class="mb-8 flex items-center gap-4">
-        <a href="/home" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" aria-label="Zurück zur Startseite">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-        </a>
-        <a href="/home" class="text-2xl font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 transition-colors">
-          Critico
-        </a>
-      </div>
-      
-      <!-- Page Title -->
-      <div class="mb-8">
-        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+      <div class="mb-8 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <a href="/home" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" aria-label="Zurück zur Startseite">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+          </a>
+          <a href="/home" class="text-2xl font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 transition-colors">
+            Critico
+          </a>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
           {t.subtitle}
         </h1>
       </div>

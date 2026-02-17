@@ -1,4 +1,4 @@
 export const dict = {
   reviewsLabel: "Bewertungen",
-  productsLabel: "Produkte",
+  trustLevelLabel: "Vertrauensstufe",
 } as const;

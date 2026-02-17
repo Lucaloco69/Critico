@@ -1,6 +1,6 @@
 import { A, useNavigate } from "@solidjs/router";
 import { t } from "../../lib/i18n";
-import { BackButton } from "../ui/BackButton";
+import { BackButton } from "../share/BackButton";
 
 export function MessagesHeader() {
   const navigate = useNavigate();

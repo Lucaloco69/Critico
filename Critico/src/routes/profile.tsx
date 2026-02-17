@@ -12,7 +12,7 @@ import StatsCards from "../components/profile/StatsCard";
 import ProgressBar from "../components/profile/ProgressBar";
 import ProductGrid from "../components/profile/ProductGrid";
 import { t } from "../lib/i18n";
-import { BackButton } from "../components/ui/BackButton";
+import { BackButton } from "../components/share/BackButton";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -23,7 +23,7 @@ export default function Profile() {
     setUser,
   );
 
-  const { products, loading: productsLoading } = useUserProducts(() => user()?.id);
+  const { products, loading: productsLoading, hasMore, loadMore } = useUserProducts(() => user()?.id);
 
   const handleLogout = async () => {
     try {
@@ -44,25 +44,7 @@ export default function Profile() {
             class="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
           />
 
-          <button
-            onClick={handleLogout}
-            class="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
-            </svg>
-            {t("profile.logout")}
-          </button>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{t("profile.pageTitle")}</h1>
         </div>
 
         <Show when={loading()}>
@@ -78,13 +60,14 @@ export default function Profile() {
               uploading={uploading}
               onFileUpload={handleFileUpload}
               onDelete={handleDeletePicture}
+              onLogout={handleLogout}
             />
 
             <StatusMessages error={() => pictureError() || profileError()} success={success} uploading={uploading} />
 
             <StatsCards user={user!} />
             <ProgressBar user={user!} />
-            <ProductGrid products={products} loading={productsLoading} />
+            <ProductGrid products={products} loading={productsLoading} hasMore={hasMore} onLoadMore={loadMore} />
           </div>
         </Show>
       </main>

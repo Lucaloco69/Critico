@@ -12,12 +12,10 @@ export function useProductFilters(products: Accessor<Product[]>) {
 
     let filtered = products();
 
-    // Filter nach Tags
     if (selected.length > 0) {
       filtered = filtered.filter((p) => p.tags?.some((t) => selected.includes(t.id)));
     }
 
-    // Filter nach Suchbegriff
     if (query) {
       filtered = filtered.filter(
         (p) => p.name.toLowerCase().includes(query) || p.description?.toLowerCase().includes(query)

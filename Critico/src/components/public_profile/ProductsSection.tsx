@@ -1,9 +1,14 @@
 import { For, Show } from "solid-js";
 import { t } from "../../lib/i18n";
-import { ProductCard } from "../../components/ProductCard";
+import { ProductCard } from "../share/ProductCard";
 import type { ProductCard as ProductCardType } from "../../routes/PublicProfile";
 
-export default function ProductsSection(props: { products: ProductCardType[]; productsLoading: boolean }) {
+export default function ProductsSection(props: {
+  products: ProductCardType[];
+  productsLoading: boolean;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
+}) {
   return (
     <section class="rounded-3xl bg-gradient-to-br from-gray-800 to-gray-800/80 border-2 border-white/20 shadow-lg p-6 sm:p-7">
       <div class="flex items-start justify-between gap-4">
@@ -36,6 +41,18 @@ export default function ProductsSection(props: { products: ProductCardType[]; pr
           <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             <For each={props.products}>{(p, i) => <ProductCard product={p} priority={i() < 4} />}</For>
           </div>
+
+          <Show when={props.hasMore && props.onLoadMore}>
+            <div class="flex justify-center mt-8">
+              <button
+                type="button"
+                onClick={props.onLoadMore}
+                class="px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-xl transition-colors shadow-lg hover:shadow-xl"
+              >
+                {t("publicProfileProductsSection.loadMore")}
+              </button>
+            </div>
+          </Show>
         </Show>
       </Show>
     </section>

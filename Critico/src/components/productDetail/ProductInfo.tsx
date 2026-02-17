@@ -1,8 +1,8 @@
 import { Show, For, createMemo } from "solid-js";
 import { A } from "@solidjs/router";
-import type { Product } from "../types/product";
-import StarRating from "./StarRating";
-import { t } from "../lib/i18n";
+import type { Product } from "../../types/product";
+import StarRating from "../share/StarRating";
+import { t } from "../../lib/i18n";
 
 interface ProductInfoProps {
   product: Product;
@@ -129,12 +129,13 @@ export default function ProductInfo(props: ProductInfoProps) {
       <div class="flex gap-3 mt-auto">
         <Show when={shouldShowRequestButton()}>
           <button
+            type="button"
             onClick={props.onRequestTest}
             disabled={props.hasRequested}
-            class={`flex-1 px-6 py-3 ${props.hasRequested
-              ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
-              : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
-              } text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2`}
+            class={`flex-1 px-6 py-3 rounded-xl font-semibold shadow-lg transition-all flex items-center justify-center gap-2 ${props.hasRequested
+              ? "bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+              : "bg-emerald-500 hover:bg-emerald-600 text-white hover:shadow-xl"
+              }`}
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -148,20 +149,38 @@ export default function ProductInfo(props: ProductInfoProps) {
           </button>
         </Show>
 
-        <button
-          onClick={props.onContact}
-          class={`${contactBtnWidthClass()} px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2`}
+        <Show
+          when={!isOwner()}
+          fallback={
+            <div class="w-full px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold shadow-lg flex items-center justify-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              {t("productInfo.yourProduct")}
+            </div>
+          }
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-            />
-          </svg>
-          {t("productInfo.contactSeller")}
-        </button>
+          <button
+            type="button"
+            onClick={props.onContact}
+            class={`${contactBtnWidthClass()} px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2`}
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+              />
+            </svg>
+            {t("productInfo.contactSeller")}
+          </button>
+        </Show>
       </div>
     </div>
   );

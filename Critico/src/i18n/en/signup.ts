@@ -20,7 +20,6 @@ export const dict = {
   alreadyAccount: "Already have an account?",
   login: "Sign in",
 
-  // Messages / Errors
   successWelcome: "Sign up successful! Welcome {{ firstName }} {{ lastName }}!",
   confirmEmail: "Please confirm your email address!",
   userCreationFailed: "User creation failed",

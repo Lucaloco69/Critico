@@ -8,7 +8,6 @@ import type { Message, ChatPartner } from "../types/messages";
 import { formatChatTime } from "../lib/dateUtils";
 import { MESSAGE_TYPES, VALID_CHAT_MESSAGE_TYPES } from "../types/messages";
 
-// Re-export specific types if needed by consumers, but prefer importing from types/messages
 export type { Message, ChatPartner } from "../types/messages";
 
 

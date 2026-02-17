@@ -1,6 +1,6 @@
 import { Show } from "solid-js";
-import type { ModalState } from "../hooks/useProductDetail";
-import { t } from "../lib/i18n";
+import type { ModalState } from "../../hooks/useProductDetail";
+import { t } from "../../lib/i18n";
 
 interface ModalProps {
   modal: () => ModalState;

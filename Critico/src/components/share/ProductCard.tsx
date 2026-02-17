@@ -1,8 +1,8 @@
 import { A } from "@solidjs/router";
 import { Show, For, createEffect, createMemo } from "solid-js";
 import StarRating from "./StarRating";
-import { getOptimizedImageUrl, getSrcSet } from "../lib/imageOptimizer";
-import { t } from "../lib/i18n";
+import { getOptimizedImageUrl, getSrcSet } from "../../lib/imageOptimizer";
+import { t } from "../../lib/i18n";
 
 
 interface Product {

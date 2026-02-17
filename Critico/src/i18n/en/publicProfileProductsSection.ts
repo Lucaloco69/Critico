@@ -3,4 +3,5 @@ export const dict = {
   subtitle: "All listed products at a glance",
   totalCount: "{{ count }} total",
   empty: "No products listed yet.",
+  loadMore: "Load More",
 } as const;

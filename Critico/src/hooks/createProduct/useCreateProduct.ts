@@ -11,27 +11,22 @@ interface Tag {
 export function useCreateProduct() {
   const navigate = useNavigate();
 
-  // Form state
   const [name, setName] = createSignal("");
   const [description, setDescription] = createSignal("");
   const [price, setPrice] = createSignal("");
 
-  // Image state
   const [selectedFiles, setSelectedFiles] = createSignal<File[]>([]);
   const [previewUrls, setPreviewUrls] = createSignal<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = createSignal(0);
 
-  // Tags state
   const [availableTags, setAvailableTags] = createSignal<Tag[]>([]);
   const [selectedTags, setSelectedTags] = createSignal<number[]>([]);
 
-  // UI state
   const [loading, setLoading] = createSignal(false);
   const [uploading, setUploading] = createSignal(false);
   const [error, setError] = createSignal("");
   const [success, setSuccess] = createSignal("");
 
-  // Prüfe Login
 
 
   onMount(async () => {
@@ -49,7 +44,6 @@ export function useCreateProduct() {
   });
 
   return {
-    // State
     name,
     description,
     price,
@@ -63,7 +57,6 @@ export function useCreateProduct() {
     error,
     success,
 
-    // Setters
     setName,
     setDescription,
     setPrice,

@@ -1,8 +1,8 @@
 import { Show, For, Accessor } from "solid-js";
-import { ProductCard } from "../ProductCard";
+import { ProductCard } from "../share/ProductCard";
 import { Product } from "../../hooks/home/useProducts";
 import { t } from "../../lib/i18n";
-import { ProductCardSkeleton } from "../ProductCardSkeleton";
+import { ProductCardSkeleton } from "../share/ProductCardSkeleton";
 
 interface ProductGridProps {
   products: Accessor<Product[]>;

@@ -1,4 +1,4 @@
-// src/lib/dateUtils.ts
+// KI generiert -- Für die richtige Zeitangabe 
 export const formatChatTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();

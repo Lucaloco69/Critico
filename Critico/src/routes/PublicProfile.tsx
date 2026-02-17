@@ -7,7 +7,7 @@ import Header from "../components/public_profile/Header";
 import StatsGrid from "../components/public_profile/StatsGrid";
 import ProductsSection from "../components/public_profile/ProductsSection";
 
-import { BackButton } from "../components/ui/BackButton";
+import { BackButton } from "../components/share/BackButton";
 import {
   EXP_PER_REVIEW,
   PRIVATE_MESSAGE_TYPE,
@@ -64,12 +64,21 @@ export default function PublicProfile() {
   const [productsLoading, setProductsLoading] = createSignal(false);
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal("");
+  const [hasMore, setHasMore] = createSignal(true);
+  const [page, setPage] = createSignal(0);
+  const LIMIT = 6;
 
   const userId = createMemo(() => Number(params.userId));
 
-  const loadProductsForUser = async (uid: number) => {
-    setProductsLoading(true);
+  const loadProductsForUser = async (uid: number, reset = false) => {
+    if (reset) {
+      setProductsLoading(true);
+    }
     try {
+      const currentPage = reset ? 0 : page();
+      const from = currentPage * LIMIT;
+      const to = from + LIMIT - 1;
+
       const { data, error } = await supabase
         .from("Product")
         .select(
@@ -89,9 +98,16 @@ export default function PublicProfile() {
         )
         .eq("owner_id", uid)
         .order("id", { ascending: false })
+        .range(from, to)
         .overrideTypes<ProductListRow[]>();
 
       if (error) throw error;
+
+      if (data && data.length < LIMIT) {
+        setHasMore(false);
+      } else {
+        setHasMore(true);
+      }
 
       const mapped: ProductCard[] = (data ?? []).map((p) => ({
         id: p.id,
@@ -131,9 +147,24 @@ export default function PublicProfile() {
         });
       }
 
-      setProducts(mapped);
+      if (reset) {
+        setProducts(mapped);
+        setPage(1);
+      } else {
+        setProducts((prev) => [...prev, ...mapped]);
+        setPage((p) => p + 1);
+      }
     } finally {
-      setProductsLoading(false);
+      if (reset) {
+        setProductsLoading(false);
+      }
+    }
+  };
+
+  const loadMore = () => {
+    const uid = userId();
+    if (!productsLoading() && hasMore() && uid) {
+      loadProductsForUser(uid, false);
     }
   };
 
@@ -181,7 +212,7 @@ export default function PublicProfile() {
           reviewsNext,
         });
 
-        await loadProductsForUser(base.id);
+        await loadProductsForUser(base.id, true);
       } catch (err: any) {
         console.error("Fehler beim Laden:", err);
         setError(err?.message || t("publicProfile.profileLoadFailed"));
@@ -194,10 +225,23 @@ export default function PublicProfile() {
 
   return (
     <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div class="max-w-4xl mx-auto px-4 py-8">
-        <div class="flex items-center justify-between mb-6">
+      <header class="sticky top-0 z-50 bg-white dark:bg-gray-800 shadow-md">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
           <BackButton />
+
+          <A href="/home" class="text-2xl font-bold text-sky-600 dark:text-sky-400">
+            Critico
+          </A>
+
+          <div class="flex-1" />
+
+          <h1 class="text-xl font-semibold text-gray-900 dark:text-white">
+            {t("publicProfile.title")}
+          </h1>
         </div>
+      </header>
+
+      <div class="max-w-4xl mx-auto px-4 py-8">
         <Show when={loading()}>
           <div class="flex justify-center items-center py-20">
             <div class="w-12 h-12 border-4 border-sky-400 border-t-transparent rounded-full animate-spin" />
@@ -217,7 +261,7 @@ export default function PublicProfile() {
               <Header user={u}>
                 <div class="space-y-6">
                   <StatsGrid user={u} productsCount={products().length} />
-                  <ProductsSection products={products()} productsLoading={productsLoading()} />
+                  <ProductsSection products={products()} productsLoading={productsLoading()} hasMore={hasMore()} onLoadMore={loadMore} />
                 </div>
               </Header>
             );

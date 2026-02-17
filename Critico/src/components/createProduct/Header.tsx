@@ -1,5 +1,5 @@
 import { A, useNavigate } from "@solidjs/router";
-import { BackButton } from "../ui/BackButton";
+import { BackButton } from "../share/BackButton";
 import { t } from "../../lib/i18n";
 
 export default function Header() {

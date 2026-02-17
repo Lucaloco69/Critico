@@ -1,12 +1,14 @@
 import { Show, For, Accessor } from "solid-js";
 import { A } from "@solidjs/router";
-import { ProductCard } from "../../components/ProductCard";
+import { ProductCard } from "../share/ProductCard";
 import type { ProductCard as ProductCardType } from "../../hooks/profile/useUserProduct";
 import { t } from "../../lib/i18n";
 
 interface ProductGridProps {
   products: Accessor<ProductCardType[]>;
   loading: Accessor<boolean>;
+  hasMore?: Accessor<boolean>;
+  onLoadMore?: () => void;
 }
 
 export default function ProductGrid(props: ProductGridProps) {
@@ -50,6 +52,18 @@ export default function ProductGrid(props: ProductGridProps) {
               {(p, i) => <ProductCard product={p} priority={i() < 4} />}
             </For>
           </div>
+
+          <Show when={props.hasMore?.() && props.onLoadMore}>
+            <div class="flex justify-center mt-8">
+              <button
+                type="button"
+                onClick={props.onLoadMore}
+                class="px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-xl transition-colors shadow-lg hover:shadow-xl"
+              >
+                {t("profileProductGrid.loadMore")}
+              </button>
+            </div>
+          </Show>
         </Show>
       </Show>
     </div>

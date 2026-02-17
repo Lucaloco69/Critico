@@ -6,4 +6,5 @@ export const dict = {
   reviewsProgress: "{{ count }} / {{ total }} reviews",
 
   expUnit: "XP",
+  trustLevelTitle: "Trust Level",
 } as const;

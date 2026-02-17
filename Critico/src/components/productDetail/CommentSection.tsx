@@ -1,23 +1,8 @@
-/**
- * CommentSection
- * --------------
- * UI-Komponente für Bewertungen & Kommentare auf der Product-Detail-Seite.
- *
- * - Zeigt je nach Zustand unterschiedliche Bereiche:
- *   - Nicht eingeloggt: Hinweis + Button zur Login-Seite.
- *   - Eingeloggt: wartet optional auf Berechtigungs-Check (checkingPermission) und zeigt dann entweder
- *     das Kommentar-Formular (canComment === true) oder einen Hinweis (canComment === false).
- * - Verwaltet lokalen Formular-State (Text, Sterne, submitting) und ruft beim Absenden
- *   props.onSubmitComment(content, stars) auf.
- * - Rendert eine Liste bestehender Kommentare inkl. Avatar, Name/Profil-Link, Datum, Sterneanzeige
- *   (StarRating) und hebt eigene Kommentare anhand currentUserId optisch hervor.
- */
-
 import { createSignal, For, Show } from "solid-js";
 import { useNavigate, A } from "@solidjs/router";
-import StarRating from "./StarRating";
-import type { Comment } from "../types/product";
-import { t } from "../lib/i18n";
+import StarRating from "../share/StarRating";
+import type { Comment } from "../../types/product";
+import { t } from "../../lib/i18n";
 
 interface CommentSectionProps {
   comments: Comment[];
@@ -25,6 +10,7 @@ interface CommentSectionProps {
   canComment: boolean;
   checkingPermission: boolean;
   currentUserId: number | null;
+  ownerId: number;
   onSubmitComment: (content: string, stars: number) => Promise<void>;
 }
 
@@ -33,6 +19,11 @@ export default function CommentSection(props: CommentSectionProps) {
   const [newComment, setNewComment] = createSignal("");
   const [newCommentStars, setNewCommentStars] = createSignal<number>(0);
   const [submitting, setSubmitting] = createSignal(false);
+
+  const isOwner = () => {
+    if (props.currentUserId == null) return false;
+    return Number(props.currentUserId) === Number(props.ownerId);
+  };
 
   const handleSubmit = async (e: Event) => {
     e.preventDefault();
@@ -100,32 +91,34 @@ export default function CommentSection(props: CommentSectionProps) {
           <Show
             when={props.canComment}
             fallback={
-              <div class="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                <div class="flex items-start gap-3">
-                  <svg
-                    class="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                    />
-                  </svg>
+              <Show when={!isOwner()}>
+                <div class="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <div class="flex items-start gap-3">
+                    <svg
+                      class="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                      />
+                    </svg>
 
-                  <div>
-                    <p class="text-sm font-semibold text-yellow-800 dark:text-yellow-300 mb-1">
-                      {t("commentSection.permissionBlockedTitle")}
-                    </p>
-                    <p class="text-sm text-yellow-700 dark:text-yellow-400">
-                      {t("commentSection.permissionBlockedText")}
-                    </p>
+                    <div>
+                      <p class="text-sm font-semibold text-yellow-800 dark:text-yellow-300 mb-1">
+                        {t("commentSection.permissionBlockedTitle")}
+                      </p>
+                      <p class="text-sm text-yellow-700 dark:text-yellow-400">
+                        {t("commentSection.permissionBlockedText")}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </Show>
             }
           >
             <form onSubmit={handleSubmit} class="mb-8 space-y-4">
@@ -142,11 +135,10 @@ export default function CommentSection(props: CommentSectionProps) {
                         class="transition-transform hover:scale-110"
                       >
                         <svg
-                          class={`w-8 h-8 ${
-                            star <= newCommentStars()
-                              ? "text-amber-400"
-                              : "text-gray-300 dark:text-gray-600"
-                          }`}
+                          class={`w-8 h-8 ${star <= newCommentStars()
+                            ? "text-amber-400"
+                            : "text-gray-300 dark:text-gray-600"
+                            }`}
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
@@ -212,11 +204,10 @@ export default function CommentSection(props: CommentSectionProps) {
 
             return (
               <div
-                class={`p-5 rounded-xl border transition-all ${
-                  isOwnComment
-                    ? "bg-sky-50 dark:bg-sky-900/20 border-sky-300 dark:border-sky-700 shadow-md"
-                    : "bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 hover:shadow-md"
-                }`}
+                class={`p-5 rounded-xl border transition-all ${isOwnComment
+                  ? "bg-sky-50 dark:bg-sky-900/20 border-sky-300 dark:border-sky-700 shadow-md"
+                  : "bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 hover:shadow-md"
+                  }`}
               >
                 <div class="flex items-start gap-3">
                   {/* Avatar + Trustlevel Badge - KLICKBAR mit Profilbild */}
@@ -240,13 +231,13 @@ export default function CommentSection(props: CommentSectionProps) {
                     </Show>
 
                     <Show when={comment.User?.trustlevel != null}>
-  <div
-    class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] leading-[18px] text-center font-semibold bg-black/70 text-white"
-    title={t("commentSection.trustlevelTitle", { level: comment.User!.trustlevel! })}
-  >
-    {comment.User!.trustlevel}
-  </div>
-</Show>
+                      <div
+                        class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] leading-[18px] text-center font-semibold bg-black/70 text-white"
+                        title={t("commentSection.trustlevelTitle", { level: comment.User!.trustlevel! })}
+                      >
+                        {comment.User!.trustlevel}
+                      </div>
+                    </Show>
 
                   </A>
 
@@ -257,9 +248,8 @@ export default function CommentSection(props: CommentSectionProps) {
                           {/* Name - KLICKBAR */}
                           <A
                             href={isOwnComment ? "/profile" : `/profile/${comment.sender_id}`}
-                            class={`font-semibold hover:underline ${
-                              isOwnComment ? "text-sky-700 dark:text-sky-300" : "text-gray-900 dark:text-white"
-                            }`}
+                            class={`font-semibold hover:underline ${isOwnComment ? "text-sky-700 dark:text-sky-300" : "text-gray-900 dark:text-white"
+                              }`}
                           >
                             {comment.User
                               ? `${comment.User.name} ${comment.User.surname}`

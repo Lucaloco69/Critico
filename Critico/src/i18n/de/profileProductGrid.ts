@@ -9,4 +9,5 @@ export const dict = {
   priceOnRequest: "Preis auf Anfrage",
   viewDetails: "Details ansehen",
   open: "Öffnen",
+  loadMore: "Mehr laden",
 } as const;

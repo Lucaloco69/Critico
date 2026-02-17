@@ -1,5 +1,5 @@
 import { Accessor, Setter } from "solid-js";
-import { t } from "../lib/i18n";
+import { t } from "../../lib/i18n";
 
 interface SearchBarProps {
   searchQuery: Accessor<string>;

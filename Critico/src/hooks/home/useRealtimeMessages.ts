@@ -29,7 +29,6 @@ export function useRealtimeMessages(userId: Accessor<number | null>) {
     loadDirectMessageCount(uid);
 
     const channelName = `home-messages-user-${uid}`;
-    // Safety check: remove if exists
     const existingChannel = supabase.getChannels().find(ch => ch.topic === channelName);
     if (existingChannel) {
       supabase.removeChannel(existingChannel);
@@ -42,7 +41,6 @@ export function useRealtimeMessages(userId: Accessor<number | null>) {
         { event: "INSERT", schema: "public", table: "Messages", filter: `receiver_id=eq.${uid}` },
         (payload) => {
           if (["direct", "request", "request_qr_ready", "request_accepted", "request_declined"].includes(payload.new.message_type)) {
-            // Debounce slightly
             setTimeout(() => loadDirectMessageCount(uid), 200);
           }
         }
@@ -78,7 +76,6 @@ export function useRealtimeMessages(userId: Accessor<number | null>) {
       return false;
     };
 
-    // Initial setup attempt
     if (!trySetup()) {
       checkUserAndSetup = window.setInterval(() => {
         if (trySetup()) {
@@ -86,7 +83,6 @@ export function useRealtimeMessages(userId: Accessor<number | null>) {
         }
       }, 100);
 
-      // Stop checking after 10s
       setTimeout(() => clearInterval(checkUserAndSetup), 10000);
     }
 
@@ -96,7 +92,6 @@ export function useRealtimeMessages(userId: Accessor<number | null>) {
 
     const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
-        // Restore connection on bfcache restore
         trySetup();
       }
     };

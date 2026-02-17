@@ -20,16 +20,16 @@ export default function StatsGrid(props: { user: UserProfileComputed; productsCo
         </div>
       </div>
 
-      <div class="rounded-2xl bg-gradient-to-br from-gray-800 to-gray-800/80 border-2 border-white/20 shadow-lg p-5 hover:border-sky-400/40 transition-colors">
+      <div class="rounded-2xl bg-gradient-to-br from-gray-800 to-gray-800/80 border-2 border-white/20 shadow-lg p-5 hover:border-emerald-400/40 transition-colors">
         <div class="flex items-center gap-3">
-          <div class="h-11 w-11 rounded-xl bg-sky-500/20 border border-sky-400/30 grid place-items-center">
-            <svg class="h-6 w-6 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
+          <div class="h-11 w-11 rounded-xl bg-emerald-500/20 border border-emerald-400/30 grid place-items-center">
+            <svg class="h-6 w-6 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             </svg>
           </div>
           <div>
-            <p class="text-sm text-white/70">{t("publicProfileStatsGrid.productsLabel")}</p>
-            <p class="text-2xl font-bold text-white">{props.productsCount}</p>
+            <p class="text-sm text-white/70">{t("publicProfileStatsGrid.trustLevelLabel")}</p>
+            <p class="text-2xl font-bold text-white">Level {u().trustlevel}</p>
           </div>
         </div>
       </div>

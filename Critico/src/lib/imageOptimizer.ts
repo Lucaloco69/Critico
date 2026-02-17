@@ -1,3 +1,4 @@
+// KI Generiert -- Für Lighthouse Performance Steigerung
 /**
  * Optimizes a Supabase Storage URL by using the image transformation endpoint.
  * 
@@ -62,16 +63,11 @@ export function getOptimizedImageUrl(url: string | null | undefined, width?: num
     return `${baseUrl}?${params.toString()}`;
 }
 
-/**
- * Generates a srcset string for responsive images.
- */
+
 export function getSrcSet(url: string | null | undefined): string | undefined {
     if (!url) return undefined;
 
-    // Breakpoints for our grid
-    // 300w (mobile 2-col or small)
-    // 500w (tablet/desktop card)
-    // 800w (retina/large)
+
     const w300 = getOptimizedImageUrl(url, 300);
     const w500 = getOptimizedImageUrl(url, 500);
     const w800 = getOptimizedImageUrl(url, 800);

@@ -1,7 +1,7 @@
 import { Component, JSX, Show, createEffect, createSignal, onMount } from 'solid-js';
 import { useNavigate, useLocation } from '@solidjs/router';
-import { isLoggedIn, checkSession, hadValidSessionBefore } from '../lib/sessionStore';
-import { t } from '../lib/i18n';
+import { isLoggedIn, checkSession, hadValidSessionBefore } from '../../lib/sessionStore';
+import { t } from '../../lib/i18n';
 
 interface ProtectedRouteProps {
   children: JSX.Element;

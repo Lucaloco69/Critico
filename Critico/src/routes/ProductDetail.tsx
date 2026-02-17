@@ -1,14 +1,14 @@
 import { createMemo, Show } from "solid-js";
 import { A, useNavigate, useParams } from "@solidjs/router";
-import ImageGallery from "../components/ImageGallery";
-import ProductInfo from "../components/ProductInfo";
-import CommentSection from "../components/CommentSection";
-import Modal from "../components/Modal";
+import ImageGallery from "../components/share/ImageGallery";
+import ProductInfo from "../components/productDetail/ProductInfo";
+import CommentSection from "../components/productDetail/CommentSection";
+import Modal from "../components/share/Modal";
 import { isLoggedIn } from "../lib/sessionStore";
 import { useProductDetail } from "../hooks/useProductDetail";
 import { useRealtimeProductDetail } from "../hooks/useRealtimeProductDetail";
 import { t } from "../lib/i18n";
-import { BackButton } from "../components/ui/BackButton";
+import { BackButton } from "../components/share/BackButton";
 
 export default function ProductDetail() {
   const params = useParams();
@@ -82,6 +82,7 @@ export default function ProductDetail() {
             isLoggedIn={isLoggedIn()}
             canComment={canComment()}
             currentUserId={currentUserId()}
+            ownerId={product()!.owner_id}
             checkingPermission={checkingPermission()}
             onSubmitComment={handleSubmitComment}
           />

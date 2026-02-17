@@ -1,5 +1,5 @@
 import { For } from "solid-js";
-import { t } from "../lib/i18n";
+import { t } from "../../lib/i18n";
 
 interface StarRatingProps {
   rating: number;

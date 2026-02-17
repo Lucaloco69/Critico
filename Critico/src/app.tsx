@@ -11,7 +11,7 @@ import Chat from './routes/chat';
 import Messages from './routes/messages';
 import PublicProfile from './routes/PublicProfile';
 import Activate from './routes/activate';
-import { ProtectedRoute } from './components/ProtectedRoute';
+import { ProtectedRoute } from './components/share/ProtectedRoute';
 import { initAuthListener, startSessionHealthCheck } from './lib/sessionStore';
 
 function App(props: { url?: string }) {

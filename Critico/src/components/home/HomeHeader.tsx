@@ -1,8 +1,8 @@
 import { A } from "@solidjs/router";
 import { Accessor, Setter, createSignal } from "solid-js";
 import { FilterDropdown } from "../FilterDropdown";
-import { SearchBar } from "../SearchBar";
-import { HeaderActions } from "../HeaderActions";
+import { SearchBar } from "./SearchBar";
+import { HeaderActions } from "./HeaderActions";
 import { Tag } from "../../hooks/home/useTags";
 
 interface HomeHeaderProps {

@@ -5,7 +5,7 @@ import { t } from "../../lib/i18n";
 interface BackButtonProps {
     class?: string;
     onClick?: (e: MouseEvent) => void;
-    label?: string; // Optional override for aria-label
+    label?: string;
 }
 
 export const BackButton: Component<BackButtonProps> = (props) => {
