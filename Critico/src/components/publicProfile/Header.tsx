@@ -1,6 +1,6 @@
 import type { ParentProps } from "solid-js";
 import { Show } from "solid-js";
-import type { UserProfileComputed } from "../../routes/PublicProfile";
+import type { UserProfileComputed } from "../../routes/publicProfile";
 
 type Props = ParentProps<{
   user: UserProfileComputed;

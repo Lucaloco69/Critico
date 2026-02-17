@@ -1,4 +1,4 @@
-import type { UserProfileComputed } from "../../routes/PublicProfile";
+import type { UserProfileComputed } from "../../routes/publicProfile";
 import { t } from "../../lib/i18n";
 
 export default function StatsGrid(props: { user: UserProfileComputed; productsCount: number }) {

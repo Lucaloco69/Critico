@@ -3,9 +3,9 @@ import { A, useParams } from "@solidjs/router";
 import { supabase } from "../lib/supabaseClient";
 import { t } from "../lib/i18n";
 
-import Header from "../components/public_profile/Header";
-import StatsGrid from "../components/public_profile/StatsGrid";
-import ProductsSection from "../components/public_profile/ProductsSection";
+import Header from "../components/publicProfile/Header";
+import StatsGrid from "../components/publicProfile/StatsGrid";
+import ProductsSection from "../components/publicProfile/ProductsSection";
 
 import { BackButton } from "../components/share/BackButton";
 import {

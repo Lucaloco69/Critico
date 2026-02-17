@@ -1,7 +1,7 @@
 import { For, Show } from "solid-js";
 import { t } from "../../lib/i18n";
 import { ProductCard } from "../share/ProductCard";
-import type { ProductCard as ProductCardType } from "../../routes/PublicProfile";
+import type { ProductCard as ProductCardType } from "../../routes/publicProfile";
 
 export default function ProductsSection(props: {
   products: ProductCardType[];
