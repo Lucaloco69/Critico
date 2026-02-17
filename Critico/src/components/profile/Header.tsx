@@ -1,0 +1,125 @@
+import type { ParentProps, Accessor } from "solid-js";
+import { Show } from "solid-js";
+import type { UserProfileComputed } from "../../hooks/profile/useProfile";
+import { t } from "../../lib/i18n";
+
+type Props = ParentProps<{
+  user: Accessor<UserProfileComputed | null>;
+  uploading: Accessor<boolean>;
+  onFileUpload: (e: Event) => void;
+  onDelete: () => void;
+  onLogout: () => void;
+}>;
+
+export default function Header(props: Props) {
+  const u = () => props.user();
+
+  return (
+    <section class="rounded-2xl bg-white dark:bg-gray-800 shadow-md overflow-hidden">
+      <div class="h-32 bg-linear-to-r from-sky-600 via-blue-700 to-indigo-700" />
+
+      <div class="px-6 sm:px-8 pb-8 pt-6">
+        <div class="flex flex-col sm:flex-row sm:items-start gap-5 sm:gap-6">
+          <div class="relative -mt-16 self-center sm:self-start">
+            <div class="relative inline-block">
+              <Show
+                when={u()?.picture}
+                fallback={
+                  <div class="w-32 h-32 rounded-2xl bg-slate-800 border border-white/10 grid place-items-center shadow-xl">
+                    <svg class="w-16 h-16 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      />
+                    </svg>
+                  </div>
+                }
+              >
+                <img
+                  src={u()!.picture!}
+                  alt={t("profileHeader.profilePictureAlt")}
+                  class="w-32 h-32 rounded-2xl object-cover border border-white/10 shadow-xl"
+                />
+              </Show>
+
+              {/* Upload button - shown when no picture */}
+              <Show when={!u()?.picture}>
+                <label class="absolute -bottom-2 -right-2 p-2 bg-sky-500 hover:bg-sky-600 rounded-full cursor-pointer shadow-lg transition-colors focus-within:ring-2 focus-within:ring-sky-400/70">
+                  <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                    />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={props.onFileUpload}
+                    disabled={props.uploading()}
+                    class="hidden"
+                  />
+                </label>
+              </Show>
+
+              {/* Delete button - shown when picture exists, same position as upload */}
+              <Show when={u()?.picture}>
+                <button
+                  type="button"
+                  onClick={props.onDelete}
+                  disabled={props.uploading()}
+                  class="absolute -bottom-2 -right-2 p-2 bg-red-500 hover:bg-red-600 disabled:bg-gray-500/60 rounded-full cursor-pointer shadow-lg transition-colors focus:ring-2 focus:ring-red-400/70"
+                  aria-label={t("profileHeader.deletePicture")}
+                >
+                  <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </Show>
+
+
+            </div>
+          </div>
+
+          <div class="flex-1 min-w-0 text-center sm:text-left">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div class="min-w-0">
+                <h1 class="text-3xl sm:text-4xl font-bold text-white tracking-tight truncate">
+                  {u()?.name} {u()?.surname}
+                </h1>
+                <p class="mt-1 text-sm text-white/70 truncate">{u()?.email}</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={props.onLogout}
+                class="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors self-end"
+              >
+                <svg
+                  class="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
+                </svg>
+                {t("profileHeader.logout")}
+              </button>
+            </div>
+
+            <div class="mt-6">{props.children}</div>
+          </div>
+        </div>
+      </div>
+    </section >
+  );
+}

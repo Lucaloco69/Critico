@@ -6,7 +6,7 @@ interface ChatPartner {
   name: string;
   surname: string;
   picture: string | null;
-  trustlevel?: number | null; // ✅ hinzufügen
+  trustlevel?: number | null;
 }
 
 interface ChatHeaderProps {
@@ -22,29 +22,46 @@ const trustBadgeClass = (tl: number) => {
   return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200";
 };
 
+import { BackButton } from "../share/BackButton";
+
 export function ChatHeader(props: ChatHeaderProps) {
   const navigate = useNavigate();
-
   const tl = () => props.chatPartner()?.trustlevel ?? null;
 
   return (
     <header class="bg-white dark:bg-gray-800 shadow-md flex-shrink-0">
       <div class="max-w-5xl mx-auto px-4 py-4 flex items-center gap-4">
-        <button
-          onClick={() => navigate(-1)}
-          class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-        >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
+        <BackButton />
 
         <Show when={props.chatPartner()}>
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-md">
-              {props.chatPartner()!.name.charAt(0)}
-              {props.chatPartner()!.surname.charAt(0)}
-            </div>
+          {/* Klick auf Chatpartner -> /profile/:id */}
+          <div
+            role="button"
+            tabindex="0"
+            onClick={() => navigate(`/profile/${props.chatPartner()!.id}`)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") navigate(`/profile/${props.chatPartner()!.id}`);
+            }}
+            class="flex items-center gap-3 cursor-pointer rounded-lg px-2 py-1
+                   hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors
+                   focus:outline-none focus:ring-2 focus:ring-sky-400/60"
+          >
+            {/* Avatar mit Profilbild */}
+            <Show
+              when={props.chatPartner()!.picture}
+              fallback={
+                <div class="w-10 h-10 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-md">
+                  {props.chatPartner()!.name.charAt(0)}
+                  {props.chatPartner()!.surname.charAt(0)}
+                </div>
+              }
+            >
+              <img
+                src={props.chatPartner()!.picture!}
+                alt={`${props.chatPartner()!.name} ${props.chatPartner()!.surname}`}
+                class="w-10 h-10 rounded-full object-cover shadow-md"
+              />
+            </Show>
 
             <div class="flex items-center gap-2">
               <h1 class="font-semibold text-gray-900 dark:text-white">

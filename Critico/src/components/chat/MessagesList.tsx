@@ -1,34 +1,17 @@
-import { For, Show, Accessor } from "solid-js";
+import { For, Show, Accessor, createEffect, Index } from "solid-js";
 import type { Message } from "../../hooks/useChat";
 import { MessageBubble } from "./MessageBubble";
-
-
-interface Message {
-  id: number;
-  content: string;
-  created_at: string;
-  sender_id: number;
-  read: boolean;
-  message_type?: "direct" | "request" | "request_accepted" | "request_declined" | "product";
-  product_id?: number;
-  User: {
-    id: number;
-    name: string;
-    surname: string;
-    picture: string | null;
-  };
-}
-
+import { t } from "../../lib/i18n";
 
 interface MessagesListProps {
   messages: Accessor<Message[]>;
   currentUserId: Accessor<number | null>;
-  productOwnerId?: Accessor<number | null>; // ✅ NEU
   loading: Accessor<boolean>;
   setMainContainerRef: (el: HTMLElement | undefined) => void;
   formatTime: (dateString: string) => string;
-  onAcceptRequest?: (messageId: number, senderId: number, productId: number) => Promise<void>; // ✅ NEU
-  onDeclineRequest?: (messageId: number) => Promise<void>; // ✅ NEU
+  onAcceptRequest?: (messageId: number, senderId: number, productId: number) => Promise<void>;
+  onDeclineRequest?: (messageId: number) => Promise<void>;
+  scrollToBottom: () => void;
 }
 
 
@@ -41,28 +24,30 @@ export function MessagesList(props: MessagesListProps) {
         </div>
       </Show>
 
-
       <Show when={!props.loading()}>
         <div class="px-4 py-6 space-y-4 max-w-5xl mx-auto w-full">
           <Show when={props.messages().length === 0}>
             <div class="text-center py-12">
-              <p class="text-gray-500 dark:text-gray-400">Noch keine Nachrichten. Starte die Unterhaltung!</p>
+              <p class="text-gray-500 dark:text-gray-400">{t("chatMessagesList.empty")}</p>
             </div>
           </Show>
 
-
-          <For each={props.messages()}>
+          {/* ✅ For mit fallbackKey statt Index */}
+          <For each={props.messages()} fallback={null}>
             {(message) => {
               const isOwn = message.sender_id === props.currentUserId();
+              const perMessageOwnerId: number | null = message.product?.owner_id ?? null;
+
               return (
                 <MessageBubble
                   message={message}
                   isOwn={isOwn}
                   formatTime={props.formatTime}
-                  productOwnerId={props.productOwnerId?.() ?? null}
                   currentUserId={props.currentUserId()}
+                  productOwnerId={perMessageOwnerId}
                   onAcceptRequest={props.onAcceptRequest}
                   onDeclineRequest={props.onDeclineRequest}
+                  scrollToBottom={props.scrollToBottom}
                 />
               );
             }}

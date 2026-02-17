@@ -1,0 +1,100 @@
+---
+export const prerender = true;
+import "../index.css";
+import { dict as enDict } from "../i18n/en/impressum";
+
+const t = enDict;
+---
+
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content="Legal notice and information for Critico - Information according to § 5 TMG and contact details." />
+    <title>{t.pageTitle}</title>
+  </head>
+  <body class="bg-gray-50 dark:bg-gradient-to-br dark:from-gray-900 dark:via-slate-900 dark:to-gray-950 text-gray-900 dark:text-gray-100 min-h-screen font-sans selection:bg-sky-500/30 selection:text-sky-200">
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+      <!-- Header with Critico brand and back button -->
+      <div class="mb-8 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <a href="/home" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" aria-label="Back to home">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+          </a>
+          <a href="/home" class="text-2xl font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 transition-colors">
+            Critico
+          </a>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+          {t.subtitle}
+        </h1>
+      </div>
+
+      <!-- Main Card -->
+      <main class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        
+
+
+        <div class="p-6 sm:p-8 space-y-8">
+            
+            <!-- Section 1 -->
+            <section class="space-y-4">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                    <span class="p-2 rounded-lg bg-sky-500/10 text-sky-500">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                    </span>
+                    {t.section1Title}
+                </h2>
+                <div class="pl-11 text-gray-600 dark:text-gray-300 leading-relaxed">
+                    <p class="font-medium text-gray-900 dark:text-white">{t.section1Name}</p>
+                    <p>{t.section1Street}</p>
+                    <p>{t.section1City}</p>
+                </div>
+            </section>
+
+            <hr class="border-gray-200 dark:border-gray-800" />
+
+            <!-- Section 2 -->
+            <section class="space-y-4">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                    <span class="p-2 rounded-lg bg-indigo-500/10 text-indigo-500">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                    </span>
+                    {t.section2Title}
+                </h2>
+                <div class="pl-11 text-gray-600 dark:text-gray-300 space-y-1">
+                    <p>
+                        <span class="w-20 inline-block text-gray-400">{t.section2Phone}</span>
+                        <a href="tel:+49123445566" class="hover:text-sky-400 transition-colors">+49 (0) 123 44 55 66</a>
+                    </p>
+                    <p>
+                        <span class="w-20 inline-block text-gray-400">{t.section2Email}</span>
+                        <a href="mailto:info@critico.example.com" class="hover:text-sky-400 transition-colors">info@critico.example.com</a>
+                    </p>
+                </div>
+            </section>
+
+            <hr class="border-gray-200 dark:border-gray-800" />
+
+            <!-- Section 3 -->
+            <section class="space-y-4">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                    <span class="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+                    </span>
+                    {t.section3Title}
+                </h2>
+                <div class="pl-11 bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-100 dark:border-gray-700/50">
+                    <p class="text-sm text-gray-600 dark:text-gray-400" set:html={t.section3Content} />
+                </div>
+            </section>
+
+        </div>
+      </main>
+
+
+
+    </div>
+  </body>
+</html>

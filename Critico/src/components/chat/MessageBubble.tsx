@@ -1,107 +1,112 @@
-import { Show } from "solid-js";
+import { Show, createMemo, createEffect } from "solid-js";
 import { RequestMessageBubble } from "./RequestMessageBubble";
-
-interface Message {
-  id: number;
-  content: string;
-  created_at: string;
-  sender_id: number;
-  read: boolean;
-  message_type?: "direct" | "request" | "request_accepted" | "request_declined" | "product";
-  product_id?: number;
-  User: {
-    id: number;
-    name: string;
-    surname: string;
-    picture: string | null;
-  };
-}
+import type { Message } from "../../hooks/useChat";
+import { MESSAGE_TYPES } from "../../types/messages";
 
 interface MessageBubbleProps {
-  message: Message;
+  message: Message & {
+    product?: { id: number; owner_id: number } | null;
+  };
   isOwn: boolean;
   formatTime: (dateString: string) => string;
-  productOwnerId?: number | null; // NEU: Product Owner ID
-  currentUserId?: number | null; // NEU: Current User ID
+
+
+  productOwnerId?: number | null;
+  currentUserId?: number | null;
+
   onAcceptRequest?: (messageId: number, senderId: number, productId: number) => Promise<void>;
   onDeclineRequest?: (messageId: number) => Promise<void>;
+  scrollToBottom: () => void;
 }
 
 export function MessageBubble(props: MessageBubbleProps) {
-  // Prüfe ob es eine Request Message ist
-  const isRequestMessage = () => {
-    const type = props.message.message_type;
-    return type === "request" || type === "request_accepted" || type === "request_declined";
-  };
+  const isRequestLike = createMemo(() => {
+    const t = props.message.message_type;
+    return t === MESSAGE_TYPES.REQUEST || t === MESSAGE_TYPES.REQUEST_QR_READY || t === MESSAGE_TYPES.REQUEST_ACCEPTED || t === MESSAGE_TYPES.REQUEST_DECLINED;
+  });
 
-  // Prüfe ob current user der Product Owner ist
-  const isOwner = () => {
-    return props.productOwnerId && props.currentUserId 
-      ? props.productOwnerId === props.currentUserId 
-      : false;
-  };
+  const isOwner = createMemo(() => {
+    if (props.productOwnerId == null || props.currentUserId == null) return false;
+    return Number(props.productOwnerId) === Number(props.currentUserId);
+  });
+
+  const shouldShowOwnerButtons = createMemo(() => {
+    return props.message.message_type === MESSAGE_TYPES.REQUEST && isOwner() && !props.isOwn;
+  });
+
+  const tl = () => props.message.sender?.trustlevel;
 
   return (
     <Show
-      when={isRequestMessage()}
+      when={isRequestLike()}
       fallback={
-        // Normale Message
-        <div class={`flex ${props.isOwn ? "justify-end" : "justify-start"}`}>
-          <div class={`flex gap-2 max-w-[70%] ${props.isOwn ? "flex-row-reverse" : ""}`}>
-            <div class="w-8 h-8 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0">
-              {props.message.User.name.charAt(0)}
-            </div>
-            <div>
-              <div class={`px-4 py-2 rounded-2xl shadow-md ${
-                props.isOwn
-                  ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white"
-                  : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              }`}>
-                <p class="break-words">{props.message.content}</p>
+        <div class={`flex ${props.isOwn ? "justify-end" : "justify-start"} w-full`}>
+          {/* ✅ max-w-[60%] für die gesamte Message-Gruppe */}
+          <div class={`flex gap-2 max-w-[60%] ${props.isOwn ? "flex-row-reverse" : ""}`}>
+            {/* ✅ Avatar Container - KOMPLETT ISOLIERT */}
+            <div class="flex-shrink-0 self-end mb-1">
+              <div class="relative w-8 h-8">
+                <Show
+                  when={props.message.sender?.picture}
+                  fallback={
+                    <div class="w-8 h-8 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
+                      {props.message.sender?.name?.charAt(0) ?? "?"}
+                    </div>
+                  }
+                >
+                  <img
+                    src={props.message.sender!.picture!}
+                    alt={props.message.sender?.name}
+                    class="w-8 h-8 rounded-full object-cover shadow-md"
+                  />
+                </Show>
+
+                <Show when={tl() != null}>
+                  <div
+                    class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full text-[9px] leading-[16px] text-center font-semibold bg-black/70 text-white"
+                    title={`Trustlevel ${tl()}`}
+                  >
+                    {tl()}
+                  </div>
+                </Show>
               </div>
-              <p class={`text-xs text-gray-500 dark:text-gray-400 mt-1 ${props.isOwn ? "text-right" : ""}`}>
+            </div>
+
+            {/* Message Content Container */}
+            <div class="flex flex-col min-w-0 flex-1">
+              {/* ✅ Message Bubble mit overflow-wrap */}
+              <div
+                class={`
+                  px-4 py-2 rounded-2xl shadow-md
+                  min-w-[80px]
+                  max-w-full
+                  ${props.isOwn
+                    ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-br-md"
+                    : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-bl-md"
+                  }
+                `}
+              >
+                {/* ✅ Text mit korrektem Word Breaking */}
+                <p class="
+                  break-words
+                  overflow-wrap-anywhere
+                  whitespace-pre-wrap
+                  max-w-full
+                  text-sm
+                ">
+                  {props.message.content}
+                </p>
+              </div>
+
+              {/* Timestamp */}
+              <p class={`text-xs text-gray-500 dark:text-gray-400 mt-1 px-1 ${props.isOwn ? "text-right" : ""}`}>
                 {props.formatTime(props.message.created_at)}
               </p>
             </div>
           </div>
-  const tl = () => props.message.User?.trustlevel;
-
-  return (
-    <div class={`flex ${props.isOwn ? "justify-end" : "justify-start"}`}>
-      <div class={`flex gap-2 max-w-[70%] ${props.isOwn ? "flex-row-reverse" : ""}`}>
-        <div class="relative w-8 h-8 flex-shrink-0">
-          <div class="w-8 h-8 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
-            {props.message.User?.name?.charAt(0) ?? "?"}
-          </div>
-
-          <Show when={tl() != null}>
-            <div
-              class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full text-[9px] leading-[16px] text-center font-semibold bg-black/70 text-white"
-              title={`Trustlevel ${tl()}`}
-            >
-              {tl()}
-            </div>
-          </Show>
-        </div>
-
-        <div>
-          <div
-            class={`px-4 py-2 rounded-2xl shadow-md ${
-              props.isOwn
-                ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white"
-                : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-            }`}
-          >
-            <p class="break-words">{props.message.content}</p>
-          </div>
-
-          <p class={`text-xs text-gray-500 dark:text-gray-400 mt-1 ${props.isOwn ? "text-right" : ""}`}>
-            {props.formatTime(props.message.created_at)}
-          </p>
         </div>
       }
     >
-      {/* Request Message */}
       <RequestMessageBubble
         message={props.message as any}
         isOwn={props.isOwn}
@@ -109,6 +114,7 @@ export function MessageBubble(props: MessageBubbleProps) {
         formatTime={props.formatTime}
         onAccept={props.onAcceptRequest}
         onDecline={props.onDeclineRequest}
+        scrollToBottom={props.scrollToBottom}
       />
     </Show>
   );

@@ -1,4 +1,5 @@
 import { Accessor, Setter } from "solid-js";
+import { t } from "../../lib/i18n";
 
 interface MessagesSearchBarProps {
   searchQuery: Accessor<string>;
@@ -14,7 +15,7 @@ export function MessagesSearchBar(props: MessagesSearchBarProps) {
         </svg>
         <input
           type="text"
-          placeholder="Chats durchsuchen..."
+          placeholder={t("messagesSearchBar.placeholder")}
           value={props.searchQuery()}
           onInput={(e) => props.setSearchQuery(e.currentTarget.value)}
           class="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 text-gray-900 dark:text-white"

@@ -1,0 +1,26 @@
+---
+import App from '../app';
+import '../index.css';
+
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Critico is your trusted platform for product reviews and ratings. Share your experiences and discover top-rated products." />
+    <title>Critico</title>
+    <meta name="description" content="Critico - Deine Plattform für ehrliche Produktbewertungen." />
+    
+    <!-- Optimize Connection to Image CDN -->
+    <link rel="preconnect" href="https://wfksiuyunsnejwukwhjp.supabase.co" crossorigin />
+    <link rel="dns-prefetch" href="https://wfksiuyunsnejwukwhjp.supabase.co" />
+  </head>
+  <body>
+    <div id="root">
+        <App client:load url={Astro.request.url} />
+    </div>
+  </body>
+</html>
